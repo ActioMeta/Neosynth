@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Reproducir canción por nombre -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/song?name={song_name}&amp;artist={artist_name}" />
+            <parameter android:name="song_name" android:key="song_name" />
+            <parameter android:name="artist_name" android:key="artist_name" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir playlist por nombre -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/playlist?name={playlist_name}" />
+            <parameter android:name="playlist_name" android:key="playlist_name" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir álbum por nombre -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/album?name={album_name}&amp;artist={artist_name}" />
+            <parameter android:name="album_name" android:key="album_name" />
+            <parameter android:name="artist_name" android:key="artist_name" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir artista -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/artist?name={artist_name}" />
+            <parameter android:name="artist_name" android:key="artist_name" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir música en general (shuffle all) -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/shuffle" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir favoritos -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/favorites" />
+        </intent>
+    </capability>
+    
+    <!-- Continuar reproducción -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/continue" />
+        </intent>
+    </capability>
+    
+    <!-- Reproducir descargas -->
+    <capability android:name="actions.intent.PLAY_MUSIC">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.neosynth"
+            android:targetClass="com.example.neosynth.DeepLinkActivity">
+            <url-template android:value="neosynth://play/downloads" />
+        </intent>
+    </capability>
+    
+</shortcuts>

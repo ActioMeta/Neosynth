@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">NeoSynth</string>
+    
+    <!-- Widget strings -->
+    <string name="widget_now_playing_description">Muestra la canción actual con controles de reproducción</string>
+    <string name="widget_quick_actions_description">Accesos rápidos a favoritos, descargas, shuffle y continuar</string>
+    <string name="widget_mini_player_description">Reproductor compacto con controles básicos</string>
+    
+    <string name="album_art">Carátula del álbum</string>
+    <string name="previous">Anterior</string>
+    <string name="play_pause">Reproducir/Pausar</string>
+    <string name="next">Siguiente</string>
+    <string name="shuffle">Aleatorio</string>
+    <string name="favorites">Favoritos</string>
+    <string name="downloads">Descargas</string>
+    <string name="continue_playback">Continuar reproducción</string>
+</resources>

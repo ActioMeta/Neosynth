@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<actions>
+    <!-- Respuestas de voz para reproducir canción -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/song?name={song_name}&amp;artist={artist_name}">
+            <parameter-mapping 
+                intentParameter="song_name" 
+                urlParameter="name" />
+            <parameter-mapping 
+                intentParameter="artist_name" 
+                urlParameter="artist" />
+        </fulfillment>
+    </action>
+    
+    <!-- Respuestas de voz para reproducir playlist -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/playlist?name={playlist_name}">
+            <parameter-mapping 
+                intentParameter="playlist_name" 
+                urlParameter="name" />
+        </fulfillment>
+    </action>
+    
+    <!-- Respuestas de voz para reproducir álbum -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/album?name={album_name}&amp;artist={artist_name}">
+            <parameter-mapping 
+                intentParameter="album_name" 
+                urlParameter="name" />
+            <parameter-mapping 
+                intentParameter="artist_name" 
+                urlParameter="artist" />
+        </fulfillment>
+    </action>
+    
+    <!-- Respuestas de voz para reproducir artista -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/artist?name={artist_name}">
+            <parameter-mapping 
+                intentParameter="artist_name" 
+                urlParameter="name" />
+        </fulfillment>
+    </action>
+    
+    <!-- Respuestas de voz para shuffle -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/shuffle" />
+    </action>
+    
+    <!-- Respuestas de voz para favoritos -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/favorites" />
+    </action>
+    
+    <!-- Respuestas de voz para continuar -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/continue" />
+    </action>
+    
+    <!-- Respuestas de voz para descargas -->
+    <action intentName="actions.intent.PLAY_MUSIC">
+        <fulfillment urlTemplate="neosynth://play/downloads" />
+    </action>
+</actions>

@@ -23,10 +23,6 @@ fun PlaylistDownloadItem(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val downloadedSongs = remember(playlistWithSongs) {
-        playlistWithSongs.songs.filter { it.isDownloaded }
-    }
-    
     var showDeleteDialog by remember { mutableStateOf(false) }
     
     Surface(
@@ -71,8 +67,18 @@ fun PlaylistDownloadItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                
+                // Mostrar canciones descargadas / total
+                val downloadedCount = playlistWithSongs.songs.count { it.isDownloaded && it.path.isNotEmpty() }
+                val totalCount = playlistWithSongs.songs.size
+                val statusText = if (downloadedCount == totalCount) {
+                    "$totalCount canciones"
+                } else {
+                    "$downloadedCount/$totalCount descargadas"
+                }
+                
                 Text(
-                    text = "${downloadedSongs.size} canciones descargadas",
+                    text = statusText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

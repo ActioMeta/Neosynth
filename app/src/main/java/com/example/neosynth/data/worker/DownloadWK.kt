@@ -208,6 +208,8 @@ class DownloadWorker @AssistedInject constructor(
             }
 
             // Registrar en Room una vez descargado
+            // IMPORTANTE: La canción ya existe en Room (insertada desde PlaylistDetailViewModel)
+            // Solo actualizamos path, imageUrl y isDownloaded
             val entity = SongEntity(
                 id = songId,
                 title = title,
@@ -218,10 +220,10 @@ class DownloadWorker @AssistedInject constructor(
                 album = album,
                 duration = duration,
                 imageUrl = localCoverPath ?: imageUrl, // Usar ruta local si está disponible
-                path = outputFile.absolutePath,
-                isDownloaded = true
+                path = outputFile.absolutePath, // Actualizar con la ruta local
+                isDownloaded = true // Marcar como descargada
             )
-            musicRepository.insertSong(entity)
+            musicRepository.insertSong(entity) // insertSong usa REPLACE, así que actualiza
             Log.d(TAG, "Canción guardada en Room: $title")
 
             // Mostrar notificación de completado

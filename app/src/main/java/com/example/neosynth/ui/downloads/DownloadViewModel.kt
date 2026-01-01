@@ -48,16 +48,11 @@ class DownloadsViewModel @Inject constructor(
             initialValue = emptyMap()
         )
 
-    // Playlists descargadas - obtener todas las playlists con canciones descargadas
+    // 1. Flow de playlists descargadas (con al menos 1 canción descargada)
     val downloadedPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()
         .flatMapLatest { server ->
             if (server != null) {
-                musicRepository.getPlaylistsWithSongs(server.id).map { playlists ->
-                    // Filtrar solo playlists que tengan al menos una canción descargada
-                    playlists.filter { playlistWithSongs ->
-                        playlistWithSongs.songs.any { it.isDownloaded }
-                    }
-                }
+                musicRepository.getPlaylistsWithSongs(server.id)
             } else {
                 flowOf(emptyList())
             }
@@ -159,8 +154,15 @@ class DownloadsViewModel @Inject constructor(
     
     // 9. Reproducir playlist descargada
     fun playPlaylist(playlistWithSongs: PlaylistWithSongs) {
-        val downloadedSongs = playlistWithSongs.songs.filter { it.isDownloaded }
-        if (downloadedSongs.isEmpty()) return
+        // Solo reproducir las canciones que SÍ estén descargadas (path no vacío)
+        val downloadedSongs = playlistWithSongs.songs.filter { 
+            it.isDownloaded && it.path.isNotEmpty() 
+        }
+        
+        if (downloadedSongs.isEmpty()) {
+            // TODO: Mostrar mensaje de que no hay canciones descargadas aún
+            return
+        }
         
         val mediaItems = downloadedSongs.map { it.toMediaItem() }
         musicController.playQueue(mediaItems, 0)

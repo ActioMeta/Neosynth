@@ -213,7 +213,26 @@ class PlaylistDetailViewModel @Inject constructor(
                 )
                 musicRepository.insertPlaylist(playlistEntity)
                 
-                // 2. Crear las referencias playlist-canción con posiciones
+                // 2. Insertar TODAS las canciones INMEDIATAMENTE (aunque aún no estén descargadas)
+                // Esto permite que PlaylistWithSongs funcione correctamente
+                currentSongs.forEach { song ->
+                    val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                        id = song.id,
+                        title = song.title,
+                        serverID = server.id,
+                        artistID = song.artistId ?: "",
+                        artist = song.artist ?: "Unknown Artist",
+                        albumID = song.albumId ?: "",
+                        album = song.album ?: "Unknown Album",
+                        duration = song.duration.toLong(),
+                        imageUrl = song.coverArt,
+                        path = "", // Se actualizará cuando el DownloadWorker termine
+                        isDownloaded = false // Se marcará como true cuando se descargue
+                    )
+                    musicRepository.insertSong(songEntity)
+                }
+                
+                // 3. Crear las referencias playlist-canción con posiciones
                 val crossRefs = currentSongs.mapIndexed { index, song ->
                     com.example.neosynth.data.local.entities.PlaylistSongCrossRef(
                         playlistId = currentPlaylist.id,

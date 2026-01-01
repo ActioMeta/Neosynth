@@ -34,12 +34,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             
-            <!-- Intent filter para comandos de voz del Asistente (funciona SIN Play Store) -->
-            <intent-filter>
-                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            
             <!-- Google Assistant capabilities -->
             <meta-data
                 android:name="android.app.shortcuts"
@@ -48,6 +42,15 @@
                 android:name="android.app.actions"
                 android:resource="@xml/actions" />
         </activity>
+        
+        <!-- Receiver para comandos de voz (funciona SIN Play Store) -->
+        <receiver
+            android:name=".receiver.VoiceCommandReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+            </intent-filter>
+        </receiver>
         
         <!-- DeepLink Activity para Google Assistant -->
         <activity

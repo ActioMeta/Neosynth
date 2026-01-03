@@ -44,7 +44,7 @@ fun CardItem(
     ) {
         AsyncImage(
             model = album.coverArtUrl,
-            contentDescription = album.title,
+            contentDescription = album.name,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
@@ -69,7 +69,7 @@ fun CardItem(
                 .padding(8.dp)
         ) {
             Text(
-                text = album.title,
+                text = album.name,
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -77,7 +77,7 @@ fun CardItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = album.artist,
+                text = album.artistName,
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.8f),
                 maxLines = 1,

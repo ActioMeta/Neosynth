@@ -15,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
+import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.data.repository.MusicRepository
@@ -27,6 +28,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -35,6 +38,11 @@ import androidx.core.net.toUri
 import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import com.example.neosynth.data.preferences.SettingsPreferences
+import com.example.neosynth.utils.NetworkHelper
+import com.example.neosynth.utils.StreamUrlBuilder
+import com.example.neosynth.utils.ConnectionType
+import kotlinx.coroutines.flow.first
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -43,6 +51,8 @@ class HomeViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
     val musicController: MusicController,
     private val urlInterceptor: DynamicUrlInterceptor,
+    private val settingsPreferences: SettingsPreferences,
+    private val networkHelper: NetworkHelper,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -61,6 +71,25 @@ class HomeViewModel @Inject constructor(
     val downloadedSongIds = musicRepository.getDownloadedSongs()
         .map { songs -> songs.map { it.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
+    
+    // Estado de favorito de la canción actual
+    private val _isCurrentSongFavorite = MutableStateFlow(false)
+    val isCurrentSongFavorite: StateFlow<Boolean> = _isCurrentSongFavorite
+    
+    /**
+     * Actualizar el estado de favorito de la canción actual
+     * Debe llamarse cuando cambie la canción
+     */
+    fun updateCurrentSongFavoriteStatus() {
+        viewModelScope.launch {
+            val mediaItem = musicController.currentMediaItem.value
+            _isCurrentSongFavorite.value = if (mediaItem != null) {
+                musicRepository.isFavorite(mediaItem.mediaId)
+            } else {
+                false
+            }
+        }
+    }
 
     // Eventos de UI (Snackbar messages)
     private val _uiEvent = MutableSharedFlow<UiEvent>()
@@ -132,12 +161,15 @@ class HomeViewModel @Inject constructor(
             val url = buildCoverArtUrl(server, dto.coverArt)
             com.example.neosynth.domain.model.Album(
                 id = dto.id,
-                title = dto.title,
-                serverId = server.id,
-                genre = dto.genre,
-                artist = dto.artist,
+                name = dto.title,
+                sourceType = com.example.neosynth.domain.model.MusicSourceType.SUBSONIC,
+                sourceId = server.id.toString(),
+                artistId = dto.artistId ?: "",
+                artistName = dto.artist,
                 coverArtUrl = url,
-                year = dto.year
+                year = dto.year,
+                songCount = dto.songCount ?: 0,
+                genre = dto.genre
             )
         }
     }
@@ -297,33 +329,86 @@ class HomeViewModel @Inject constructor(
      */
     fun downloadCurrentSong() {
         viewModelScope.launch {
-            val server = serverDao.getActiveServer() ?: return@launch
-            val currentItem = musicController.currentMediaItem.value ?: return@launch
+            try {
+                val server = serverDao.getActiveServer()
+                if (server == null) {
+                    android.util.Log.e("HomeViewModel", "No active server found")
+                    _uiEvent.emit(UiEvent.ShowSnackbar("No hay servidor activo"))
+                    return@launch
+                }
+                
+                val currentItem = musicController.currentMediaItem.value
+                if (currentItem == null) {
+                    android.util.Log.e("HomeViewModel", "No current song playing")
+                    _uiEvent.emit(UiEvent.ShowSnackbar("No hay canción reproduciéndose"))
+                    return@launch
+                }
 
-            val baseUrl = server.url.removeSuffix("/")
-            val streamUrl = "$baseUrl/rest/stream?id=${currentItem.mediaId}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-            val songTitle = currentItem.mediaMetadata.title?.toString() ?: "canción"
+                val songId = currentItem.mediaId
+                val songTitle = currentItem.mediaMetadata.title?.toString() ?: "canción"
+                
+                // Verificar si ya está descargada
+                val existingSong = musicRepository.getSongById(songId)
+                if (existingSong != null && existingSong.isDownloaded) {
+                    android.util.Log.d("HomeViewModel", "Song already downloaded: $songTitle")
+                    _uiEvent.emit(UiEvent.ShowSnackbar("$songTitle ya está descargada"))
+                    return@launch
+                }
 
-            val inputData = Data.Builder()
-                .putString("song_id", currentItem.mediaId)
-                .putString("url", streamUrl)
-                .putString("title", currentItem.mediaMetadata.title?.toString() ?: "Unknown")
-                .putString("artist", currentItem.mediaMetadata.artist?.toString() ?: "Unknown")
-                .putString("artist_id", "")
-                .putString("album", currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown")
-                .putString("album_id", "")
-                .putLong("duration", 0L)
-                .putString("image_url", currentItem.mediaMetadata.artworkUri?.toString())
-                .putLong("server_id", server.id)
-                .build()
+                android.util.Log.d("HomeViewModel", "Starting download for: $songTitle ($songId)")
 
-            val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                .setInputData(inputData)
-                .addTag("download_${currentItem.mediaId}")
-                .build()
+                val inputData = Data.Builder()
+                    .putString("songId", songId) // ← Corregido de "song_id" a "songId"
+                    .putString("title", currentItem.mediaMetadata.title?.toString() ?: "Unknown")
+                    .putString("artist", currentItem.mediaMetadata.artist?.toString() ?: "Unknown")
+                    .putString("artistId", "") // ← Corregido de "artist_id"
+                    .putString("album", currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown")
+                    .putString("albumId", "") // ← Corregido de "album_id"
+                    .putInt("duration", 0) // ← Corregido a Int
+                    .putString("coverArt", currentItem.mediaMetadata.artworkUri?.toString()) // ← Corregido de "image_url"
+                    .putLong("serverId", server.id) // ← Corregido de "server_id"
+                    .putString("serverUrl", server.url) // ← Agregado
+                    .putString("username", server.username) // ← Agregado
+                    .putString("token", server.token) // ← Agregado
+                    .putString("salt", server.salt) // ← Agregado
+                    .build()
 
-            WorkManager.getInstance(appContext).enqueue(downloadRequest)
-            // Las notificaciones se manejan en el DownloadWorker
+                val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
+                    .setInputData(inputData)
+                    .addTag("download_$songId")
+                    .build()
+
+                WorkManager.getInstance(appContext).enqueue(downloadRequest)
+                android.util.Log.d("HomeViewModel", "Download request enqueued for: $songTitle")
+                
+                // Insertar en Room si no existe
+                if (existingSong == null) {
+                    val newSong = com.example.neosynth.data.local.entities.SongEntity(
+                        id = songId,
+                        title = currentItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        serverID = 0L,
+                        sourceType = "SUBSONIC",
+                        sourceId = server.id.toString(),
+                        artistID = "",
+                        artist = currentItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        albumID = "",
+                        album = currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                        duration = 0L,
+                        imageUrl = currentItem.mediaMetadata.artworkUri?.toString(),
+                        path = "",
+                        isDownloaded = false,
+                        isFavorite = false
+                    )
+                    musicRepository.insertSong(newSong)
+                }
+                
+                // Mostrar feedback al usuario
+                _uiEvent.emit(UiEvent.ShowSnackbar("Descargando: $songTitle"))
+                
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error downloading song", e)
+                _uiEvent.emit(UiEvent.ShowSnackbar("Error al descargar: ${e.message}"))
+            }
         }
     }
 
@@ -332,22 +417,92 @@ class HomeViewModel @Inject constructor(
      */
     fun toggleFavorite() {
         viewModelScope.launch {
-            val server = serverDao.getActiveServer() ?: return@launch
-            val currentItem = musicController.currentMediaItem.value ?: return@launch
+            val server = serverDao.getActiveServer() ?: run {
+                android.util.Log.e("HomeViewModel", "No active server found")
+                _uiEvent.emit(UiEvent.ShowSnackbar("No hay servidor activo"))
+                return@launch
+            }
+            
+            val currentItem = musicController.currentMediaItem.value ?: run {
+                android.util.Log.e("HomeViewModel", "No current song")
+                _uiEvent.emit(UiEvent.ShowSnackbar("No hay canción reproduciéndose"))
+                return@launch
+            }
+            
             val songId = currentItem.mediaId
 
             try {
-                // Por ahora solo intentar agregar a favoritos (star)
-                // TODO: Implementar tracking local de favoritos para saber si hacer star o unstar
-                val response = api.star(
-                    id = songId,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
-                android.util.Log.d("HomeViewModel", "Star response: ${response.response.status}")
+                // Check current favorite status
+                val isFavorite = musicRepository.isFavorite(songId)
+                
+                if (isFavorite) {
+                    // Remove from favorites
+                    musicRepository.removeFromFavorites(songId)
+                    
+                    // Sync with server
+                    try {
+                        api.unstar(
+                            id = listOf(songId), // ← Corregido: usar List en lugar de String
+                            u = server.username,
+                            t = server.token,
+                            s = server.salt
+                        )
+                        android.util.Log.d("HomeViewModel", "Removed from favorites: $songId")
+                        _uiEvent.emit(UiEvent.ShowSnackbar("Eliminado de favoritos"))
+                    } catch (e: Exception) {
+                        android.util.Log.e("HomeViewModel", "Failed to unstar on server: $songId", e)
+                        _uiEvent.emit(UiEvent.ShowSnackbar("Error al sincronizar con servidor"))
+                    }
+                } else {
+                    // Primero, asegurarse de que la canción existe en Room
+                    // Si no existe, crearla con la metadata del MediaItem
+                    val existingSong = musicRepository.getSongById(songId)
+                    if (existingSong == null) {
+                        val newSong = com.example.neosynth.data.local.entities.SongEntity(
+                            id = songId,
+                            title = currentItem.mediaMetadata.title?.toString() ?: "Unknown",
+                            serverID = 0L,
+                            sourceType = "SUBSONIC",
+                            sourceId = server.id.toString(),
+                            artistID = "",
+                            artist = currentItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                            albumID = "",
+                            album = currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                            duration = 0L,
+                            imageUrl = currentItem.mediaMetadata.artworkUri?.toString(),
+                            path = "",
+                            isDownloaded = false,
+                            isFavorite = false
+                        )
+                        musicRepository.insertSong(newSong)
+                        android.util.Log.d("HomeViewModel", "Created song entity for favoriting: $songId")
+                    }
+                    
+                    // Add to favorites
+                    musicRepository.addToFavorites(songId)
+                    
+                    // Sync with server
+                    try {
+                        api.star(
+                            id = listOf(songId), // ← Corregido: usar List en lugar de String
+                            u = server.username,
+                            t = server.token,
+                            s = server.salt
+                        )
+                        android.util.Log.d("HomeViewModel", "Added to favorites: $songId")
+                        _uiEvent.emit(UiEvent.ShowSnackbar("Agregado a favoritos"))
+                    } catch (e: Exception) {
+                        android.util.Log.e("HomeViewModel", "Failed to star on server: $songId", e)
+                        _uiEvent.emit(UiEvent.ShowSnackbar("Error al sincronizar con servidor"))
+                    }
+                }
+                
+                // Actualizar estado de UI
+                updateCurrentSongFavoriteStatus()
+                
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "Error toggling favorite for $songId", e)
+                _uiEvent.emit(UiEvent.ShowSnackbar("Error al cambiar favorito"))
             }
         }
     }
@@ -389,8 +544,20 @@ class HomeViewModel @Inject constructor(
         songDto: SongDto,
         server: com.example.neosynth.data.local.entities.ServerEntity
     ): MediaItem {
-        val baseUrl = server.url.removeSuffix("/")
-        val streamUrl = "$baseUrl/rest/stream?id=${songDto.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
+        // Obtener configuración de calidad según tipo de conexión
+        val connectionType = networkHelper.getConnectionType()
+        val audioSettings = runCatching { 
+            kotlinx.coroutines.runBlocking { settingsPreferences.audioSettings.first() }
+        }.getOrNull()
+        
+        val streamQuality = when (connectionType) {
+            ConnectionType.WIFI -> audioSettings?.streamWifiQuality ?: com.example.neosynth.data.preferences.StreamQuality.LOSSLESS
+            ConnectionType.MOBILE -> audioSettings?.streamMobileQuality ?: com.example.neosynth.data.preferences.StreamQuality.MEDIUM
+            ConnectionType.NONE -> com.example.neosynth.data.preferences.StreamQuality.MEDIUM // Fallback
+        }
+        
+        // Construir URL con parámetros de transcodificación
+        val streamUrl = StreamUrlBuilder.buildStreamUrl(server, songDto.id, streamQuality)
 
         return MediaItem.Builder()
             .setMediaId(songDto.id)

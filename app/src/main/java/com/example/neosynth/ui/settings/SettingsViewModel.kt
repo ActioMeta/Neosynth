@@ -169,21 +169,29 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
-    fun updateStreamQuality(quality: StreamQuality) {
+    // Audio Quality Functions - Streaming
+    fun updateStreamWifiQuality(quality: StreamQuality) {
         viewModelScope.launch {
-            settingsPreferences.updateStreamQuality(quality)
+            settingsPreferences.updateStreamWifiQuality(quality)
         }
     }
     
-    fun updateWifiQuality(quality: StreamQuality) {
+    fun updateStreamMobileQuality(quality: StreamQuality) {
         viewModelScope.launch {
-            settingsPreferences.updateWifiQuality(quality)
+            settingsPreferences.updateStreamMobileQuality(quality)
         }
     }
     
-    fun updateMobileQuality(quality: StreamQuality) {
+    // Audio Quality Functions - Download
+    fun updateDownloadWifiQuality(quality: DownloadQuality) {
         viewModelScope.launch {
-            settingsPreferences.updateMobileQuality(quality)
+            settingsPreferences.updateDownloadWifiQuality(quality)
+        }
+    }
+    
+    fun updateDownloadMobileQuality(quality: DownloadQuality) {
+        viewModelScope.launch {
+            settingsPreferences.updateDownloadMobileQuality(quality)
         }
     }
     

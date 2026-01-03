@@ -20,7 +20,9 @@ import com.example.neosynth.data.local.entities.PlaylistWithSongs
 @Composable
 fun PlaylistDownloadItem(
     playlistWithSongs: PlaylistWithSongs,
+    isSelected: Boolean = false,
     onClick: () -> Unit,
+    onPlay: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -34,7 +36,11 @@ fun PlaylistDownloadItem(
                 onLongClick = { showDeleteDialog = true }
             ),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        }
     ) {
         Row(
             modifier = Modifier
@@ -85,7 +91,7 @@ fun PlaylistDownloadItem(
             }
             
             // Botón de reproducir
-            IconButton(onClick = onClick) {
+            IconButton(onClick = onPlay) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = "Reproducir",

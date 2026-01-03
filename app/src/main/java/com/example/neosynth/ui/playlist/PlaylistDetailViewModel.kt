@@ -41,6 +41,9 @@ class PlaylistDetailViewModel @Inject constructor(
     private val _songs = MutableStateFlow<List<SongDto>>(emptyList())
     val songs: StateFlow<List<SongDto>> = _songs
 
+    private val _allPlaylists = MutableStateFlow<List<PlaylistDto>>(emptyList())
+    val allPlaylists: StateFlow<List<PlaylistDto>> = _allPlaylists
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -200,7 +203,18 @@ class PlaylistDetailViewModel @Inject constructor(
             val currentSongs = _songs.value
             val songsToDownload = currentSongs.filter { song -> song.id !in downloadedSongIds.value }
             
-            if (songsToDownload.isEmpty()) return@launch
+            // Logs detallados para debugging
+            android.util.Log.d("PlaylistDownload", "═══════════════════════════════════════")
+            android.util.Log.d("PlaylistDownload", "Iniciando descarga de playlist: ${currentPlaylist.name}")
+            android.util.Log.d("PlaylistDownload", "Total canciones en playlist: ${currentSongs.size}")
+            android.util.Log.d("PlaylistDownload", "Ya descargadas: ${currentSongs.size - songsToDownload.size}")
+            android.util.Log.d("PlaylistDownload", "A descargar: ${songsToDownload.size}")
+            android.util.Log.d("PlaylistDownload", "═══════════════════════════════════════")
+            
+            if (songsToDownload.isEmpty()) {
+                android.util.Log.d("PlaylistDownload", "⚠️ Todas las canciones ya están descargadas")
+                return@launch
+            }
 
             // 1. Guardar la playlist en Room
             try {
@@ -219,7 +233,9 @@ class PlaylistDetailViewModel @Inject constructor(
                     val songEntity = com.example.neosynth.data.local.entities.SongEntity(
                         id = song.id,
                         title = song.title,
-                        serverID = server.id,
+                        serverID = 0L, // DEPRECATED
+                        sourceType = "SUBSONIC",
+                        sourceId = server.id.toString(),
                         artistID = song.artistId ?: "",
                         artist = song.artist ?: "Unknown Artist",
                         albumID = song.albumId ?: "",
@@ -241,26 +257,40 @@ class PlaylistDetailViewModel @Inject constructor(
                     )
                 }
                 musicRepository.insertPlaylistSongCrossRefs(crossRefs)
+                
+                android.util.Log.d("PlaylistDownload", "Playlist guardada en Room")
             } catch (e: Exception) {
+                android.util.Log.e("PlaylistDownload", "❌ Error guardando playlist: ${e.message}", e)
                 e.printStackTrace()
             }
 
-            // 3. Procesar descargas en lotes para soportar miles de canciones sin bloquear
-            val batchSize = 50
+            // 4. ESTRATEGIA HÍBRIDA: Lotes pequeños en paralelo, batches secuenciales
+            // Optimizado para playlists grandes (1000+ canciones) sin colapsar el sistema
+            val parallelSize = 10 // 10 canciones en paralelo
             val workManager = androidx.work.WorkManager.getInstance(appContext)
             
             // Configurar constraints para descargas
             val constraints = androidx.work.Constraints.Builder()
                 .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(false) // Permitir con batería baja
                 .build()
 
-            songsToDownload.chunked(batchSize).forEachIndexed { batchIndex, batch ->
-                batch.forEach { song ->
+            // Crear batches de workers
+            val batches = songsToDownload.chunked(parallelSize)
+            var workContinuation: androidx.work.WorkContinuation? = null
+            
+            batches.forEachIndexed { batchIndex, batch ->
+                // Crear workers para este batch (se ejecutarán en paralelo)
+                val parallelWorkers = batch.mapIndexed { indexInBatch, song ->
+                    val globalIndex = batchIndex * parallelSize + indexInBatch + 1
+                    
                     val inputData = androidx.work.Data.Builder()
                         .putString("songId", song.id)
                         .putString("title", song.title)
-                        .putString("artist", song.artist)
-                        .putString("album", song.album)
+                        .putString("artist", song.artist ?: "Unknown Artist")
+                        .putString("artistId", song.artistId ?: "")
+                        .putString("album", song.album ?: "Unknown Album")
+                        .putString("albumId", song.albumId ?: "")
                         .putInt("duration", song.duration)
                         .putString("coverArt", song.coverArt)
                         .putLong("serverId", server.id)
@@ -268,22 +298,40 @@ class PlaylistDetailViewModel @Inject constructor(
                         .putString("username", server.username)
                         .putString("token", server.token)
                         .putString("salt", server.salt)
+                        // Metadata para notificación consolidada
+                        .putString("playlist_id", currentPlaylist.id)
+                        .putString("playlist_name", currentPlaylist.name)
+                        .putInt("total_songs", songsToDownload.size)
+                        .putInt("current_index", globalIndex)
                         .build()
 
-                    val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
+                    androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
                         .setConstraints(constraints)
-                        .addTag("playlist_download_${currentPlaylistId}")
+                        .addTag("playlist_${currentPlaylist.id}")
+                        .addTag("download_worker")
+                        .setBackoffCriteria(
+                            androidx.work.BackoffPolicy.EXPONENTIAL,
+                            10000L, // 10 segundos de backoff inicial
+                            java.util.concurrent.TimeUnit.MILLISECONDS
+                        )
                         .build()
-
-                    workManager.enqueue(downloadRequest)
                 }
                 
-                // Pequeña pausa entre lotes para no saturar la cola
-                if (batchIndex < (songsToDownload.size / batchSize)) {
-                    kotlinx.coroutines.delay(100)
+                // Encadenar batches: cada batch espera a que el anterior termine
+                // Dentro de cada batch, los workers se ejecutan en paralelo
+                workContinuation = if (workContinuation == null) {
+                    workManager.beginWith(parallelWorkers)
+                } else {
+                    workContinuation!!.then(parallelWorkers)
                 }
             }
+            
+            // Encolar toda la cadena de trabajo
+            workContinuation?.enqueue()
+            
+            android.util.Log.d("PlaylistDownload", "✅ ${songsToDownload.size} canciones encoladas en ${batches.size} batches de $parallelSize")
+            android.util.Log.d("PlaylistDownload", "⏱️ Tiempo estimado: ~${(songsToDownload.size * 8) / 60} minutos (${parallelSize} workers paralelos)")
         }
     }
 
@@ -359,17 +407,46 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
             
+            // Add to local database
             songIds.forEach { songId ->
                 try {
+                    musicRepository.addToFavorites(songId)
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistDetailViewModel", "Failed to add to favorites: $songId", e)
+                    e.printStackTrace()
+                }
+            }
+            
+            // Sync with Navidrome server en batch
+            if (songIds.isNotEmpty()) {
+                try {
                     api.star(
-                        id = songId,
+                        id = songIds.toList(), // ← Batch operation
                         u = server.username,
                         t = server.token,
                         s = server.salt
                     )
+                    android.util.Log.d("PlaylistDetailViewModel", "Starred ${songIds.size} songs on server")
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("PlaylistDetailViewModel", "Failed to star songs on server", e)
                 }
+            }
+        }
+    }
+
+    fun loadAllPlaylists() {
+        viewModelScope.launch {
+            try {
+                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+                val response = api.getPlaylists(
+                    user = server.username,
+                    token = server.token,
+                    salt = server.salt
+                )
+                _allPlaylists.value = response.response.playlistsContainer?.playlist ?: emptyList()
+            } catch (e: Exception) {
+                android.util.Log.e("PlaylistDetailViewModel", "Failed to load playlists", e)
+                e.printStackTrace()
             }
         }
     }

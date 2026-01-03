@@ -153,12 +153,7 @@ fun LibraryScreen(
             }
 
             if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                LibrarySkeleton(brush = com.example.neosynth.ui.components.rememberShimmerBrush())
             } else {
                 when (selectedTab) {
                     0 -> PlaylistsTab(

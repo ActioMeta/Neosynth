@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,7 +47,8 @@ import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.GenreDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SelectionActionBar
+import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.MultiSelectAction
 import com.example.neosynth.ui.components.ServerErrorScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,6 +153,12 @@ fun DiscoverScreen(
         ServerErrorScreen(
             onRetry = { viewModel.loadGenres() }
         )
+        return
+    }
+
+    // Mostrar skeleton mientras carga géneros y décadas iniciales
+    if (isLoadingGenres && genres.isEmpty()) {
+        DiscoverSkeleton(brush = com.example.neosynth.ui.components.rememberShimmerBrush())
         return
     }
 
@@ -300,7 +308,7 @@ private fun SearchResultsContent(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 260.dp else 180.dp)
+            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 100.dp else 16.dp)
         ) {
         // Artists
         if (results.artists.isNotEmpty()) {
@@ -494,23 +502,46 @@ private fun SearchResultsContent(
         }
         }
         
-        // Action bar de selección
-        SelectionActionBar(
+        // Barra lateral de selección
+        SideMultiSelectBar(
+            visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
+            actions = listOf(
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = "Play",
+                    onClick = {
+                        onPlaySongs(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = "Fav",
+                    onClick = {
+                        onAddToFavorites(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Download,
+                    label = "Down",
+                    onClick = {
+                        selectedSongs.forEach { onDownload(it) }
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlaylistAdd,
+                    label = "List",
+                    onClick = {
+                        onAddToPlaylist(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                )
+            ),
             onClose = { selectedSongIds = emptySet() },
-            onPlay = { 
-                onPlaySongs(selectedSongs)
-                selectedSongIds = emptySet()
-            },
-            onAddToPlaylist = { 
-                onAddToPlaylist(selectedSongs)
-                selectedSongIds = emptySet()
-            },
-            onAddToFavorites = { 
-                onAddToFavorites(selectedSongs)
-                selectedSongIds = emptySet()
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.CenterEnd)
         )
     }
 }
@@ -904,10 +935,7 @@ private fun SongRow(
     onToggleFavorite: (() -> Unit)? = null,
     isFavorite: Boolean = false
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    
     Surface(
-        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -956,37 +984,30 @@ private fun SongRow(
                             .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Crop
                     )
-                    
-                    // Badge de descargado
-                    if (isDownloaded) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .offset(x = 4.dp, y = 4.dp)
-                                .size(18.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DownloadDone,
-                                contentDescription = "Descargado",
-                                modifier = Modifier
-                                    .padding(2.dp)
-                                    .size(14.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
                 }
             }
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    if (isDownloaded) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.DownloadDone,
+                            contentDescription = "Descargada",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodySmall,
@@ -1001,92 +1022,6 @@ private fun SongRow(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
-            // Menú de opciones
-            Box {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = "Más opciones",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    // Favoritos
-                    onToggleFavorite?.let { toggle ->
-                        DropdownMenuItem(
-                            text = { 
-                                Text(if (isFavorite) "Quitar de favoritos" else "Añadir a favoritos")
-                            },
-                            onClick = {
-                                toggle()
-                                showMenu = false
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = if (isFavorite) MaterialTheme.colorScheme.error else LocalContentColor.current
-                                )
-                            }
-                        )
-                    }
-                    
-                    // Añadir a playlist
-                    onAddToPlaylist?.let { add ->
-                        DropdownMenuItem(
-                            text = { Text("Añadir a playlist") },
-                            onClick = {
-                                add()
-                                showMenu = false
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlaylistAdd,
-                                    contentDescription = null
-                                )
-                            }
-                        )
-                    }
-                    
-                    // Descargar (solo si no está descargado)
-                    if (!isDownloaded && onDownload != null) {
-                        DropdownMenuItem(
-                            text = { Text("Descargar") },
-                            onClick = {
-                                onDownload()
-                                showMenu = false
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Download,
-                                    contentDescription = null
-                                )
-                            }
-                        )
-                    } else if (isDownloaded) {
-                        DropdownMenuItem(
-                            text = { Text("Disponible offline") },
-                            onClick = { showMenu = false },
-                            enabled = false,
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.DownloadDone,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -1220,23 +1155,46 @@ private fun GenreSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Action bar de selección
-            SelectionActionBar(
+            // Barra lateral de selección (Genres)
+            SideMultiSelectBar(
+                visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
+                actions = listOf(
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = "Play",
+                        onClick = {
+                            onPlaySongs(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = "Fav",
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Download,
+                        label = "Down",
+                        onClick = {
+                            selectedSongs.forEach { onDownload(it) }
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlaylistAdd,
+                        label = "List",
+                        onClick = {
+                            onAddToPlaylist(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    )
+                ),
                 onClose = { selectedSongIds = emptySet() },
-                onPlay = { 
-                    onPlaySongs(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                onAddToPlaylist = { 
-                    onAddToPlaylist(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                onAddToFavorites = { 
-                    onAddToFavorites(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
@@ -1370,23 +1328,46 @@ private fun DecadeSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Action bar de selección
-            SelectionActionBar(
+            // Barra lateral de selección (Decades)
+            SideMultiSelectBar(
+                visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
+                actions = listOf(
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = "Play",
+                        onClick = {
+                            onPlaySongs(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = "Fav",
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Download,
+                        label = "Down",
+                        onClick = {
+                            selectedSongs.forEach { onDownload(it) }
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlaylistAdd,
+                        label = "List",
+                        onClick = {
+                            onAddToPlaylist(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    )
+                ),
                 onClose = { selectedSongIds = emptySet() },
-                onPlay = { 
-                    onPlaySongs(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                onAddToPlaylist = { 
-                    onAddToPlaylist(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                onAddToFavorites = { 
-                    onAddToFavorites(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
@@ -1457,6 +1438,8 @@ private fun PlaylistPickerDialog(
     onPlaylistSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var selectedPlaylistIds by remember { mutableStateOf(setOf<String>()) }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { 
@@ -1467,55 +1450,100 @@ private fun PlaylistPickerDialog(
             )
         },
         text = {
-            if (playlists.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+            Column {
+                if (selectedPlaylistIds.isNotEmpty()) {
                     Text(
-                        text = "No hay playlists disponibles",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "${selectedPlaylistIds.size} playlist(s) seleccionada(s)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(playlists) { playlist ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onPlaylistSelected(playlist.id) },
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ) {
-                            Row(
+                
+                if (playlists.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay playlists disponibles",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(playlists) { playlist ->
+                            val isSelected = playlist.id in selectedPlaylistIds
+                            
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clickable { 
+                                        selectedPlaylistIds = if (isSelected) {
+                                            selectedPlaylistIds - playlist.id
+                                        } else {
+                                            selectedPlaylistIds + playlist.id
+                                        }
+                                    },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                }
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlaylistPlay,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = playlist.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Checkbox
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            selectedPlaylistIds = if (checked) {
+                                                selectedPlaylistIds + playlist.id
+                                            } else {
+                                                selectedPlaylistIds - playlist.id
+                                            }
+                                        }
                                     )
-                                    Text(
-                                        text = "${playlist.songCount} canciones",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlaylistPlay,
+                                        contentDescription = null,
+                                        tint = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
                                     )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = playlist.name,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                        Text(
+                                            text = "${playlist.songCount} canciones",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1523,7 +1551,28 @@ private fun PlaylistPickerDialog(
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            Button(
+                onClick = {
+                    // Agregar a todas las playlists seleccionadas
+                    selectedPlaylistIds.forEach { playlistId ->
+                        onPlaylistSelected(playlistId)
+                    }
+                    onDismiss()
+                },
+                enabled = selectedPlaylistIds.isNotEmpty()
+            ) {
+                Text(
+                    if (selectedPlaylistIds.isEmpty()) {
+                        "Selecciona playlist"
+                    } else if (selectedPlaylistIds.size == 1) {
+                        "Agregar"
+                    } else {
+                        "Agregar a ${selectedPlaylistIds.size}"
+                    }
+                )
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancelar")

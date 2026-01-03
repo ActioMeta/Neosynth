@@ -67,13 +67,41 @@ NeoSynth es una aplicación nativa de Android desarrollada con Jetpack Compose y
 
 ## Documentación
 
-Para información detallada sobre arquitectura, instalación, configuración y desarrollo, consulta la carpeta `docs/`:
+Para información detallada sobre el proyecto, consulta la carpeta `docs/`:
 
-- [Arquitectura del Proyecto](docs/ARCHITECTURE.md)
-- [Configuración y Uso](docs/CONFIGURATION.md)
-- [Stack Tecnológico](docs/TECH_STACK.md)
-- [Material Design 3](docs/MATERIAL_DESIGN.md)
-- [API de Navidrome](docs/NAVIDROME_API.md)
+- [Arquitectura del Proyecto](docs/ARCHITECTURE.md) - Patrones de diseño, capas, flujo de datos
+- [Funciones y Componentes](docs/FUNCTIONS.md) - Documentación detallada de ViewModels, Repositories, Workers, Services y utilidades
+- [Configuración y Uso](docs/CONFIGURATION.md) - Instalación y configuración
+- [Stack Tecnológico](docs/TECH_STACK.md) - Tecnologías utilizadas
+- [Material Design 3](docs/MATERIAL_DESIGN.md) - Guía de estilos y componentes
+- [API de Navidrome](docs/NAVIDROME_API.md) - Documentación de endpoints
+
+## Características Técnicas
+
+### Sistema de Descargas
+- Estrategia híbrida con batches de 10 canciones en paralelo
+- WorkManager para persistencia y reintentos automáticos
+- Contador atómico para progreso en tiempo real
+- Soporte offline completo con indicadores visuales
+
+### Reproducción
+- Media3 (ExoPlayer) para reproducción de alta calidad
+- MediaSessionService para controles de sistema
+- Notificaciones con controles de reproducción
+- Cola de reproducción con reordenamiento drag & drop
+- Soporte para comandos de voz
+
+### Sincronización
+- Repository pattern como single source of truth
+- Sincronización bidireccional (local ↔ servidor)
+- Batch operations para optimizar llamadas API
+- Caché inteligente con Room Database
+
+### Interfaz de Usuario
+- Material Design 3 con Dynamic Color
+- Jetpack Compose 100%
+- Skeletons que coinciden exactamente con el contenido real
+- Animaciones fluidas y transiciones
 
 ## Licencia
 

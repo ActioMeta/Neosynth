@@ -13,6 +13,7 @@ import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.domain.model.Song
+import com.example.neosynth.domain.model.MusicSourceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -29,26 +30,12 @@ class DownloadsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
-    // 1. Estado de canciones agrupadas (UI State) - Solo canciones descargadas
-    val groupedSongs: StateFlow<Map<Char, List<SongEntity>>> = musicRepository.getDownloadedSongs()
-        .map { list ->
-            val sortedList = list.sortedWith(compareBy<SongEntity> {
-                val firstChar = it.title.firstOrNull() ?: ' '
-                !firstChar.isLetter()
-            }.thenBy { it.title.lowercase() })
+    // Estado para filtro de playlist seleccionada
+    private val _selectedPlaylistId = MutableStateFlow<String?>(null)
+    val selectedPlaylistId: StateFlow<String?> = _selectedPlaylistId.asStateFlow()
 
-            sortedList.groupBy { song ->
-                val firstChar = song.title.firstOrNull()?.uppercaseChar() ?: '#'
-                if (firstChar.isLetter()) firstChar else '#'
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap()
-        )
-
-    // 1. Flow de playlists descargadas (con al menos 1 canción descargada)
+    // Flow de playlists descargadas (necesario antes para usarlo en el filtro)
+    // Solo mostrar playlists que tengan al menos 1 canción descargada
     val downloadedPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()
         .flatMapLatest { server ->
             if (server != null) {
@@ -57,13 +44,50 @@ class DownloadsViewModel @Inject constructor(
                 flowOf(emptyList())
             }
         }
+        .map { playlists ->
+            // Filtrar solo playlists con al menos 1 canción descargada
+            playlists.filter { playlistWithSongs ->
+                playlistWithSongs.songs.any { it.isDownloaded && it.path.isNotEmpty() }
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    // 2. Reproducir lista completa (o desde un índice específico)
+    // Estado de canciones agrupadas (UI State) - Solo canciones descargadas
+    // Ahora puede filtrar por playlist si hay una seleccionada
+    val groupedSongs: StateFlow<Map<Char, List<SongEntity>>> = combine(
+        musicRepository.getDownloadedSongs(),
+        _selectedPlaylistId,
+        downloadedPlaylists
+    ) { allSongs, playlistId, playlists ->
+        val filteredSongs = if (playlistId != null) {
+            // Encontrar la playlist seleccionada y mostrar TODAS sus canciones (descargadas o no)
+            val selectedPlaylist = playlists.find { it.playlist.id == playlistId }
+            selectedPlaylist?.songs ?: emptyList()
+        } else {
+            // Sin playlist seleccionada, mostrar solo canciones descargadas
+            allSongs
+        }
+        
+        val sortedList = filteredSongs.sortedWith(compareBy<SongEntity> {
+            val firstChar = it.title.firstOrNull() ?: ' '
+            !firstChar.isLetter()
+        }.thenBy { it.title.lowercase() })
+
+        sortedList.groupBy { song ->
+            val firstChar = song.title.firstOrNull()?.uppercaseChar() ?: '#'
+            if (firstChar.isLetter()) firstChar else '#'
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
+
+    // Reproducir lista completa (o desde un índice específico)
     fun playAll(songs: List<SongEntity>, startIndex: Int = 0) {
         val mediaItems = songs.map { it.toMediaItem() }
         musicController.playQueue(mediaItems, startIndex)
@@ -137,16 +161,29 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch {
             val server = serverDao.getActiveServer() ?: return@launch
             
+            // Add to local database
             songIds.forEach { songId ->
                 try {
+                    musicRepository.addToFavorites(songId)
+                } catch (e: Exception) {
+                    android.util.Log.e("DownloadViewModel", "Failed to add to favorites: $songId", e)
+                    e.printStackTrace()
+                }
+            }
+            
+            // Sync with Navidrome server en batch
+            if (songIds.isNotEmpty()) {
+                try {
                     api.star(
-                        id = songId,
+                        id = songIds.toList(), // ← Batch operation
                         u = server.username,
                         t = server.token,
                         s = server.salt
                     )
+                    android.util.Log.d("DownloadViewModel", "Starred ${songIds.size} songs on server")
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    android.util.Log.e("DownloadViewModel", "Failed to star songs on server", e)
+                    // Continue even if server sync fails
                 }
             }
         }
@@ -173,23 +210,38 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 musicRepository.deletePlaylist(playlistId)
+                // Si la playlist eliminada estaba seleccionada, limpiar el filtro
+                if (_selectedPlaylistId.value == playlistId) {
+                    _selectedPlaylistId.value = null
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
+    }
+    
+    // 11. Seleccionar playlist para filtrar canciones
+    fun selectPlaylist(playlistId: String?) {
+        _selectedPlaylistId.value = playlistId
+    }
+    
+    // 12. Limpiar filtro de playlist
+    fun clearPlaylistFilter() {
+        _selectedPlaylistId.value = null
     }
 }
 
 fun SongEntity.toDomainModel(): Song {
     return Song(
         id = this.id,
-        serverId = this.serverID,
         title = this.title,
         artist = this.artist,
+        artistId = this.artistID,
         album = this.album,
+        albumId = this.albumID,
         duration = this.duration,
-        imageUrl = this.imageUrl,
-        mediaUri = this.path,
-        isOffline = true
+        coverArtUrl = this.imageUrl,
+        sourceType = try { MusicSourceType.valueOf(this.sourceType) } catch (e: Exception) { MusicSourceType.SUBSONIC },
+        sourceId = this.sourceId
     )
 }

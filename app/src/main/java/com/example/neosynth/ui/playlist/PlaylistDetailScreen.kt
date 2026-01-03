@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SelectionTopBar
+import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.MultiSelectAction
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -52,7 +53,6 @@ fun PlaylistDetailScreen(
     // Multi-selection state
     var selectedSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelectionMode = selectedSongIds.isNotEmpty()
-    var showPlaylistPicker by remember { mutableStateOf(false) }
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -63,12 +63,7 @@ fun PlaylistDetailScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            PlaylistSkeleton(brush = com.example.neosynth.ui.components.rememberShimmerBrush())
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -203,20 +198,6 @@ fun PlaylistDetailScreen(
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
-
-                            // Botón agregar canciones
-                            TextButton(
-                                onClick = { showAddSongsSheet = true },
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Add,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Agregar canciones")
-                            }
                         }
                     }
                 }
@@ -288,28 +269,38 @@ fun PlaylistDetailScreen(
             }
         }
 
-        // Selection Top Bar
-        SelectionTopBar(
+        // Barra lateral de selección
+        SideMultiSelectBar(
+            visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            onClearSelection = { selectedSongIds = emptySet() },
-            onPlaySelected = {
-                viewModel.playSongs(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onDownloadSelected = {
-                viewModel.downloadSongs(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onAddToFavorites = {
-                viewModel.addToFavorites(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onAddToPlaylist = {
-                showPlaylistPicker = true
-            },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
+            actions = listOf(
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = "Play",
+                    onClick = {
+                        viewModel.playSongs(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = "Favoritos",
+                    onClick = {
+                        viewModel.addToFavorites(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Download,
+                    label = "Descargar",
+                    onClick = {
+                        viewModel.downloadSongs(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                )
+            ),
+            onClose = { selectedSongIds = emptySet() },
+            modifier = Modifier.align(Alignment.CenterEnd)
         )
 
         // Top bar (solo visible cuando no hay selección)
@@ -329,20 +320,6 @@ fun PlaylistDetailScreen(
             ),
             modifier = Modifier.statusBarsPadding()
         )
-        }
-        
-        // Playlist Picker Dialog
-        if (showPlaylistPicker) {
-            com.example.neosynth.ui.components.PlaylistPickerDialog(
-                playlists = emptyList<com.example.neosynth.data.remote.responses.PlaylistDto>(),
-                onDismiss = { 
-                    showPlaylistPicker = false 
-                },
-                onPlaylistSelected = { playlistId ->
-                    viewModel.addToPlaylist(selectedSongIds, playlistId)
-                    selectedSongIds = emptySet()
-                }
-            )
         }
     }
 
@@ -441,36 +418,32 @@ private fun PlaylistSongRow(
                         .clip(RoundedCornerShape(6.dp)),
                     contentScale = ContentScale.Crop
                 )
-                
-                if (isDownloaded) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 4.dp, y = 4.dp)
-                            .size(18.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = "Descargada",
-                            modifier = Modifier.padding(2.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    if (isDownloaded) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.DownloadDone,
+                            contentDescription = "Descargada",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodySmall,

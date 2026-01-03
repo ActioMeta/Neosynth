@@ -13,6 +13,8 @@ fun SubsonicResponse.toSongEntities(serverId: Long, pId: String? = null): List<S
         SongEntity(
             id = dto.id,
             serverID = serverId,
+            sourceType = "SUBSONIC",
+            sourceId = serverId.toString(),
             artistID = dto.artistId ?: "",
             albumID = dto.albumId ?: "",
             title = dto.title,
@@ -33,6 +35,8 @@ fun SubsonicResponse.toArtistEntities(serverId: Long): List<ArtistEntity> {
             ArtistEntity(
                 id = dto.id,
                 serverId = serverId,
+                sourceType = "SUBSONIC",
+                sourceId = serverId.toString(),
                 name = dto.name,
                 imageUrl = dto.artistImageUrl
             )
@@ -45,6 +49,8 @@ fun SubsonicResponse.toAlbumEntities(serverId: Long): List<AlbumEntity> {
         AlbumEntity(
             id = dto.id,
             serverId = serverId,
+            sourceType = "SUBSONIC",
+            sourceId = serverId.toString(),
             artistId = dto.artistId ?: "",
             title = dto.title,
             artistName = dto.artist,

@@ -184,4 +184,15 @@ class MusicController @Inject constructor(
             updateQueue()
         }
     }
+    
+    fun clearQueue() {
+        browser?.let { player ->
+            player.stop()
+            player.clearMediaItems()
+            _currentQueue.value = emptyList()
+            _currentIndex.value = 0
+            _currentMediaItem.value = null
+            _isPlaying.value = false
+        }
+    }
 }

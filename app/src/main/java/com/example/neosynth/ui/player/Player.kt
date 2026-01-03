@@ -12,6 +12,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -25,7 +26,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,10 +37,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -79,6 +88,7 @@ fun PlayerScreen(
             currentIndex = currentIndex,
             onDismiss = { showQueueSheet = false },
             sheetState = sheetState,
+            musicController = musicController,
             onPlayFromQueue = { index ->
                 musicController.playFromQueue(index)
                 showQueueSheet = false
@@ -289,14 +299,19 @@ private fun QueueBottomSheet(
     currentIndex: Int,
     onDismiss: () -> Unit,
     sheetState: SheetState,
+    musicController: MusicController,
     onPlayFromQueue: (Int) -> Unit,
     onMoveItem: (Int, Int) -> Unit,
     onRemoveItem: (Int) -> Unit
 ) {
     val listState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     
-    // Sistema de reorden simplificado: seleccionar item con long press, luego tap en otro para intercambiar
-    var selectedForMove by remember { mutableStateOf<Int?>(null) }
+    // Estado para drag & drop
+    var draggedIndex by remember { mutableIntStateOf(-1) }
+    var hoveredIndex by remember { mutableIntStateOf(-1) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -309,19 +324,45 @@ private fun QueueBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
+            // Header con título y botón limpiar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Cola de reproducción",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                if (queue.isNotEmpty()) {
+                    TextButton(
+                        onClick = {
+                            musicController.clearQueue()
+                            onDismiss()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ClearAll,
+                            contentDescription = "Limpiar cola",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Limpiar")
+                    }
+                }
+            }
+            
             Text(
-                text = "Cola de reproducción",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Text(
-                text = if (selectedForMove != null) 
-                    "Toca otra canción para intercambiar posiciones"
+                text = if (draggedIndex >= 0) 
+                    "Arrastra para reordenar"
                 else
                     "${queue.size} canciones • Mantén presionado para reordenar",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (selectedForMove != null)
+                color = if (draggedIndex >= 0)
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
@@ -341,28 +382,50 @@ private fun QueueBottomSheet(
                     key = { _: Int, item: MediaItem -> item.mediaId }
                 ) { index, item ->
                     val isCurrentSong = index == currentIndex
-                    val isSelectedForMove = selectedForMove == index
+                    val isDragged = draggedIndex == index
+                    val isHovered = hoveredIndex == index
                     
                     QueueItem(
                         item = item,
                         index = index,
                         isCurrentSong = isCurrentSong,
-                        isSelectedForMove = isSelectedForMove,
+                        isDragged = isDragged,
+                        isHovered = isHovered,
+                        dragOffset = if (isDragged) dragOffset else 0f,
                         onPlay = {
-                            if (selectedForMove == null) {
+                            if (draggedIndex < 0) {
                                 onPlayFromQueue(index)
-                            } else if (selectedForMove != index) {
-                                // Intercambiar posiciones
-                                onMoveItem(selectedForMove!!, index)
-                                selectedForMove = null
-                            } else {
-                                // Deseleccionar
-                                selectedForMove = null
                             }
                         },
                         onRemove = { onRemoveItem(index) },
-                        onLongPress = {
-                            selectedForMove = if (selectedForMove == index) null else index
+                        onDragStart = {
+                            draggedIndex = index
+                            dragOffset = 0f
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (draggedIndex == index) {
+                                dragOffset += dragAmount.y
+                                
+                                // Calcular índice objetivo basado en el offset
+                                val itemHeight = 72f // Altura estimada del item
+                                val targetIndex = (index + (dragOffset / itemHeight).toInt())
+                                    .coerceIn(0, queue.size - 1)
+                                
+                                if (targetIndex != hoveredIndex && targetIndex != index) {
+                                    hoveredIndex = targetIndex
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            if (draggedIndex >= 0 && hoveredIndex >= 0 && draggedIndex != hoveredIndex) {
+                                onMoveItem(draggedIndex, hoveredIndex)
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            draggedIndex = -1
+                            hoveredIndex = -1
+                            dragOffset = 0f
                         }
                     )
                 }
@@ -378,16 +441,20 @@ private fun QueueItem(
     item: MediaItem,
     index: Int,
     isCurrentSong: Boolean,
-    isSelectedForMove: Boolean = false,
+    isDragged: Boolean = false,
+    isHovered: Boolean = false,
+    dragOffset: Float = 0f,
     onPlay: () -> Unit,
     onRemove: () -> Unit,
-    onLongPress: () -> Unit = {}
+    onDragStart: () -> Unit = {},
+    onDrag: (PointerInputChange, Offset) -> Unit = { _, _ -> },
+    onDragEnd: () -> Unit = {}
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     
-    // Animación de escala cuando está seleccionado para mover
+    // Animación de escala cuando está siendo arrastrado
     val scale by animateFloatAsState(
-        targetValue = if (isSelectedForMove) 1.08f else 1f,
+        targetValue = if (isDragged) 1.05f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -397,7 +464,7 @@ private fun QueueItem(
     
     // Animación de elevación
     val elevation by animateFloatAsState(
-        targetValue = if (isSelectedForMove) 12f else 0f,
+        targetValue = if (isDragged) 16f else if (isHovered) 4f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessMedium
@@ -405,28 +472,36 @@ private fun QueueItem(
         label = "queue_item_elevation"
     )
     
+    // Animación de alpha
+    val alpha by animateFloatAsState(
+        targetValue = if (isDragged) 0.9f else 1f,
+        label = "queue_item_alpha"
+    )
+    
     Surface(
-        onClick = {
-            if (isSelectedForMove) {
-                onPlay() // Cuando está seleccionado, al hacer click en otro item se intercambian
-            } else {
-                onPlay()
-            }
-        },
+        onClick = { if (!isDragged) onPlay() },
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                translationY = if (isDragged) dragOffset else 0f
+                this.alpha = alpha
             }
-            .combinedClickable(
-                onClick = {
-                    onPlay() // Siempre ejecuta onPlay (que en QueueBottomSheet maneja el swap)
-                },
-                onLongClick = onLongPress
-            ),
+            .pointerInput(index) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDrag = { change, dragAmount -> 
+                        change.consume()
+                        onDrag(change, dragAmount) 
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() }
+                )
+            },
         color = when {
-            isSelectedForMove -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+            isDragged -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+            isHovered -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
             isCurrentSong -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
             else -> Color.Transparent
         },
@@ -440,15 +515,16 @@ private fun QueueItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Indicador de selección (en lugar de drag handle)
-            if (isSelectedForMove) {
-                Icon(
-                    imageVector = Icons.Rounded.SwapVert,
-                    contentDescription = "Toca otro item para intercambiar",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            // Drag handle (siempre visible)
+            Icon(
+                imageVector = Icons.Rounded.DragHandle,
+                contentDescription = "Arrastra para reordenar",
+                tint = if (isDragged) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
 
             // Artwork
             AsyncImage(
@@ -485,7 +561,8 @@ private fun QueueItem(
             // Remove button
             IconButton(
                 onClick = { showDeleteConfirm = true },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(32.dp),
+                enabled = !isDragged
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,

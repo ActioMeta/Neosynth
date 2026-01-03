@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +37,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.ui.components.AlphabetScrollbar
 import com.example.neosynth.ui.components.RowListItem
-import com.example.neosynth.ui.components.SelectionTopBar
+import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.MultiSelectAction
 import kotlinx.coroutines.launch
 
 enum class FilterType {
@@ -51,6 +53,7 @@ fun DownloadsScreen(
 ) {
     val groupedSongs: Map<Char, List<SongEntity>> by viewModel.groupedSongs.collectAsState(initial = emptyMap())
     val downloadedPlaylists by viewModel.downloadedPlaylists.collectAsState()
+    val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
     val allSongs = remember(groupedSongs) { groupedSongs.values.flatten() }
 
     var selectedSongIds by rememberSaveable { mutableStateOf<Set<String>>(setOf()) }
@@ -288,7 +291,7 @@ fun DownloadsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
+                                    .background(MaterialTheme.colorScheme.background)
                                     .padding(horizontal = 24.dp, vertical = 6.dp)
                             ) {
                                 Text(
@@ -306,9 +309,48 @@ fun DownloadsScreen(
                         ) { playlistWithSongs ->
                             PlaylistDownloadItem(
                                 playlistWithSongs = playlistWithSongs,
-                                onClick = { viewModel.playPlaylist(playlistWithSongs) },
+                                isSelected = selectedPlaylistId == playlistWithSongs.playlist.id,
+                                onClick = {
+                                    // Toggle: Si ya está seleccionada, limpiar filtro; si no, seleccionarla
+                                    if (selectedPlaylistId == playlistWithSongs.playlist.id) {
+                                        viewModel.clearPlaylistFilter()
+                                    } else {
+                                        viewModel.selectPlaylist(playlistWithSongs.playlist.id)
+                                    }
+                                },
+                                onPlay = { viewModel.playPlaylist(playlistWithSongs) },
                                 onDelete = { viewModel.deletePlaylist(playlistWithSongs.playlist.id) }
                             )
+                        }
+                        
+                        // Chip de filtro activo
+                        if (selectedPlaylistId != null) {
+                            item {
+                                val selectedPlaylist = downloadedPlaylists.find { it.playlist.id == selectedPlaylistId }
+                                if (selectedPlaylist != null) {
+                                    FilterChip(
+                                        selected = true,
+                                        onClick = { viewModel.clearPlaylistFilter() },
+                                        label = { Text("Filtrando: ${selectedPlaylist.playlist.name}") },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Rounded.QueueMusic,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Limpiar filtro",
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                         }
                         
                         // Separador entre playlists y canciones
@@ -323,7 +365,7 @@ fun DownloadsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
+                                    .background(MaterialTheme.colorScheme.background)
                                     .padding(horizontal = 24.dp, vertical = 6.dp)
                             ) {
                                 Text(
@@ -438,40 +480,52 @@ fun DownloadsScreen(
             } // Row
         }
 
-        // Selection Top Bar
-        if (isSelectionMode) {
-            SelectionTopBar(
-                selectedCount = selectedSongIds.size,
-                onClearSelection = { selectedSongIds = emptySet() },
-                onPlaySelected = {
-                    val selectedSongs = allSongs.filter { it.id in selectedSongIds }
-                    if (selectedSongs.isNotEmpty()) {
-                        viewModel.playAll(selectedSongs, 0)
+        // Barra lateral de selección
+        SideMultiSelectBar(
+            visible = isSelectionMode,
+            selectedCount = selectedSongIds.size,
+            actions = listOf(
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = "Play",
+                    onClick = {
+                        val selectedSongs = allSongs.filter { it.id in selectedSongIds }
+                        if (selectedSongs.isNotEmpty()) {
+                            viewModel.playAll(selectedSongs, 0)
+                        }
+                        selectedSongIds = emptySet()
                     }
-                    selectedSongIds = emptySet()
-                },
-                onDownloadSelected = {
-                    // Eliminar canciones seleccionadas
-                    viewModel.deleteSelectedSongs(selectedSongIds)
-                    selectedSongIds = emptySet()
-                },
-                onAddToFavorites = {
-                    val selectedSongs = allSongs.filter { it.id in selectedSongIds }
-                    viewModel.addToFavorites(selectedSongs.map { it.id }.toSet())
-                    selectedSongIds = emptySet()
-                },
-                onAddToPlaylist = {
-                    // Agregar a cola de reproducción
-                    val selectedSongs = allSongs.filter { it.id in selectedSongIds }
-                    viewModel.addToQueue(selectedSongs)
-                    selectedSongIds = emptySet()
-                },
-                showDeleteInsteadOfDownload = true,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-            )
-        }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = "Fav",
+                    onClick = {
+                        val selectedSongs = allSongs.filter { it.id in selectedSongIds }
+                        viewModel.addToFavorites(selectedSongs.map { it.id }.toSet())
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Delete,
+                    label = "Del",
+                    onClick = {
+                        viewModel.deleteSelectedSongs(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.QueueMusic,
+                    label = "Queue",
+                    onClick = {
+                        val selectedSongs = allSongs.filter { it.id in selectedSongIds }
+                        viewModel.addToQueue(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                )
+            ),
+            onClose = { selectedSongIds = emptySet() },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
 
         // FAB Group (solo visible cuando NO hay selección)
         if (!isSelectionMode) {

@@ -56,7 +56,7 @@ fun RowListItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = song.imageUrl,
+            model = song.coverArtUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

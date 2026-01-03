@@ -168,7 +168,7 @@ interface NavidromeApiService {
 
     @GET("rest/star")
     suspend fun star(
-        @Query("id") id: String,
+        @Query("id") id: List<String>, // Múltiples IDs permitidos según Subsonic API
         @Query("u") u: String,
         @Query("t") t: String,
         @Query("s") s: String,
@@ -179,7 +179,7 @@ interface NavidromeApiService {
 
     @GET("rest/unstar")
     suspend fun unstar(
-        @Query("id") id: String,
+        @Query("id") id: List<String>, // Múltiples IDs permitidos según Subsonic API
         @Query("u") u: String,
         @Query("t") t: String,
         @Query("s") s: String,

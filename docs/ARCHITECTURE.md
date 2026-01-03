@@ -1,497 +1,1096 @@
-# Arquitectura del Proyecto
+# Arquitectura del Proyecto NeoSynth# Arquitectura del Proyecto
 
-## Visión General
 
-NeoSynth sigue una arquitectura de tres capas basada en las recomendaciones de Android Architecture Components, con separación clara de responsabilidades y flujo de datos unidireccional.
 
-## Diagrama de Capas
+## Tabla de Contenidos## Visión General
 
-```
-┌─────────────────────────────────────────────────────────────┐
+
+
+1. [Visión General](#visión-general)NeoSynth sigue una arquitectura de tres capas basada en las recomendaciones de Android Architecture Components, con separación clara de responsabilidades y flujo de datos unidireccional.
+
+2. [Arquitectura de Capas](#arquitectura-de-capas)
+
+3. [Patrones de Diseño](#patrones-de-diseño)## Diagrama de Capas
+
+4. [Componentes Principales](#componentes-principales)
+
+5. [Flujo de Datos](#flujo-de-datos)```
+
+6. [Gestión de Estado](#gestión-de-estado)┌─────────────────────────────────────────────────────────────┐
+
 │                         UI LAYER                            │
-│  Jetpack Compose + Material 3 + Navigation                  │
+
+## Visión General│  Jetpack Compose + Material 3 + Navigation                  │
+
 │                                                             │
-│  - Composables                                              │
+
+NeoSynth sigue una arquitectura **MVVM (Model-View-ViewModel)** con **Repository Pattern** y **Clean Architecture**, separando claramente las responsabilidades en capas independientes.│  - Composables                                              │
+
 │  - Screens                                                  │
-│  - Navigation Graph                                         │
+
+### Principios Arquitectónicos│  - Navigation Graph                                         │
+
 │  - UI State                                                 │
-└────────────────────────────┬────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      VIEWMODEL LAYER                        │
+
+- **Separación de Responsabilidades**: Cada capa tiene un propósito específico└────────────────────────────┬────────────────────────────────┘
+
+- **Inyección de Dependencias**: Usando Hilt para gestión centralizada                             │
+
+- **Programación Reactiva**: Flow y StateFlow para flujos de datos reactivos                             ▼
+
+- **Single Source of Truth**: Room como fuente única de verdad para datos locales┌─────────────────────────────────────────────────────────────┐
+
+- **Unidirectional Data Flow**: Los datos fluyen en una sola dirección│                      VIEWMODEL LAYER                        │
+
 │  State Management + Business Logic                          │
-│                                                             │
+
+## Arquitectura de Capas│                                                             │
+
 │  - ViewModels                                               │
-│  - StateFlow / Flow                                         │
-│  - Coroutines                                               │
-│  - Use Cases (opcional)                                     │
-└────────────────────────────┬────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       DATA LAYER                            │
-│  Room (local) + Retrofit (remote) + WorkManager             │
-│                                                             │
-│  - Repositories                                             │
-│  - Data Sources (Local/Remote)                              │
-│  - DAOs                                                     │
-│  - API Services                                             │
-│  - Workers                                                  │
-└─────────────────────────────────────────────────────────────┘
-```
 
-## Estructura de Carpetas
+```│  - StateFlow / Flow                                         │
 
-```
-app/src/main/java/com/example/neosynth/
-│
-├── data/
-│   ├── local/
-│   │   ├── dao/
-│   │   │   ├── MusicDao.kt              # Operaciones de canciones y playlists
-│   │   │   └── ServerDao.kt             # Operaciones de servidores
-│   │   ├── entities/
-│   │   │   ├── SongEntity.kt            # Tabla de canciones
-│   │   │   ├── PlaylistEntity.kt        # Tabla de playlists
-│   │   │   ├── PlaylistSongCrossRef.kt  # Relación N:M
-│   │   │   ├── PlaylistWithSongs.kt     # DTO de relación
+┌─────────────────────────────────────────┐│  - Coroutines                                               │
+
+│          UI Layer (Compose)             ││  - Use Cases (opcional)                                     │
+
+│  - Screens                              │└────────────────────────────┬────────────────────────────────┘
+
+│  - Components                           │                             │
+
+│  - Navigation                           │                             ▼
+
+└──────────────┬──────────────────────────┘┌─────────────────────────────────────────────────────────────┐
+
+               ││                       DATA LAYER                            │
+
+┌──────────────▼──────────────────────────┐│  Room (local) + Retrofit (remote) + WorkManager             │
+
+│         ViewModel Layer                 ││                                                             │
+
+│  - ViewModels                           ││  - Repositories                                             │
+
+│  - UI State                             ││  - Data Sources (Local/Remote)                              │
+
+│  - UI Events                            ││  - DAOs                                                     │
+
+└──────────────┬──────────────────────────┘│  - API Services                                             │
+
+               ││  - Workers                                                  │
+
+┌──────────────▼──────────────────────────┐└─────────────────────────────────────────────────────────────┘
+
+│        Domain Layer                     │```
+
+│  - Use Cases (opcional)                 │
+
+│  - Business Logic                       │## Estructura de Carpetas
+
+└──────────────┬──────────────────────────┘
+
+               │```
+
+┌──────────────▼──────────────────────────┐app/src/main/java/com/example/neosynth/
+
+│         Data Layer                      ││
+
+│  ┌────────────────────────────────────┐ │├── data/
+
+│  │ Repositories                       │ ││   ├── local/
+
+│  └──┬──────────────────────────┬──────┘ ││   │   ├── dao/
+
+│     │                          │        ││   │   │   ├── MusicDao.kt              # Operaciones de canciones y playlists
+
+│  ┌──▼────────┐          ┌──────▼─────┐ ││   │   │   └── ServerDao.kt             # Operaciones de servidores
+
+│  │  Remote   │          │   Local    │ ││   │   ├── entities/
+
+│  │ (Retrofit)│          │   (Room)   │ ││   │   │   ├── SongEntity.kt            # Tabla de canciones
+
+│  └───────────┘          └────────────┘ ││   │   │   ├── PlaylistEntity.kt        # Tabla de playlists
+
+└─────────────────────────────────────────┘│   │   │   ├── PlaylistSongCrossRef.kt  # Relación N:M
+
+```│   │   │   ├── PlaylistWithSongs.kt     # DTO de relación
+
 │   │   │   └── ServerEntity.kt          # Tabla de servidores
-│   │   └── MusicDatabase.kt             # Room Database
+
+### 1. UI Layer (Presentation)│   │   └── MusicDatabase.kt             # Room Database
+
 │   │
-│   ├── remote/
-│   │   ├── api/
-│   │   │   └── NavidromeApi.kt          # Interface Retrofit
-│   │   ├── dto/
+
+**Responsabilidades:**│   ├── remote/
+
+- Renderizar la interfaz de usuario│   │   ├── api/
+
+- Manejar interacciones del usuario│   │   │   └── NavidromeApi.kt          # Interface Retrofit
+
+- Observar cambios de estado del ViewModel│   │   ├── dto/
+
 │   │   │   ├── AlbumDto.kt              # Modelos de respuesta API
-│   │   │   ├── SongDto.kt
-│   │   │   └── PlaylistDto.kt
-│   │   └── mapper/
-│   │       └── EntityMappers.kt         # DTO -> Domain
-│   │
+
+**Componentes:**│   │   │   ├── SongDto.kt
+
+- `screens/`: Pantallas completas de la aplicación│   │   │   └── PlaylistDto.kt
+
+- `components/`: Componentes reutilizables de UI│   │   └── mapper/
+
+- `navigation/`: Sistema de navegación│   │       └── EntityMappers.kt         # DTO -> Domain
+
+- `theme/`: Configuración de temas y estilos│   │
+
 │   ├── repository/
-│   │   ├── MusicRepository.kt           # Coordinador de datos
-│   │   └── ServerRepository.kt          # Gestión de servidores
-│   │
-│   └── worker/
+
+**Tecnologías:**│   │   ├── MusicRepository.kt           # Coordinador de datos
+
+- Jetpack Compose│   │   └── ServerRepository.kt          # Gestión de servidores
+
+- Material Design 3│   │
+
+- Navigation Compose│   └── worker/
+
 │       └── DownloadWK.kt                # WorkManager para descargas
-│
+
+### 2. ViewModel Layer│
+
 ├── domain/
-│   ├── model/
-│   │   ├── Song.kt                      # Modelo de dominio
-│   │   ├── Album.kt
-│   │   ├── Artist.kt
-│   │   └── Playlist.kt
+
+**Responsabilidades:**│   ├── model/
+
+- Gestionar el estado de la UI│   │   ├── Song.kt                      # Modelo de dominio
+
+- Procesar eventos de usuario│   │   ├── Album.kt
+
+- Comunicarse con repositorios│   │   ├── Artist.kt
+
+- Sobrevivir a cambios de configuración│   │   └── Playlist.kt
+
 │   │
-│   └── provider/
+
+**Patrón de Estructura:**│   └── provider/
+
 │       └── MusicProvider.kt             # Interface de proveedor
-│
-├── player/
-│   ├── MusicController.kt               # Controlador de reproducción
-│   └── PlaybackService.kt               # MediaSessionService
-│
-├── ui/
-│   ├── components/
-│   │   ├── AlbumCard.kt                 # Componentes reutilizables
-│   │   ├── MiniPlayer.kt
-│   │   └── StickyHeader.kt
-│   │
-│   ├── home/
-│   │   ├── HomeScreen.kt                # Pantalla principal
-│   │   └── HomeViewModel.kt             # Lógica de home
-│   │
-│   ├── player/
-│   │   ├── PlayerScreen.kt              # Reproductor completo
-│   │   └── PlayerViewModel.kt
-│   │
+
+```kotlin│
+
+class ExampleViewModel @Inject constructor(├── player/
+
+    private val repository: ExampleRepository│   ├── MusicController.kt               # Controlador de reproducción
+
+) : ViewModel() {│   └── PlaybackService.kt               # MediaSessionService
+
+    │
+
+    // Estado privado mutable├── ui/
+
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)│   ├── components/
+
+    │   │   ├── AlbumCard.kt                 # Componentes reutilizables
+
+    // Estado público inmutable│   │   ├── MiniPlayer.kt
+
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()│   │   └── StickyHeader.kt
+
+    │   │
+
+    // Funciones para manejar eventos│   ├── home/
+
+    fun onEvent(event: ExampleEvent) {│   │   ├── HomeScreen.kt                # Pantalla principal
+
+        viewModelScope.launch {│   │   └── HomeViewModel.kt             # Lógica de home
+
+            // Lógica de negocio│   │
+
+        }│   ├── player/
+
+    }│   │   ├── PlayerScreen.kt              # Reproductor completo
+
+}│   │   └── PlayerViewModel.kt
+
+```│   │
+
 │   ├── downloads/
-│   │   ├── DownloadScreen.kt            # Gestión de descargas
+
+### 3. Domain Layer (Opcional)│   │   ├── DownloadScreen.kt            # Gestión de descargas
+
 │   │   └── DownloadViewModel.kt
+
+**Responsabilidades:**│   │
+
+- Lógica de negocio pura│   ├── album/
+
+- Casos de uso específicos│   │   ├── AlbumDetailScreen.kt         # Detalle de álbum
+
+- Validaciones y transformaciones│   │   └── AlbumDetailViewModel.kt
+
 │   │
-│   ├── album/
-│   │   ├── AlbumDetailScreen.kt         # Detalle de álbum
-│   │   └── AlbumDetailViewModel.kt
-│   │
-│   ├── playlist/
+
+**Nota:** En NeoSynth, gran parte de la lógica de dominio está en ViewModels y Repositories por simplicidad.│   ├── playlist/
+
 │   │   ├── PlaylistDetailScreen.kt      # Detalle de playlist
-│   │   └── PlaylistDetailViewModel.kt
+
+### 4. Data Layer│   │   └── PlaylistDetailViewModel.kt
+
 │   │
-│   ├── login/
-│   │   ├── LoginScreen.kt               # Autenticación
-│   │   └── LoginViewModel.kt
-│   │
+
+**Responsabilidades:**│   ├── login/
+
+- Gestión de fuentes de datos│   │   ├── LoginScreen.kt               # Autenticación
+
+- Sincronización entre API y base de datos local│   │   └── LoginViewModel.kt
+
+- Caché y persistencia│   │
+
 │   ├── navigation/
-│   │   ├── NavGraph.kt                  # Grafo de navegación
+
+**Componentes:**│   │   ├── NavGraph.kt                  # Grafo de navegación
+
 │   │   └── Screen.kt                    # Definición de rutas
-│   │
+
+#### Repositories│   │
+
 │   └── theme/
-│       ├── Color.kt                     # Paleta de colores M3
+
+Actúan como Single Source of Truth, decidiendo si obtener datos de la API o de la base de datos local.│       ├── Color.kt                     # Paleta de colores M3
+
 │       ├── Theme.kt                     # Composable de tema
-│       └── Type.kt                      # Tipografía M3
-│
-├── depsInjection/
-│   ├── AppModule.kt                     # Módulo principal Hilt
-│   ├── DatabaseModule.kt                # Inyección de Room
-│   ├── NetworkModule.kt                 # Inyección de Retrofit
-│   └── RepositoryModule.kt              # Inyección de repositorios
-│
-├── receiver/
-│   └── VoiceCommandReceiver.kt          # BroadcastReceiver Google Assistant
-│
-├── utils/
-│   ├── AuthUtils.kt                     # Utilidades de autenticación
-│   ├── FileUtils.kt                     # Gestión de archivos
-│   └── PreferencesManager.kt            # SharedPreferences
-│
-└── MainActivity.kt                      # Punto de entrada
-```
 
-## Flujo de Datos
+```kotlin│       └── Type.kt                      # Tipografía M3
 
-### 1. Flujo de Lectura (Streaming/Offline)
+class MusicRepository @Inject constructor(│
 
-```
-User Action (UI)
-      │
-      ▼
+    private val api: NavidromeApiService,├── depsInjection/
+
+    private val dao: SongDao,│   ├── AppModule.kt                     # Módulo principal Hilt
+
+    private val serverDao: ServerDao│   ├── DatabaseModule.kt                # Inyección de Room
+
+) {│   ├── NetworkModule.kt                 # Inyección de Retrofit
+
+    // Ejemplo de patrón Repository│   └── RepositoryModule.kt              # Inyección de repositorios
+
+    suspend fun getSongs(): Flow<List<Song>> = flow {│
+
+        // 1. Emitir datos locales inmediatamente├── receiver/
+
+        emit(dao.getAllSongs())│   └── VoiceCommandReceiver.kt          # BroadcastReceiver Google Assistant
+
+        │
+
+        // 2. Obtener datos actualizados del servidor├── utils/
+
+        try {│   ├── AuthUtils.kt                     # Utilidades de autenticación
+
+            val server = serverDao.getActiveServer()│   ├── FileUtils.kt                     # Gestión de archivos
+
+            val response = api.getSongs(...)│   └── PreferencesManager.kt            # SharedPreferences
+
+            │
+
+            // 3. Actualizar base de datos local└── MainActivity.kt                      # Punto de entrada
+
+            dao.insertAll(response.songs)```
+
+            
+
+            // 4. Emitir datos actualizados## Flujo de Datos
+
+            emit(dao.getAllSongs())
+
+        } catch (e: Exception) {### 1. Flujo de Lectura (Streaming/Offline)
+
+            // Manejar error
+
+        }```
+
+    }User Action (UI)
+
+}      │
+
+```      ▼
+
 ViewModel observa State
-      │
+
+#### Remote Data Source      │
+
       ▼
-Repository consulta
+
+**Tecnología:** Retrofit + OkHttpRepository consulta
+
       │
-      ├─────────────┬─────────────┐
-      ▼             ▼             ▼
-  Local (Room)  Remote (API)  Cache
-      │             │             │
-      └─────────────┴─────────────┘
+
+**Características:**      ├─────────────┬─────────────┐
+
+- Autenticación con tokens MD5      ▼             ▼             ▼
+
+- Interceptores para logging  Local (Room)  Remote (API)  Cache
+
+- Manejo de errores HTTP      │             │             │
+
+- Serialización JSON con Gson      └─────────────┴─────────────┘
+
                     │
-                    ▼
-          StateFlow emite datos
-                    │
-                    ▼
+
+**Archivos principales:**                    ▼
+
+- `NavidromeApiService.kt`: Definición de endpoints          StateFlow emite datos
+
+- `NavidromeResponses.kt`: Modelos de respuesta                    │
+
+- `RetrofitModule.kt`: Configuración de Retrofit                    ▼
+
             UI se recompone
-```
 
-### 2. Flujo de Escritura (Descarga/Favoritos)
+#### Local Data Source```
 
-```
-User Action (UI)
+
+
+**Tecnología:** Room Database### 2. Flujo de Escritura (Descarga/Favoritos)
+
+
+
+**Características:**```
+
+- Caché de datos del servidorUser Action (UI)
+
+- Almacenamiento de descargas      │
+
+- Gestión de playlists offline      ▼
+
+- Sincronización de favoritosViewModel dispara acción
+
       │
-      ▼
-ViewModel dispara acción
-      │
-      ▼
+
+**Esquema de Base de Datos:**      ▼
+
 Repository ejecuta operación
-      │
-      ├─────────────┬─────────────┐
-      ▼             ▼             ▼
-Guarda en Room  Envía a API  WorkManager
-      │             │             │
-      └─────────────┴─────────────┘
-                    │
-                    ▼
-       Actualiza StateFlow
-                    │
-                    ▼
-           UI se actualiza
-```
 
-## Patrones Utilizados
+```      │
 
-### Repository Pattern
-Abstrae la fuente de datos (local o remota) del resto de la aplicación.
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐      ├─────────────┬─────────────┐
 
-```kotlin
-class MusicRepository @Inject constructor(
-    private val musicDao: MusicDao,
-    private val navidromeApi: NavidromeApi
-) {
-    fun getDownloadedSongs(): Flow<List<SongEntity>> {
+│   servers    │     │    songs     │     │  playlists   │      ▼             ▼             ▼
+
+├──────────────┤     ├──────────────┤     ├──────────────┤Guarda en Room  Envía a API  WorkManager
+
+│ id (PK)      │     │ id (PK)      │     │ id (PK)      │      │             │             │
+
+│ name         │     │ title        │     │ name         │      └─────────────┴─────────────┘
+
+│ url          │     │ artist       │     │ songCount    │                    │
+
+│ username     │     │ album        │     │ duration     │                    ▼
+
+│ token        │     │ duration     │     │ coverArt     │       Actualiza StateFlow
+
+│ salt         │     │ coverArt     │     │ created      │                    │
+
+│ isActive     │     │ path         │     │ changed      │                    ▼
+
+└──────────────┘     │ isDownloaded │     └──────────────┘           UI se actualiza
+
+                     │ isFavorite   │```
+
+                     └──────────────┘
+
+                            │## Patrones Utilizados
+
+                            │ N:M
+
+                            ▼### Repository Pattern
+
+              ┌──────────────────────────┐Abstrae la fuente de datos (local o remota) del resto de la aplicación.
+
+              │ playlist_song_cross_ref  │
+
+              ├──────────────────────────┤```kotlin
+
+              │ playlistId (FK)          │class MusicRepository @Inject constructor(
+
+              │ songId (FK)              │    private val musicDao: MusicDao,
+
+              │ position                 │    private val navidromeApi: NavidromeApi
+
+              └──────────────────────────┘) {
+
+```    fun getDownloadedSongs(): Flow<List<SongEntity>> {
+
         return musicDao.getDownloadedSongs()
-    }
-    
-    suspend fun searchSongs(query: String): List<Song> {
-        return navidromeApi.search(query).toSongs()
-    }
-}
-```
 
-### MVVM (Model-View-ViewModel)
+**DAOs Principales:**    }
+
+- `ServerDao`: Gestión de servidores    
+
+- `SongDao`: Operaciones sobre canciones    suspend fun searchSongs(query: String): List<Song> {
+
+- `PlaylistDao`: Gestión de playlists        return navidromeApi.search(query).toSongs()
+
+- `FavoriteDao`: Gestión de favoritos    }
+
+}
+
+## Patrones de Diseño```
+
+
+
+### 1. Repository Pattern### MVVM (Model-View-ViewModel)
+
 Separa la lógica de UI de la lógica de negocio.
 
-```kotlin
-@HiltViewModel
-class HomeViewModel @Inject constructor(
-    private val repository: MusicRepository
-) : ViewModel() {
-    private val _albums = MutableStateFlow<List<Album>>(emptyList())
-    val albums: StateFlow<List<Album>> = _albums.asStateFlow()
-    
-    fun loadAlbums() {
-        viewModelScope.launch {
-            _albums.value = repository.getRecentAlbums()
-        }
-    }
-}
-```
+**Propósito:** Abstraer la fuente de datos y proporcionar una API limpia para acceder a ellos.
 
-### Dependency Injection (Hilt)
+```kotlin
+
+**Implementación:**@HiltViewModel
+
+class HomeViewModel @Inject constructor(
+
+```kotlin    private val repository: MusicRepository
+
+interface MusicRepository {) : ViewModel() {
+
+    suspend fun getAlbums(): List<Album>    private val _albums = MutableStateFlow<List<Album>>(emptyList())
+
+    suspend fun downloadSong(song: Song)    val albums: StateFlow<List<Album>> = _albums.asStateFlow()
+
+    fun getDownloadedSongs(): Flow<List<Song>>    
+
+}    fun loadAlbums() {
+
+        viewModelScope.launch {
+
+class MusicRepositoryImpl @Inject constructor(            _albums.value = repository.getRecentAlbums()
+
+    private val api: NavidromeApiService,        }
+
+    private val dao: SongDao    }
+
+) : MusicRepository {}
+
+    // Implementación```
+
+}
+
+```### Dependency Injection (Hilt)
+
 Proporciona dependencias automáticamente sin acoplamiento.
 
+### 2. Dependency Injection (Hilt)
+
 ```kotlin
-@Module
+
+**Propósito:** Gestión centralizada de dependencias y ciclo de vida.@Module
+
 @InstallIn(SingletonComponent::class)
-object DatabaseModule {
+
+**Módulos:**object DatabaseModule {
+
     @Provides
-    @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): MusicDatabase {
-        return Room.databaseBuilder(
-            context,
+
+- `DatabaseModule`: Provee Room Database y DAOs    @Singleton
+
+- `NetworkModule`: Provee Retrofit y ApiService    fun provideDatabase(@ApplicationContext context: Context): MusicDatabase {
+
+- `RepositoryModule`: Provee Repositories        return Room.databaseBuilder(
+
+- `PlayerModule`: Provee MediaController            context,
+
             MusicDatabase::class.java,
-            "neosynth_db"
-        ).build()
-    }
-}
+
+**Scopes:**            "neosynth_db"
+
+- `@Singleton`: Instancia única en toda la app        ).build()
+
+- `@ViewModelScoped`: Instancia única por ViewModel    }
+
+- `@ActivityRetainedScoped`: Sobrevive a cambios de configuración}
+
 ```
+
+### 3. Observer Pattern (Flow/StateFlow)
 
 ### Single Source of Truth (SSOT)
-Room es la única fuente de verdad para datos locales.
 
-```kotlin
+**Propósito:** Observar cambios de datos de forma reactiva.Room es la única fuente de verdad para datos locales.
+
+
+
+**Tipos de Flow:**```kotlin
+
 suspend fun syncPlaylist(playlistId: String) {
-    // 1. Obtener de API
-    val playlistDto = api.getPlaylist(playlistId)
-    
+
+- `Flow<T>`: Stream frío, se activa al recolectar    // 1. Obtener de API
+
+- `StateFlow<T>`: Stream caliente con estado actual    val playlistDto = api.getPlaylist(playlistId)
+
+- `SharedFlow<T>`: Stream caliente sin estado inicial    
+
     // 2. Guardar en Room (SSOT)
-    dao.insertPlaylist(playlistDto.toEntity())
+
+**Ejemplo:**    dao.insertPlaylist(playlistDto.toEntity())
+
     
-    // 3. UI observa Flow desde Room automáticamente
-}
-```
+
+```kotlin    // 3. UI observa Flow desde Room automáticamente
+
+// En ViewModel}
+
+private val _songs = MutableStateFlow<List<Song>>(emptyList())```
+
+val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
 ## Inyección de Dependencias
 
-### Módulos Hilt
+// En Composable
+
+val songs by viewModel.songs.collectAsState()### Módulos Hilt
+
+```
 
 **AppModule.kt** - Contexto y SharedPreferences
-```kotlin
+
+### 4. State Hoisting```kotlin
+
 @Module
-@InstallIn(SingletonComponent::class)
+
+**Propósito:** Mover el estado al nivel más alto necesario para compartirlo.@InstallIn(SingletonComponent::class)
+
 object AppModule {
-    @Provides
-    @Singleton
-    fun provideContext(@ApplicationContext context: Context) = context
-}
-```
 
-**DatabaseModule.kt** - Room Database y DAOs
-```kotlin
-@Module
-@InstallIn(SingletonComponent::class)
-object DatabaseModule {
-    @Provides
-    @Singleton
+```kotlin    @Provides
+
+@Composable    @Singleton
+
+fun ParentScreen() {    fun provideContext(@ApplicationContext context: Context) = context
+
+    var searchQuery by remember { mutableStateOf("") }}
+
+    ```
+
+    SearchBar(
+
+        query = searchQuery,**DatabaseModule.kt** - Room Database y DAOs
+
+        onQueryChange = { searchQuery = it }```kotlin
+
+    )@Module
+
+    @InstallIn(SingletonComponent::class)
+
+    SongList(filter = searchQuery)object DatabaseModule {
+
+}    @Provides
+
+```    @Singleton
+
     fun provideDatabase(@ApplicationContext context: Context): MusicDatabase
-    
-    @Provides
-    fun provideMusicDao(db: MusicDatabase): MusicDao = db.musicDao()
-}
-```
 
-**NetworkModule.kt** - Retrofit y OkHttp
-```kotlin
-@Module
-@InstallIn(SingletonComponent::class)
-object NetworkModule {
+### 5. Unidirectional Data Flow (UDF)    
+
     @Provides
-    @Singleton
-    fun provideOkHttpClient(): OkHttpClient
-    
+
+**Propósito:** Los datos fluyen en una sola dirección, los eventos en la dirección opuesta.    fun provideMusicDao(db: MusicDatabase): MusicDao = db.musicDao()
+
+}
+
+``````
+
+┌─────────────┐
+
+│     UI      │ ──events──> ┌──────────────┐**NetworkModule.kt** - Retrofit y OkHttp
+
+│  (Compose)  │             │  ViewModel   │```kotlin
+
+│             │ <──state─── │              │@Module
+
+└─────────────┘             └──────┬───────┘@InstallIn(SingletonComponent::class)
+
+                                   │object NetworkModule {
+
+                            ┌──────▼───────┐    @Provides
+
+                            │  Repository  │    @Singleton
+
+                            └──────────────┘    fun provideOkHttpClient(): OkHttpClient
+
+```    
+
     @Provides
-    @Singleton
+
+## Componentes Principales    @Singleton
+
     fun provideRetrofit(client: OkHttpClient): Retrofit
-    
-    @Provides
-    @Singleton
-    fun provideNavidromeApi(retrofit: Retrofit): NavidromeApi
-}
-```
 
-## Estado de UI
+### 1. Player Service    
+
+    @Provides
+
+**Archivo:** `PlayerService.kt`    @Singleton
+
+    fun provideNavidromeApi(retrofit: Retrofit): NavidromeApi
+
+**Responsabilidades:**}
+
+- Reproducción de audio en segundo plano```
+
+- Control mediante notificaciones
+
+- Gestión de cola de reproducción## Estado de UI
+
+- Persistencia entre sesiones
 
 ### StateFlow para Estado Reactivo
 
+**Tecnología:** Media3 (ExoPlayer)
+
 ```kotlin
-@HiltViewModel
-class DownloadViewModel @Inject constructor(
-    private val repository: MusicRepository
-) : ViewModel() {
-    // Estado inmutable expuesto
-    private val _downloadedSongs = MutableStateFlow<List<SongEntity>>(emptyList())
+
+**Características:**@HiltViewModel
+
+- MediaSessionService para compatibilidad con Android Autoclass DownloadViewModel @Inject constructor(
+
+- Notificaciones con controles de reproducción    private val repository: MusicRepository
+
+- Soporte para comandos de voz (Google Assistant)) : ViewModel() {
+
+- Manejo de audio focus    // Estado inmutable expuesto
+
+- Caché de streaming    private val _downloadedSongs = MutableStateFlow<List<SongEntity>>(emptyList())
+
     val downloadedSongs: StateFlow<List<SongEntity>> = _downloadedSongs.asStateFlow()
-    
+
+### 2. Download System    
+
     // Estado de UI
-    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-    
+
+**Archivos:**    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
+
+- `DownloadWorker.kt`: Worker para descargas en segundo plano    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+- `DownloadViewModel.kt`: Gestión del estado de descargas    
+
     init {
-        viewModelScope.launch {
+
+**Estrategia de Descarga Híbrida:**        viewModelScope.launch {
+
             repository.getDownloadedSongs()
-                .collect { songs ->
-                    _downloadedSongs.value = songs
-                    _uiState.value = UiState.Success
-                }
+
+```kotlin                .collect { songs ->
+
+// Batch processing con WorkContinuation                    _downloadedSongs.value = songs
+
+fun downloadPlaylist(songs: List<Song>) {                    _uiState.value = UiState.Success
+
+    val batchSize = 10                }
+
+    val batches = songs.chunked(batchSize)        }
+
         }
-    }
+
+    var continuation: WorkContinuation? = null}
+
+    ```
+
+    batches.forEach { batch ->
+
+        // Crear trabajos paralelos para el batch### Sealed Class para Estados
+
+        val parallelWorks = batch.map { song ->
+
+            createDownloadWork(song)```kotlin
+
+        }sealed class UiState {
+
+            object Loading : UiState()
+
+        continuation = if (continuation == null) {    object Success : UiState()
+
+            workManager.beginWith(parallelWorks)    data class Error(val message: String) : UiState()
+
+        } else {}
+
+            continuation!!.then(parallelWorks)```
+
+        }
+
+    }## Navegación
+
+    
+
+    continuation?.enqueue()### Rutas Tipadas
+
 }
-```
 
-### Sealed Class para Estados
+``````kotlin
 
-```kotlin
-sealed class UiState {
-    object Loading : UiState()
-    object Success : UiState()
-    data class Error(val message: String) : UiState()
-}
-```
-
-## Navegación
-
-### Rutas Tipadas
-
-```kotlin
 sealed class Screen(val route: String) {
-    object Home : Screen("home")
-    object Player : Screen("player")
-    object Downloads : Screen("downloads")
-    data class AlbumDetail(val albumId: String) : Screen("album/{albumId}") {
-        fun createRoute(albumId: String) = "album/$albumId"
-    }
+
+**Características:**    object Home : Screen("home")
+
+- Descarga en batches de 10 canciones en paralelo    object Player : Screen("player")
+
+- Batches secuenciales para evitar sobrecarga    object Downloads : Screen("downloads")
+
+- Contador atómico para progreso en notificaciones    data class AlbumDetail(val albumId: String) : Screen("album/{albumId}") {
+
+- Reintentos automáticos en caso de fallo        fun createRoute(albumId: String) = "album/$albumId"
+
+- Persistencia de estado con WorkManager    }
+
 }
+
+### 3. Navigation System```
+
+
+
+**Archivo:** `NeosynthNavGraph.kt`### NavGraph
+
+
+
+**Estructura:**```kotlin
+
+@Composable
+
+```kotlinfun NavGraph(
+
+sealed class Screen(val route: String) {    navController: NavHostController,
+
+    object Home : Screen("home")    musicController: MusicController
+
+    object Albums : Screen("albums")) {
+
+    data class AlbumDetail(val albumId: String) : Screen("album/{albumId}")    NavHost(navController, startDestination = Screen.Home.route) {
+
+    // ...        composable(Screen.Home.route) {
+
+}            HomeScreen(navController, musicController)
+
+```        }
+
+        composable(
+
+**Características:**            route = Screen.AlbumDetail().route,
+
+- Type-safe navigation            arguments = listOf(navArgument("albumId") { type = NavType.StringType })
+
+- Paso de argumentos entre pantallas        ) { backStackEntry ->
+
+- Deep linking support            val albumId = backStackEntry.arguments?.getString("albumId")
+
+- Back stack management            AlbumDetailScreen(albumId, navController)
+
+        }
+
+### 4. Offline Support    }
+
+}
+
+**Componentes:**```
+
+
+
+1. **Download Manager:**## Gestión de Reproducción
+
+   - Descarga de archivos de audio
+
+   - Almacenamiento en almacenamiento interno### Media3 ExoPlayer
+
+   - Metadatos en Room Database
+
+```kotlin
+
+2. **Playlist Offline:**@AndroidEntryPoint
+
+   - Filtrado de playlists con al menos 1 canción descargadaclass PlaybackService : MediaSessionService() {
+
+   - Visualización de todas las canciones (descargadas y pendientes)    private lateinit var player: ExoPlayer
+
+   - Indicadores visuales de estado de descarga    private lateinit var mediaSession: MediaSession
+
+    
+
+3. **Sync Manager:**    override fun onCreate() {
+
+   - Sincronización de favoritos con servidor        super.onCreate()
+
+   - Batch operations para reducir llamadas API        player = ExoPlayer.Builder(this).build()
+
+   - Manejo de conflictos        mediaSession = MediaSession.Builder(this, player).build()
+
+    }
+
+## Flujo de Datos    
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+
+### Caso de Uso: Reproducir un Álbum}
+
 ```
 
-### NavGraph
+```
+
+1. Usuario hace clic en "Play" en AlbumDetailScreen### MusicController
+
+   │
+
+   ▼```kotlin
+
+2. AlbumDetailScreen llama a viewModel.playAlbum()class MusicController @Inject constructor(
+
+   │    private val context: Context
+
+   ▼) {
+
+3. AlbumDetailViewModel obtiene canciones del álbum    private val sessionToken = SessionToken(
+
+   │        context,
+
+   ▼        ComponentName(context, PlaybackService::class.java)
+
+4. ViewModel envía lista de canciones a PlayerService    )
+
+   │    
+
+   ▼    private val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+5. PlayerService prepara MediaItems y comienza reproducción    
+
+   │    fun playQueue(songs: List<SongEntity>) {
+
+   ▼        controllerFuture.get()?.apply {
+
+6. PlayerService emite estado actualizado (isPlaying, currentSong)            setMediaItems(songs.map { it.toMediaItem() })
+
+   │            prepare()
+
+   ▼            play()
+
+7. UI observa cambios y actualiza interfaz        }
+
+```    }
+
+}
+
+### Caso de Uso: Descargar Playlist```
+
+
+
+```## WorkManager para Descargas
+
+1. Usuario selecciona "Descargar" en PlaylistDetailScreen
+
+   │### DownloadWorker
+
+   ▼
+
+2. ViewModel crea batch de DownloadWorkers```kotlin
+
+   │@HiltWorker
+
+   ▼class DownloadWorker @AssistedInject constructor(
+
+3. WorkManager encola trabajos en batches    @Assisted context: Context,
+
+   │    @Assisted params: WorkerParameters,
+
+   ▼    private val repository: MusicRepository
+
+4. DownloadWorker descarga archivo de audio) : CoroutineWorker(context, params) {
+
+   │    
+
+   ▼    override suspend fun doWork(): Result {
+
+5. Worker actualiza Room Database (isDownloaded = true)        val songId = inputData.getString("songId") ?: return Result.failure()
+
+   │        
+
+   ▼        return try {
+
+6. DownloadProgress notifica progreso            // Descargar archivo
+
+   │            val file = downloadAudioFile(songId)
+
+   ▼            
+
+7. UI observa cambios en Flow y actualiza indicadores            // Guardar en Room
+
+```            repository.insertSong(
+
+                SongEntity(
+
+## Gestión de Estado                    id = songId,
+
+                    path = file.absolutePath,
+
+### Patrón de Estado en ViewModels                    isDownloaded = true
+
+                )
+
+```kotlin            )
+
+sealed class UiState {            
+
+    object Loading : UiState()            Result.success()
+
+    data class Success(val data: List<Song>) : UiState()        } catch (e: Exception) {
+
+    data class Error(val message: String) : UiState()            Result.retry()
+
+}        }
+
+    }
+
+class MusicViewModel @Inject constructor(}
+
+    private val repository: MusicRepository```
+
+) : ViewModel() {
+
+    ## Testing Strategy
+
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
+
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()### Unit Tests
+
+    - ViewModels: Lógica de negocio
+
+    init {- Repositories: Transformación de datos
+
+        loadSongs()- Mappers: Conversiones DTO <-> Entity
+
+    }
+
+    ### Integration Tests
+
+    private fun loadSongs() {- Room DAOs: Operaciones de base de datos
+
+        viewModelScope.launch {- API Services: Llamadas de red (MockWebServer)
+
+            _uiState.value = UiState.Loading
+
+            try {### UI Tests
+
+                repository.getSongs().collect { songs ->- Composables: Interacción de usuario
+
+                    _uiState.value = UiState.Success(songs)- Navegación: Flujos de pantallas
+
+                }
+
+            } catch (e: Exception) {## Consideraciones de Rendimiento
+
+                _uiState.value = UiState.Error(e.message ?: "Unknown error")
+
+            }1. **LazyColumn** para listas grandes (albums, canciones)
+
+        }2. **Paging 3** podría implementarse para scroll infinito
+
+    }3. **Coil** con caché de disco para imágenes
+
+}4. **Flow.conflate()** para evitar sobrecarga de actualizaciones
+
+```5. **WorkManager** con constraints para descargas eficientes
+
+
+### Estado en Composables
 
 ```kotlin
 @Composable
-fun NavGraph(
-    navController: NavHostController,
-    musicController: MusicController
-) {
-    NavHost(navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) {
-            HomeScreen(navController, musicController)
-        }
-        composable(
-            route = Screen.AlbumDetail().route,
-            arguments = listOf(navArgument("albumId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val albumId = backStackEntry.arguments?.getString("albumId")
-            AlbumDetailScreen(albumId, navController)
-        }
+fun MusicScreen(viewModel: MusicViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    when (val state = uiState) {
+        is UiState.Loading -> LoadingIndicator()
+        is UiState.Success -> SongList(state.data)
+        is UiState.Error -> ErrorScreen(state.message)
     }
 }
 ```
 
-## Gestión de Reproducción
+### Estado Local vs Estado de ViewModel
 
-### Media3 ExoPlayer
+**Estado Local (remember):**
+- Estado de UI transitorio (expandir/colapsar, tabs seleccionadas)
+- No sobrevive a cambios de configuración
+- No necesita ser compartido
 
 ```kotlin
-@AndroidEntryPoint
-class PlaybackService : MediaSessionService() {
-    private lateinit var player: ExoPlayer
-    private lateinit var mediaSession: MediaSession
-    
-    override fun onCreate() {
-        super.onCreate()
-        player = ExoPlayer.Builder(this).build()
-        mediaSession = MediaSession.Builder(this, player).build()
-    }
-    
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
-}
+var isExpanded by remember { mutableStateOf(false) }
 ```
 
-### MusicController
+**Estado de ViewModel (StateFlow):**
+- Estado de negocio persistente
+- Sobrevive a cambios de configuración
+- Necesita ser compartido entre composables
 
 ```kotlin
-class MusicController @Inject constructor(
-    private val context: Context
-) {
-    private val sessionToken = SessionToken(
-        context,
-        ComponentName(context, PlaybackService::class.java)
-    )
-    
-    private val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-    
-    fun playQueue(songs: List<SongEntity>) {
-        controllerFuture.get()?.apply {
-            setMediaItems(songs.map { it.toMediaItem() })
-            prepare()
-            play()
-        }
-    }
-}
+val songs by viewModel.songs.collectAsState()
 ```
 
-## WorkManager para Descargas
+## Optimizaciones de Rendimiento
 
-### DownloadWorker
+### 1. Lazy Loading
 
-```kotlin
-@HiltWorker
-class DownloadWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
-    private val repository: MusicRepository
-) : CoroutineWorker(context, params) {
-    
-    override suspend fun doWork(): Result {
-        val songId = inputData.getString("songId") ?: return Result.failure()
-        
-        return try {
-            // Descargar archivo
-            val file = downloadAudioFile(songId)
-            
-            // Guardar en Room
-            repository.insertSong(
-                SongEntity(
-                    id = songId,
-                    path = file.absolutePath,
-                    isDownloaded = true
-                )
-            )
-            
-            Result.success()
-        } catch (e: Exception) {
-            Result.retry()
-        }
-    }
-}
+- LazyColumn para listas grandes
+- Paginación en llamadas API
+- Caché de imágenes con Coil
+
+### 2. Coroutines
+
+- Dispatchers.IO para operaciones de red y base de datos
+- Dispatchers.Main para actualizaciones de UI
+- Dispatchers.Default para cálculos intensivos
+
+### 3. Room Database
+
+- Indices en columnas frecuentemente consultadas
+- Foreign keys para integridad referencial
+- Transacciones para operaciones múltiples
+
+### 4. Memory Management
+
+- ViewModelScope para cancelación automática
+- collectAsStateWithLifecycle para optimizar recolección
+- remember y derivedStateOf para evitar recomposiciones innecesarias
+
+## Testing
+
+### Estructura de Tests
+
+```
+test/
+├── viewmodel/      # Unit tests de ViewModels
+├── repository/     # Unit tests de Repositories
+├── dao/           # Unit tests de DAOs
+└── utils/         # Unit tests de utilidades
+
+androidTest/
+├── ui/            # UI tests con Compose
+├── database/      # Tests de integración con Room
+└── worker/        # Tests de Workers
 ```
 
-## Testing Strategy
+### Estrategia de Testing
 
-### Unit Tests
-- ViewModels: Lógica de negocio
-- Repositories: Transformación de datos
-- Mappers: Conversiones DTO <-> Entity
+1. **Unit Tests:** ViewModels y Repositories (mocks)
+2. **Integration Tests:** Room Database (in-memory)
+3. **UI Tests:** Pantallas críticas con Compose Test
+4. **End-to-End:** Flujos principales de usuario
 
-### Integration Tests
-- Room DAOs: Operaciones de base de datos
-- API Services: Llamadas de red (MockWebServer)
+## Consideraciones de Seguridad
 
-### UI Tests
-- Composables: Interacción de usuario
-- Navegación: Flujos de pantallas
+1. **Autenticación:**
+   - Tokens almacenados en Room Database (encriptado en producción)
+   - MD5 salt para autenticación Subsonic
+   - No se almacenan contraseñas en texto plano
 
-## Consideraciones de Rendimiento
+2. **Network:**
+   - HTTPS obligatorio para servidores
+   - Certificate pinning (opcional)
+   - Validación de respuestas del servidor
 
-1. **LazyColumn** para listas grandes (albums, canciones)
-2. **Paging 3** podría implementarse para scroll infinito
-3. **Coil** con caché de disco para imágenes
-4. **Flow.conflate()** para evitar sobrecarga de actualizaciones
-5. **WorkManager** con constraints para descargas eficientes
+3. **Storage:**
+   - Archivos descargados en almacenamiento interno
+   - Base de datos protegida por permisos de Android
+   - Limpieza de caché al cerrar sesión

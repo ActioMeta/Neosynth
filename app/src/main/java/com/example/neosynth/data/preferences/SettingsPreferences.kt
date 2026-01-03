@@ -20,6 +20,14 @@ enum class StreamQuality(val bitrate: Int, val format: String) {
     LOSSLESS(0, "raw") // Sin transcodificación
 }
 
+enum class DownloadQuality(val bitrate: Int, val format: String) {
+    LOW(128, "mp3"),
+    MEDIUM(192, "mp3"),
+    HIGH(256, "mp3"),
+    VERY_HIGH(320, "mp3"),
+    LOSSLESS(0, "raw") // Sin transcodificación
+}
+
 enum class ThemeMode {
     LIGHT,
     DARK,
@@ -30,9 +38,12 @@ data class AudioSettings(
     val crossfadeEnabled: Boolean = false,
     val crossfadeDuration: Int = 5, // segundos
     val normalizeVolume: Boolean = true,
-    val streamQuality: StreamQuality = StreamQuality.HIGH,
-    val wifiQuality: StreamQuality = StreamQuality.LOSSLESS,
-    val mobileQuality: StreamQuality = StreamQuality.MEDIUM
+    // Streaming
+    val streamWifiQuality: StreamQuality = StreamQuality.LOSSLESS,
+    val streamMobileQuality: StreamQuality = StreamQuality.MEDIUM,
+    // Descargas
+    val downloadWifiQuality: DownloadQuality = DownloadQuality.LOSSLESS,
+    val downloadMobileQuality: DownloadQuality = DownloadQuality.HIGH
 )
 
 data class AppSettings(
@@ -50,9 +61,13 @@ class SettingsPreferences @Inject constructor(
         val CROSSFADE_ENABLED = booleanPreferencesKey("crossfade_enabled")
         val CROSSFADE_DURATION = intPreferencesKey("crossfade_duration")
         val NORMALIZE_VOLUME = booleanPreferencesKey("normalize_volume")
-        val STREAM_QUALITY = stringPreferencesKey("stream_quality")
-        val WIFI_QUALITY = stringPreferencesKey("wifi_quality")
-        val MOBILE_QUALITY = stringPreferencesKey("mobile_quality")
+        // Streaming
+        val STREAM_WIFI_QUALITY = stringPreferencesKey("stream_wifi_quality")
+        val STREAM_MOBILE_QUALITY = stringPreferencesKey("stream_mobile_quality")
+        // Descargas
+        val DOWNLOAD_WIFI_QUALITY = stringPreferencesKey("download_wifi_quality")
+        val DOWNLOAD_MOBILE_QUALITY = stringPreferencesKey("download_mobile_quality")
+        // Apariencia
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors")
     }
@@ -63,9 +78,10 @@ class SettingsPreferences @Inject constructor(
             crossfadeEnabled = prefs[Keys.CROSSFADE_ENABLED] ?: false,
             crossfadeDuration = prefs[Keys.CROSSFADE_DURATION] ?: 5,
             normalizeVolume = prefs[Keys.NORMALIZE_VOLUME] ?: true,
-            streamQuality = StreamQuality.valueOf(prefs[Keys.STREAM_QUALITY] ?: StreamQuality.HIGH.name),
-            wifiQuality = StreamQuality.valueOf(prefs[Keys.WIFI_QUALITY] ?: StreamQuality.LOSSLESS.name),
-            mobileQuality = StreamQuality.valueOf(prefs[Keys.MOBILE_QUALITY] ?: StreamQuality.MEDIUM.name)
+            streamWifiQuality = StreamQuality.valueOf(prefs[Keys.STREAM_WIFI_QUALITY] ?: StreamQuality.LOSSLESS.name),
+            streamMobileQuality = StreamQuality.valueOf(prefs[Keys.STREAM_MOBILE_QUALITY] ?: StreamQuality.MEDIUM.name),
+            downloadWifiQuality = DownloadQuality.valueOf(prefs[Keys.DOWNLOAD_WIFI_QUALITY] ?: DownloadQuality.LOSSLESS.name),
+            downloadMobileQuality = DownloadQuality.valueOf(prefs[Keys.DOWNLOAD_MOBILE_QUALITY] ?: DownloadQuality.HIGH.name)
         )
     }
 
@@ -90,16 +106,20 @@ class SettingsPreferences @Inject constructor(
         dataStore.edit { it[Keys.NORMALIZE_VOLUME] = enabled }
     }
 
-    suspend fun updateStreamQuality(quality: StreamQuality) {
-        dataStore.edit { it[Keys.STREAM_QUALITY] = quality.name }
+    suspend fun updateStreamWifiQuality(quality: StreamQuality) {
+        dataStore.edit { it[Keys.STREAM_WIFI_QUALITY] = quality.name }
     }
 
-    suspend fun updateWifiQuality(quality: StreamQuality) {
-        dataStore.edit { it[Keys.WIFI_QUALITY] = quality.name }
+    suspend fun updateStreamMobileQuality(quality: StreamQuality) {
+        dataStore.edit { it[Keys.STREAM_MOBILE_QUALITY] = quality.name }
     }
 
-    suspend fun updateMobileQuality(quality: StreamQuality) {
-        dataStore.edit { it[Keys.MOBILE_QUALITY] = quality.name }
+    suspend fun updateDownloadWifiQuality(quality: DownloadQuality) {
+        dataStore.edit { it[Keys.DOWNLOAD_WIFI_QUALITY] = quality.name }
+    }
+
+    suspend fun updateDownloadMobileQuality(quality: DownloadQuality) {
+        dataStore.edit { it[Keys.DOWNLOAD_MOBILE_QUALITY] = quality.name }
     }
 
     suspend fun updateThemeMode(mode: ThemeMode) {

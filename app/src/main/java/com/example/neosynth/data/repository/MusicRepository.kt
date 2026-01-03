@@ -88,4 +88,19 @@ class MusicRepository @Inject constructor(
     }
     
     fun getSongsInPlaylist(playlistId: String) = musicDao.getSongsInPlaylist(playlistId)
+    
+    // Favorites methods
+    suspend fun addToFavorites(songId: String) {
+        musicDao.addToFavorites(songId)
+    }
+    
+    suspend fun removeFromFavorites(songId: String) {
+        musicDao.removeFromFavorites(songId)
+    }
+    
+    fun getFavoriteSongs(): Flow<List<SongEntity>> = musicDao.getFavoriteSongs()
+    
+    suspend fun isFavorite(songId: String): Boolean {
+        return musicDao.isFavorite(songId) ?: false
+    }
 }

@@ -33,7 +33,12 @@ object AppModule {
             context,
             MusicDatabase::class.java,
             "neosynth_db"
-        ).fallbackToDestructiveMigration()
+        )
+            .addMigrations(
+                com.example.neosynth.data.local.MIGRATION_2_3,
+                com.example.neosynth.data.local.MIGRATION_3_4
+            )
+            .fallbackToDestructiveMigration()
             .build()
     }
 

@@ -13,31 +13,58 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
-
 @Composable
 fun HomeSkeleton(brush: Brush) {
     Column(modifier = Modifier.fillMaxSize()) {
+        // Top Bar con iconos (Library y Settings)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 0.dp)
+                .offset(y = (-8).dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icono Library
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(brush)
+            )
+            // Icono Settings
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(brush)
+            )
+        }
+        
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(280.dp)
                 .padding(horizontal = 24.dp)
         ) {
-            Column(modifier = Modifier.align(Alignment.TopStart).padding(top = 20.dp)) {
+            Column(modifier = Modifier.align(Alignment.TopStart)) {
+                // "Random"
                 Box(modifier = Modifier.size(200.dp, 60.dp).clip(RoundedCornerShape(8.dp)).background(brush))
-                Spacer(modifier = Modifier.height(8.dp))
+                // "Mix"
                 Box(modifier = Modifier.size(120.dp, 60.dp).clip(RoundedCornerShape(8.dp)).background(brush))
             }
 
+            // Botón shuffle circular
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 20.dp)
                     .size(64.dp)
                     .clip(CircleShape)
                     .background(brush)
             )
 
+            // Álbumes carousel (3 tarjetas superpuestas)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -65,8 +92,10 @@ fun HomeSkeleton(brush: Brush) {
 
         Spacer(modifier = Modifier.height(80.dp))
 
+        // Título de sección "Álbumes recientes"
         Box(modifier = Modifier.padding(start = 24.dp, bottom = 16.dp).size(180.dp, 24.dp).clip(RoundedCornerShape(4.dp)).background(brush))
 
+        // Lista horizontal de álbumes
         LazyRow(
             contentPadding = PaddingValues(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),

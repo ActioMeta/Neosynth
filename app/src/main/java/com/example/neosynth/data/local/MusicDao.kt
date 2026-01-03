@@ -82,4 +82,17 @@ interface MusicDao {
     
     @Query("SELECT * FROM songs WHERE id IN (SELECT songId FROM playlist_song_cross_ref WHERE playlistId = :playlistId ORDER BY position)")
     fun getSongsInPlaylist(playlistId: String): Flow<List<SongEntity>>
+    
+    // Favorites
+    @Query("UPDATE songs SET isFavorite = 1 WHERE id = :songId")
+    suspend fun addToFavorites(songId: String)
+    
+    @Query("UPDATE songs SET isFavorite = 0 WHERE id = :songId")
+    suspend fun removeFromFavorites(songId: String)
+    
+    @Query("SELECT * FROM songs WHERE isFavorite = 1 ORDER BY title ASC")
+    fun getFavoriteSongs(): Flow<List<SongEntity>>
+    
+    @Query("SELECT isFavorite FROM songs WHERE id = :songId")
+    suspend fun isFavorite(songId: String): Boolean?
 }

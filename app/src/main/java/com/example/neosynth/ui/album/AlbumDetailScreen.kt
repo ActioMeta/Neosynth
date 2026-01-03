@@ -33,7 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SelectionTopBar
+import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.MultiSelectAction
 import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -82,12 +83,7 @@ fun AlbumDetailScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            AlbumSkeleton(brush = com.example.neosynth.ui.components.rememberShimmerBrush())
         } else {
             LazyColumn(
                 state = listState,
@@ -268,28 +264,45 @@ fun AlbumDetailScreen(
             }
         }
         
-        // Selection Top Bar
-        SelectionTopBar(
+        // Barra lateral de selección
+        SideMultiSelectBar(
+            visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            onClearSelection = { selectedSongIds = emptySet() },
-            onPlaySelected = {
-                viewModel.playSongs(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onDownloadSelected = {
-                viewModel.downloadSongs(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onAddToFavorites = {
-                viewModel.addToFavorites(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            onAddToPlaylist = {
-                showPlaylistPicker = true
-            },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
+            actions = listOf(
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = "Play",
+                    onClick = {
+                        viewModel.playSongs(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = "Favoritos",
+                    onClick = {
+                        viewModel.addToFavorites(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Download,
+                    label = "Descargar",
+                    onClick = {
+                        viewModel.downloadSongs(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlaylistAdd,
+                    label = "Playlist",
+                    onClick = {
+                        showPlaylistPicker = true
+                    }
+                )
+            ),
+            onClose = { selectedSongIds = emptySet() },
+            modifier = Modifier.align(Alignment.CenterEnd)
         )
 
         // Normal Top App Bar (solo visible cuando no hay selección)
@@ -319,10 +332,16 @@ fun AlbumDetailScreen(
         
         // Playlist Picker Dialog
         if (showPlaylistPicker) {
-            // TODO: Get playlists from ViewModel
-            // For now showing empty dialog
+            val playlists by viewModel.playlists.collectAsState()
+            
+            LaunchedEffect(showPlaylistPicker) {
+                if (showPlaylistPicker) {
+                    viewModel.loadPlaylists()
+                }
+            }
+            
             com.example.neosynth.ui.components.PlaylistPickerDialog(
-                playlists = emptyList<com.example.neosynth.data.remote.responses.PlaylistDto>(),
+                playlists = playlists,
                 onDismiss = { 
                     showPlaylistPicker = false 
                 },
@@ -402,7 +421,6 @@ private fun AlbumSongRow(
     )
     
     Surface(
-        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp)

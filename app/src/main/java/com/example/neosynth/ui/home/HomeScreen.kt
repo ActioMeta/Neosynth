@@ -47,7 +47,8 @@ import kotlinx.coroutines.flow.collectLatest
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToLibrary: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> }
 ) {
     val recentlyAdded = viewModel.recentlyAdded
     val isLoading = viewModel.isLoading
@@ -267,7 +268,7 @@ fun HomeScreen(
                                     onPlay = { viewModel.playAlbum(album.id) },
                                     onShuffle = { viewModel.playAlbum(album.id, shuffle = true) },
                                     onDownload = { viewModel.downloadAlbum(album.id) },
-                                    onGoToArtist = { /* TODO: navegar a artista */ }
+                                    onGoToArtist = { onNavigateToArtist(album.artistId, album.artistName) }
                                 )
                             }
                         }

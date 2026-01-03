@@ -50,12 +50,7 @@ fun ArtistDetailScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            ArtistSkeleton(brush = com.example.neosynth.ui.components.rememberShimmerBrush())
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

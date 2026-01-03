@@ -10,6 +10,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
+import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.remote.responses.AlbumDto
@@ -72,21 +73,17 @@ class DiscoverViewModel @Inject constructor(
         .map { songs -> songs.map { it.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
     
-    // Décadas predefinidas
-    val decades = listOf(
-        "2020s" to 2020..2029,
-        "2010s" to 2010..2019,
-        "2000s" to 2000..2009,
-        "90s" to 1990..1999,
-        "80s" to 1980..1989,
-        "70s" to 1970..1979,
-        "60s" to 1960..1969
-    )
+    // Décadas dinámicas (se cargarán desde el servidor)
+    var decades by mutableStateOf<List<Pair<String, IntRange>>>(emptyList())
+        private set
+    var isLoadingDecades by mutableStateOf(false)
+        private set
 
     private var searchJob: Job? = null
 
     init {
         loadGenres()
+        loadDecades()
     }
 
     fun onSearchQueryChange(query: String) {
@@ -196,6 +193,81 @@ class DiscoverViewModel @Inject constructor(
                 error = e.localizedMessage ?: "Error de conexión"
             } finally {
                 isLoadingGenres = false
+            }
+        }
+    }
+
+    private fun loadDecades() {
+        viewModelScope.launch {
+            isLoadingDecades = true
+            try {
+                val server = serverDao.getActiveServer() ?: run {
+                    isLoadingDecades = false
+                    return@launch
+                }
+                urlInterceptor.setBaseUrl(server.url)
+                
+                // Obtener una muestra representativa de canciones para detectar años
+                val response = api.getRandomSongs(
+                    size = 500,
+                    u = server.username,
+                    t = server.token,
+                    s = server.salt,
+                    v = "1.16.1",
+                    c = "NeoSynth"
+                )
+                
+                val allSongs = response.response.randomSongs?.song ?: emptyList()
+                val years = allSongs.mapNotNull { it.year }.distinct().sorted()
+                
+                if (years.isEmpty()) {
+                    // Si no hay años, usar décadas predeterminadas
+                    decades = listOf(
+                        "2020s" to 2020..2029,
+                        "2010s" to 2010..2019,
+                        "2000s" to 2000..2009,
+                        "90s" to 1990..1999,
+                        "80s" to 1980..1989,
+                        "70s" to 1970..1979,
+                        "60s" to 1960..1969
+                    )
+                } else {
+                    // Generar décadas dinámicamente basadas en los años disponibles
+                    val minYear = years.first()
+                    val maxYear = years.last()
+                    
+                    val decadesList = mutableListOf<Pair<String, IntRange>>()
+                    
+                    // Generar décadas desde la más reciente a la más antigua
+                    val currentDecade = (maxYear / 10) * 10
+                    val oldestDecade = (minYear / 10) * 10
+                    
+                    for (decadeStart in currentDecade downTo oldestDecade step 10) {
+                        val decadeEnd = decadeStart + 9
+                        val label = if (decadeStart >= 2000) {
+                            "${decadeStart}s"
+                        } else {
+                            "${decadeStart % 100}s"
+                        }
+                        decadesList.add(label to decadeStart..decadeEnd)
+                    }
+                    
+                    decades = decadesList
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // En caso de error, usar décadas predeterminadas
+                decades = listOf(
+                    "2020s" to 2020..2029,
+                    "2010s" to 2010..2019,
+                    "2000s" to 2000..2009,
+                    "90s" to 1990..1999,
+                    "80s" to 1980..1989,
+                    "70s" to 1970..1979,
+                    "60s" to 1960..1969
+                )
+            } finally {
+                isLoadingDecades = false
             }
         }
     }
@@ -434,18 +506,58 @@ class DiscoverViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+                
+                // Preparar lista de IDs para sync con servidor
+                val songIds = mutableListOf<String>()
+                
                 for (song in songs) {
-                    val response = api.star(
-                        id = song.id,
-                        u = server.username,
-                        t = server.token,
-                        s = server.salt
-                    )
-                    android.util.Log.d("DiscoverViewModel", "Star response for ${song.title}: ${response.response.status}")
+                    // Primero, asegurarse de que la canción existe en Room
+                    val existingSong = musicRepository.getSongById(song.id)
+                    if (existingSong == null) {
+                        val newSong = com.example.neosynth.data.local.entities.SongEntity(
+                            id = song.id,
+                            title = song.title,
+                            serverID = 0L,
+                            sourceType = "SUBSONIC",
+                            sourceId = server.id.toString(),
+                            artistID = song.artistId ?: "",
+                            artist = song.artist ?: "Unknown",
+                            albumID = song.albumId ?: "",
+                            album = song.album ?: "Unknown",
+                            duration = song.duration.toLong(),
+                            imageUrl = song.coverArt,
+                            path = "",
+                            isDownloaded = false,
+                            isFavorite = false
+                        )
+                        musicRepository.insertSong(newSong)
+                        android.util.Log.d("DiscoverViewModel", "Created song entity for favoriting: ${song.id}")
+                    }
+                    
+                    // Add to favorites
+                    musicRepository.addToFavorites(song.id)
+                    songIds.add(song.id)
                 }
-                android.util.Log.d("DiscoverViewModel", "Successfully starred ${songs.size} songs")
+                
+                // Sync con Navidrome server en una sola llamada (más eficiente)
+                if (songIds.isNotEmpty()) {
+                    try {
+                        val response = api.star(
+                            id = songIds, // ← Usar List directamente (batch operation)
+                            u = server.username,
+                            t = server.token,
+                            s = server.salt
+                        )
+                        android.util.Log.d("DiscoverViewModel", "Starred ${songIds.size} songs on server - ${response.response.status}")
+                    } catch (e: Exception) {
+                        android.util.Log.e("DiscoverViewModel", "Failed to star songs on server", e)
+                        // Continue even if server sync fails - we still have it locally
+                    }
+                }
+                
+                android.util.Log.d("DiscoverViewModel", "Successfully added ${songs.size} songs to favorites")
             } catch (e: Exception) {
-                android.util.Log.e("DiscoverViewModel", "Error starring songs", e)
+                android.util.Log.e("DiscoverViewModel", "Error adding songs to favorites", e)
                 e.printStackTrace()
             }
         }

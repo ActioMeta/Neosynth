@@ -161,27 +161,41 @@ fun SettingsScreen(
 
             // Quality Section
             item {
-                SettingsSection(title = "Calidad de audio") {
+                SettingsSection(title = "Calidad de audio - Streaming") {
                     SettingsCard {
                         SettingsClickableItem(
-                            icon = Icons.Rounded.HighQuality,
-                            title = "Calidad de streaming",
-                            subtitle = getQualityLabel(audioSettings.streamQuality),
-                            onClick = { showQualityDialog = QualityDialogType.STREAM }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsClickableItem(
                             icon = Icons.Rounded.Wifi,
-                            title = "Calidad en WiFi",
-                            subtitle = getQualityLabel(audioSettings.wifiQuality),
-                            onClick = { showQualityDialog = QualityDialogType.WIFI }
+                            title = "Streaming por WiFi",
+                            subtitle = getStreamQualityLabel(audioSettings.streamWifiQuality),
+                            onClick = { showQualityDialog = QualityDialogType.STREAM_WIFI }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.SignalCellularAlt,
-                            title = "Calidad en datos móviles",
-                            subtitle = getQualityLabel(audioSettings.mobileQuality),
-                            onClick = { showQualityDialog = QualityDialogType.MOBILE }
+                            title = "Streaming por datos móviles",
+                            subtitle = getStreamQualityLabel(audioSettings.streamMobileQuality),
+                            onClick = { showQualityDialog = QualityDialogType.STREAM_MOBILE }
+                        )
+                    }
+                }
+            }
+
+            // Download Quality Section
+            item {
+                SettingsSection(title = "Calidad de audio - Descarga") {
+                    SettingsCard {
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Wifi,
+                            title = "Descarga por WiFi",
+                            subtitle = getDownloadQualityLabel(audioSettings.downloadWifiQuality),
+                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_WIFI }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.SignalCellularAlt,
+                            title = "Descarga por datos móviles",
+                            subtitle = getDownloadQualityLabel(audioSettings.downloadMobileQuality),
+                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_MOBILE }
                         )
                     }
                 }
@@ -233,23 +247,52 @@ fun SettingsScreen(
     
     // Dialogs
     showQualityDialog?.let { type ->
-        QualityPickerDialog(
-            type = type,
-            currentQuality = when (type) {
-                QualityDialogType.STREAM -> audioSettings.streamQuality
-                QualityDialogType.WIFI -> audioSettings.wifiQuality
-                QualityDialogType.MOBILE -> audioSettings.mobileQuality
-            },
-            onQualitySelected = { quality ->
-                when (type) {
-                    QualityDialogType.STREAM -> viewModel.updateStreamQuality(quality)
-                    QualityDialogType.WIFI -> viewModel.updateWifiQuality(quality)
-                    QualityDialogType.MOBILE -> viewModel.updateMobileQuality(quality)
-                }
-                showQualityDialog = null
-            },
-            onDismiss = { showQualityDialog = null }
-        )
+        when (type) {
+            QualityDialogType.STREAM_WIFI -> {
+                StreamQualityPickerDialog(
+                    title = "Streaming por WiFi",
+                    currentQuality = audioSettings.streamWifiQuality,
+                    onQualitySelected = { quality ->
+                        viewModel.updateStreamWifiQuality(quality)
+                        showQualityDialog = null
+                    },
+                    onDismiss = { showQualityDialog = null }
+                )
+            }
+            QualityDialogType.STREAM_MOBILE -> {
+                StreamQualityPickerDialog(
+                    title = "Streaming por datos móviles",
+                    currentQuality = audioSettings.streamMobileQuality,
+                    onQualitySelected = { quality ->
+                        viewModel.updateStreamMobileQuality(quality)
+                        showQualityDialog = null
+                    },
+                    onDismiss = { showQualityDialog = null }
+                )
+            }
+            QualityDialogType.DOWNLOAD_WIFI -> {
+                DownloadQualityPickerDialog(
+                    title = "Descarga por WiFi",
+                    currentQuality = audioSettings.downloadWifiQuality,
+                    onQualitySelected = { quality ->
+                        viewModel.updateDownloadWifiQuality(quality)
+                        showQualityDialog = null
+                    },
+                    onDismiss = { showQualityDialog = null }
+                )
+            }
+            QualityDialogType.DOWNLOAD_MOBILE -> {
+                DownloadQualityPickerDialog(
+                    title = "Descarga por datos móviles",
+                    currentQuality = audioSettings.downloadMobileQuality,
+                    onQualitySelected = { quality ->
+                        viewModel.updateDownloadMobileQuality(quality)
+                        showQualityDialog = null
+                    },
+                    onDismiss = { showQualityDialog = null }
+                )
+            }
+        }
     }
     
     if (showThemeDialog) {
@@ -327,7 +370,27 @@ fun SettingsScreen(
 }
 
 private enum class QualityDialogType {
-    STREAM, WIFI, MOBILE
+    STREAM_WIFI, STREAM_MOBILE, DOWNLOAD_WIFI, DOWNLOAD_MOBILE
+}
+
+private fun getStreamQualityLabel(quality: StreamQuality): String {
+    return when (quality) {
+        StreamQuality.LOW -> "Baja (128 kbps MP3)"
+        StreamQuality.MEDIUM -> "Media (192 kbps MP3)"
+        StreamQuality.HIGH -> "Alta (256 kbps MP3)"
+        StreamQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
+        StreamQuality.LOSSLESS -> "Sin pérdida (Original)"
+    }
+}
+
+private fun getDownloadQualityLabel(quality: DownloadQuality): String {
+    return when (quality) {
+        DownloadQuality.LOW -> "Baja (128 kbps MP3)"
+        DownloadQuality.MEDIUM -> "Media (192 kbps MP3)"
+        DownloadQuality.HIGH -> "Alta (256 kbps MP3)"
+        DownloadQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
+        DownloadQuality.LOSSLESS -> "Sin pérdida (Original)"
+    }
 }
 
 private fun getQualityLabel(quality: StreamQuality): String {
@@ -527,7 +590,139 @@ private fun SettingsSwitchItem(
     }
 }
 
-// Quality Picker Dialog
+// Stream Quality Picker Dialog
+@Composable
+private fun StreamQualityPickerDialog(
+    title: String,
+    currentQuality: StreamQuality,
+    onQualitySelected: (StreamQuality) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = title, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                StreamQuality.values().forEach { quality ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onQualitySelected(quality) }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = quality == currentQuality,
+                            onClick = { onQualitySelected(quality) }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = when (quality) {
+                                    StreamQuality.LOW -> "Baja"
+                                    StreamQuality.MEDIUM -> "Media"
+                                    StreamQuality.HIGH -> "Alta"
+                                    StreamQuality.VERY_HIGH -> "Muy alta"
+                                    StreamQuality.LOSSLESS -> "Sin pérdida"
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (quality == currentQuality) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Text(
+                                text = when (quality) {
+                                    StreamQuality.LOW -> "128 kbps MP3 - Ahorro de datos"
+                                    StreamQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
+                                    StreamQuality.HIGH -> "256 kbps MP3 - Calidad alta"
+                                    StreamQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad MP3"
+                                    StreamQuality.LOSSLESS -> "Original - Sin transcodificar"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+// Download Quality Picker Dialog
+@Composable
+private fun DownloadQualityPickerDialog(
+    title: String,
+    currentQuality: DownloadQuality,
+    onQualitySelected: (DownloadQuality) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = title, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                DownloadQuality.values().forEach { quality ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onQualitySelected(quality) }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = quality == currentQuality,
+                            onClick = { onQualitySelected(quality) }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = when (quality) {
+                                    DownloadQuality.LOW -> "Baja"
+                                    DownloadQuality.MEDIUM -> "Media"
+                                    DownloadQuality.HIGH -> "Alta"
+                                    DownloadQuality.VERY_HIGH -> "Muy alta"
+                                    DownloadQuality.LOSSLESS -> "Sin pérdida"
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (quality == currentQuality) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Text(
+                                text = when (quality) {
+                                    DownloadQuality.LOW -> "128 kbps MP3 - Ahorro de espacio"
+                                    DownloadQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
+                                    DownloadQuality.HIGH -> "256 kbps MP3 - Calidad alta"
+                                    DownloadQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad MP3"
+                                    DownloadQuality.LOSSLESS -> "Original - Sin transcodificar"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+// OLD Quality Picker Dialog (deprecated - can be removed)
 @Composable
 private fun QualityPickerDialog(
     type: QualityDialogType,
@@ -540,9 +735,10 @@ private fun QualityPickerDialog(
         title = {
             Text(
                 text = when (type) {
-                    QualityDialogType.STREAM -> "Calidad de streaming"
-                    QualityDialogType.WIFI -> "Calidad en WiFi"
-                    QualityDialogType.MOBILE -> "Calidad en datos móviles"
+                    QualityDialogType.STREAM_WIFI -> "Calidad de streaming en WiFi"
+                    QualityDialogType.STREAM_MOBILE -> "Calidad de streaming en datos móviles"
+                    QualityDialogType.DOWNLOAD_WIFI -> "Calidad de descarga en WiFi"
+                    QualityDialogType.DOWNLOAD_MOBILE -> "Calidad de descarga en datos móviles"
                 },
                 fontWeight = FontWeight.Bold
             )

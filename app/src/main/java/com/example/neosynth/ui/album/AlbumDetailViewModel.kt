@@ -11,6 +11,7 @@ import com.example.neosynth.data.local.entities.ServerEntity
 import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.remote.responses.AlbumDetails
+import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.player.MusicController
@@ -40,6 +41,9 @@ class AlbumDetailViewModel @Inject constructor(
 
     private val _songs = MutableStateFlow<List<SongDto>>(emptyList())
     val songs: StateFlow<List<SongDto>> = _songs
+
+    private val _playlists = MutableStateFlow<List<PlaylistDto>>(emptyList())
+    val playlists: StateFlow<List<PlaylistDto>> = _playlists
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -270,22 +274,57 @@ class AlbumDetailViewModel @Inject constructor(
     fun addToFavorites(songIds: Set<String>) {
         viewModelScope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val albumId = _album.value?.id ?: return@launch
             
+            // Add to local database
             songIds.forEach { songId ->
                 try {
+                    musicRepository.addToFavorites(songId)
+                } catch (e: Exception) {
+                    android.util.Log.e("AlbumDetailViewModel", "Failed to add to favorites: $songId", e)
+                    e.printStackTrace()
+                }
+            }
+            
+            // Sync with Navidrome server en una sola llamada (batch operation)
+            if (songIds.isNotEmpty()) {
+                try {
+                    android.util.Log.d("AlbumDetailViewModel", "Starring songs on server - IDs: ${songIds.joinToString(", ")}")
                     val response = api.star(
-                        id = songId,
+                        id = songIds.toList(), // ← Batch operation: enviar todas a la vez
                         u = server.username,
                         t = server.token,
                         s = server.salt
                     )
-                    android.util.Log.d("AlbumDetailViewModel", "Star response for $songId: ${response.response.status}")
+                    android.util.Log.d("AlbumDetailViewModel", "Starred ${songIds.size} songs on server - Status: ${response.response.status}")
+                    android.util.Log.d("AlbumDetailViewModel", "Server response: ${response}")
+                    
+                    // Refrescar datos del álbum para mostrar estrellas actualizadas
+                    loadAlbum(albumId)
                 } catch (e: Exception) {
-                    android.util.Log.e("AlbumDetailViewModel", "Error starring song $songId", e)
-                    e.printStackTrace()
+                    android.util.Log.e("AlbumDetailViewModel", "Failed to star songs on server", e)
+                    // Continue even if server sync fails
                 }
             }
-            android.util.Log.d("AlbumDetailViewModel", "Successfully starred ${songIds.size} songs")
+            
+            android.util.Log.d("AlbumDetailViewModel", "Successfully added ${songIds.size} songs to favorites")
+        }
+    }
+
+    fun loadPlaylists() {
+        viewModelScope.launch {
+            try {
+                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+                val response = api.getPlaylists(
+                    user = server.username,
+                    token = server.token,
+                    salt = server.salt
+                )
+                _playlists.value = response.response.playlistsContainer?.playlist ?: emptyList()
+            } catch (e: Exception) {
+                android.util.Log.e("AlbumDetailViewModel", "Failed to load playlists", e)
+                e.printStackTrace()
+            }
         }
     }
 

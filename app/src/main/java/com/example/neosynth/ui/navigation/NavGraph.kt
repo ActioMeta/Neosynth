@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -73,7 +74,11 @@ fun NeosynthNavGraph(
                 HomeScreen(
                     viewModel = homeViewModel,
                     onNavigateToLibrary = { navController.navigate("library") },
-                    onNavigateToSettings = { navController.navigate("settings") }
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToArtist = { artistId, artistName ->
+                        val encodedName = java.net.URLEncoder.encode(artistName, "UTF-8")
+                        navController.navigate("artist/$artistId/$encodedName")
+                    }
                 )
             }
 
@@ -195,12 +200,19 @@ fun NeosynthNavGraph(
                 }
             ) {
                 val currentSongId = currentSong?.mediaId
+                val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
+                
+                // Actualizar estado de favorito cuando cambia la canción
+                LaunchedEffect(currentSongId) {
+                    homeViewModel.updateCurrentSongFavoriteStatus()
+                }
+                
                 PlayerScreen(
                     musicController = musicController,
                     onBack = { navController.popBackStack() },
                     onDownload = { homeViewModel.downloadCurrentSong() },
                     isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
-                    isFavorite = false, // TODO: Implementar tracking de favoritos
+                    isFavorite = isFavorite,
                     onToggleFavorite = { homeViewModel.toggleFavorite() }
                 )
             }        }

@@ -266,7 +266,8 @@ class PlaylistDetailViewModel @Inject constructor(
 
             // 4. ESTRATEGIA HÍBRIDA: Lotes pequeños en paralelo, batches secuenciales
             // Optimizado para playlists grandes (1000+ canciones) sin colapsar el sistema
-            val parallelSize = 10 // 10 canciones en paralelo
+            // Adaptación dinámica según capacidades del dispositivo (Galaxy A7 2018, etc.)
+            val parallelSize = com.example.neosynth.utils.DownloadOptimizer.getOptimalBatchSize(appContext)
             val workManager = androidx.work.WorkManager.getInstance(appContext)
             
             // Configurar constraints para descargas

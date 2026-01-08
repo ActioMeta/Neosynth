@@ -113,8 +113,9 @@ fun DownloadsScreen(
         }
     }
     
-    // Detectar si estamos en modo álbum para mostrar los nombres de álbumes
+    // Detectar si estamos en modo álbum o artista para mostrar headers agrupados
     val showAlbumHeaders = currentFilter == FilterType.ALBUM
+    val showArtistHeaders = currentFilter == FilterType.ARTIST
 
     LaunchedEffect(isSearchVisible) {
         if (isSearchVisible) {
@@ -383,20 +384,147 @@ fun DownloadsScreen(
                             
                             albumGroups.forEach { (albumName, albumSongs) ->
                                 item(key = "album_header_$albumName") {
-                                    Text(
-                                        text = albumName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold,
+                                    val albumSongIds = albumSongs.map { it.id }.toSet()
+                                    val areAllSelected = albumSongIds.all { it in selectedSongIds }
+                                    
+                                    Surface(
+                                        onClick = {
+                                            // Multi-select: Toggle selección de todas las canciones del álbum
+                                            selectedSongIds = if (areAllSelected) {
+                                                selectedSongIds - albumSongIds
+                                            } else {
+                                                selectedSongIds + albumSongIds
+                                            }
+                                        },
+                                        color = if (areAllSelected) 
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                        else 
+                                            MaterialTheme.colorScheme.background,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 4.dp)
-                                    )
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Album,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = albumName,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                            Text(
+                                                text = "${albumSongs.size}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(end = 4.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 
                                 items(
                                     items = albumSongs,
                                     key = { "album_${it.id}" }
+                                ) { song ->
+                                    val isSelected = selectedSongIds.contains(song.id)
+
+                                    RowListItem(
+                                        song = song.toDomainModel(),
+                                        isSelected = isSelected,
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                selectedSongIds = if (isSelected) selectedSongIds - song.id
+                                                else selectedSongIds + song.id
+                                            } else {
+                                                val index = allSongs.indexOfFirst { it.id == song.id }
+                                                if (index >= 0) {
+                                                    viewModel.playAll(allSongs, index)
+                                                }
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!isSelectionMode) selectedSongIds = setOf(song.id)
+                                        }
+                                    )
+                                }
+                            }
+                        } else if (showArtistHeaders) {
+                            // Filtrado por artista: mostrar headers de artista clickeables
+                            val artistGroups = songsInGroup.groupBy { it.artist }.toList().sortedBy { it.first }
+                            
+                            artistGroups.forEach { (artistName, artistSongs) ->
+                                item(key = "artist_header_$artistName") {
+                                    val artistSongIds = artistSongs.map { it.id }.toSet()
+                                    val areAllSelected = artistSongIds.all { it in selectedSongIds }
+                                    
+                                    Surface(
+                                        onClick = {
+                                            // Multi-select: Toggle selección de todas las canciones del artista
+                                            selectedSongIds = if (areAllSelected) {
+                                                selectedSongIds - artistSongIds
+                                            } else {
+                                                selectedSongIds + artistSongIds
+                                            }
+                                        },
+                                        color = if (areAllSelected) 
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                        else 
+                                            MaterialTheme.colorScheme.background,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Person,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = artistName,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                            Text(
+                                                text = "${artistSongs.size}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(end = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                items(
+                                    items = artistSongs,
+                                    key = { "artist_${it.id}" }
                                 ) { song ->
                                     val isSelected = selectedSongIds.contains(song.id)
 

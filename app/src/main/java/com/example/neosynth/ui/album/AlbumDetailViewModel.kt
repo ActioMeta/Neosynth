@@ -180,15 +180,44 @@ class AlbumDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
             val currentSongs = _songs.value
-            val downloadedIds = downloadedSongIds.value
+            val songsToDownload = currentSongs.filter { it.id !in downloadedSongIds.value }
+            
+            android.util.Log.d("AlbumDownload", "═══════════════════════════════════════")
+            android.util.Log.d("AlbumDownload", "Iniciando descarga de álbum: ${_album.value?.name}")
+            android.util.Log.d("AlbumDownload", "Total canciones: ${currentSongs.size}")
+            android.util.Log.d("AlbumDownload", "A descargar: ${songsToDownload.size}")
+            android.util.Log.d("AlbumDownload", "═══════════════════════════════════════")
+            
+            if (songsToDownload.isEmpty()) {
+                android.util.Log.d("AlbumDownload", "⚠️ Todas las canciones ya están descargadas")
+                return@launch
+            }
 
-            currentSongs.forEach { song ->
-                if (song.id !in downloadedIds) {
+            // Usar estrategia de batches como en PlaylistDetailViewModel
+            val parallelSize = com.example.neosynth.utils.DownloadOptimizer.getOptimalBatchSize(appContext)
+            val workManager = androidx.work.WorkManager.getInstance(appContext)
+            
+            // Configurar constraints para descargas
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(false)
+                .build()
+
+            // Crear batches de workers
+            val batches = songsToDownload.chunked(parallelSize)
+            var workContinuation: androidx.work.WorkContinuation? = null
+            
+            batches.forEachIndexed { batchIndex, batch ->
+                val parallelWorkers = batch.mapIndexed { indexInBatch, song ->
+                    val globalIndex = batchIndex * parallelSize + indexInBatch + 1
+                    
                     val inputData = androidx.work.Data.Builder()
                         .putString("songId", song.id)
                         .putString("title", song.title)
-                        .putString("artist", song.artist)
+                        .putString("artist", song.artist ?: "Unknown Artist")
+                        .putString("artistId", song.artistId ?: "")
                         .putString("album", _album.value?.name ?: song.album)
+                        .putString("albumId", _album.value?.id ?: song.albumId ?: "")
                         .putInt("duration", song.duration)
                         .putString("coverArt", song.coverArt ?: _album.value?.coverArt)
                         .putLong("serverId", server.id)
@@ -196,15 +225,38 @@ class AlbumDetailViewModel @Inject constructor(
                         .putString("username", server.username)
                         .putString("token", server.token)
                         .putString("salt", server.salt)
+                        // Metadata para notificación
+                        .putString("playlist_id", _album.value?.id)
+                        .putString("playlist_name", _album.value?.name)
+                        .putInt("total_songs", songsToDownload.size)
+                        .putInt("current_index", globalIndex)
                         .build()
 
-                    val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
+                    androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
+                        .setConstraints(constraints)
+                        .addTag("album_${_album.value?.id}")
+                        .addTag("download_worker")
+                        .setBackoffCriteria(
+                            androidx.work.BackoffPolicy.EXPONENTIAL,
+                            10000L,
+                            java.util.concurrent.TimeUnit.MILLISECONDS
+                        )
                         .build()
-
-                    androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)
+                }
+                
+                // Encadenar batches
+                workContinuation = if (workContinuation == null) {
+                    workManager.beginWith(parallelWorkers)
+                } else {
+                    workContinuation!!.then(parallelWorkers)
                 }
             }
+            
+            // Encolar toda la cadena
+            workContinuation?.enqueue()
+            
+            android.util.Log.d("AlbumDownload", "✅ ${songsToDownload.size} canciones encoladas en ${batches.size} batches de $parallelSize")
         }
     }
 
@@ -242,16 +294,31 @@ class AlbumDetailViewModel @Inject constructor(
     fun downloadSongs(songIds: Set<String>) {
         viewModelScope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val downloadedIds = downloadedSongIds.value
-            val selectedSongs = _songs.value.filter { it.id in songIds }
+            val songsToDownload = _songs.value.filter { it.id in songIds && it.id !in downloadedSongIds.value }
+            
+            if (songsToDownload.isEmpty()) return@launch
 
-            selectedSongs.forEach { song ->
-                if (song.id !in downloadedIds) {
+            // Usar estrategia de batches
+            val parallelSize = com.example.neosynth.utils.DownloadOptimizer.getOptimalBatchSize(appContext)
+            val workManager = androidx.work.WorkManager.getInstance(appContext)
+            
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(false)
+                .build()
+
+            val batches = songsToDownload.chunked(parallelSize)
+            var workContinuation: androidx.work.WorkContinuation? = null
+            
+            batches.forEachIndexed { batchIndex, batch ->
+                val parallelWorkers = batch.map { song ->
                     val inputData = androidx.work.Data.Builder()
                         .putString("songId", song.id)
                         .putString("title", song.title)
-                        .putString("artist", song.artist)
+                        .putString("artist", song.artist ?: "Unknown Artist")
+                        .putString("artistId", song.artistId ?: "")
                         .putString("album", _album.value?.name ?: song.album)
+                        .putString("albumId", _album.value?.id ?: song.albumId ?: "")
                         .putInt("duration", song.duration)
                         .putString("coverArt", song.coverArt ?: _album.value?.coverArt)
                         .putLong("serverId", server.id)
@@ -261,13 +328,27 @@ class AlbumDetailViewModel @Inject constructor(
                         .putString("salt", server.salt)
                         .build()
 
-                    val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
+                    androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
+                        .setConstraints(constraints)
+                        .addTag("album_${_album.value?.id}")
+                        .addTag("download_worker")
+                        .setBackoffCriteria(
+                            androidx.work.BackoffPolicy.EXPONENTIAL,
+                            10000L,
+                            java.util.concurrent.TimeUnit.MILLISECONDS
+                        )
                         .build()
-
-                    androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)
+                }
+                
+                workContinuation = if (workContinuation == null) {
+                    workManager.beginWith(parallelWorkers)
+                } else {
+                    workContinuation!!.then(parallelWorkers)
                 }
             }
+            
+            workContinuation?.enqueue()
         }
     }
 

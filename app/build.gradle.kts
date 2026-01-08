@@ -24,10 +24,19 @@ android {
   }
 
   buildTypes {
+    debug {
+      // Sufijo para poder instalar debug y release al mismo tiempo
+      applicationIdSuffix = ".debug"
+      versionNameSuffix = "-DEBUG"
+      // Nombre de app diferente en el launcher
+      resValue("string", "app_name", "NeoSynth DEBUG")
+    }
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      // Nombre de app para producción
+      resValue("string", "app_name", "NeoSynth")
     }
   }
   compileOptions {

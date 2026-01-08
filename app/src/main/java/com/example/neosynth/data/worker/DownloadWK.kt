@@ -353,54 +353,89 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun downloadFile(urlString: String, outputFile: File) {
+        // Configuración adaptativa según API level
+        val isOlderDevice = Build.VERSION.SDK_INT < Build.VERSION_CODES.R // Android < 11
+        
+        val connectTimeout = if (isOlderDevice) 60L else 30L
+        val readTimeout = if (isOlderDevice) 120L else 60L
+        val writeTimeout = if (isOlderDevice) 120L else 60L
+        
         val client = OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(connectTimeout, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(readTimeout, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(writeTimeout, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true) // Reintentar en fallos de conexión
             .build()
 
         val request = Request.Builder()
             .url(urlString)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw Exception("HTTP error: ${response.code} - ${response.message}")
-            }
+        // Retry logic con backoff exponencial
+        var attempts = 0
+        val maxAttempts = 3
+        var lastException: Exception? = null
+        
+        while (attempts < maxAttempts) {
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw Exception("HTTP error: ${response.code} - ${response.message}")
+                    }
 
-            val body = response.body ?: throw Exception("Empty response body")
-            val contentLength = body.contentLength()
-            
-            Log.d(TAG, "Descargando archivo (${contentLength / 1024} KB)...")
-            
-            body.byteStream().use { input ->
-                FileOutputStream(outputFile).use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalBytesRead = 0L
+                    val body = response.body ?: throw Exception("Empty response body")
+                    val contentLength = body.contentLength()
                     
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-                        
-                        // Log de progreso cada 100KB
-                        if (totalBytesRead % (100 * 1024) == 0L) {
-                            val progress = if (contentLength > 0) {
-                                (totalBytesRead * 100 / contentLength).toInt()
-                            } else {
-                                -1
-                            }
-                            if (progress >= 0) {
-                                Log.d(TAG, "Progreso: $progress%")
+                    Log.d(TAG, "Descargando archivo (${contentLength / 1024} KB)... Intento ${attempts + 1}/$maxAttempts")
+                    
+                    body.byteStream().use { input ->
+                        FileOutputStream(outputFile).use { output ->
+                            // Buffer más grande para dispositivos antiguos (reduce llamadas al sistema)
+                            val bufferSize = if (isOlderDevice) 16384 else 8192
+                            val buffer = ByteArray(bufferSize)
+                            var bytesRead: Int
+                            var totalBytesRead = 0L
+                            
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                output.write(buffer, 0, bytesRead)
+                                totalBytesRead += bytesRead
+                                
+                                // Log de progreso cada 100KB
+                                if (totalBytesRead % (100 * 1024) == 0L) {
+                                    val progress = if (contentLength > 0) {
+                                        (totalBytesRead * 100 / contentLength).toInt()
+                                    } else {
+                                        -1
+                                    }
+                                    if (progress >= 0) {
+                                        Log.d(TAG, "Progreso: $progress%")
+                                    }
+                                }
                             }
                         }
                     }
+                    
+                    Log.d(TAG, "Archivo descargado completamente: ${outputFile.absolutePath}")
+                    return // Éxito, salir de la función
+                }
+            } catch (e: Exception) {
+                lastException = e
+                attempts++
+                
+                if (attempts < maxAttempts) {
+                    // Backoff exponencial: 2s, 4s, 8s...
+                    val delayMs = (1000L * Math.pow(2.0, (attempts - 1).toDouble())).toLong()
+                    Log.w(TAG, "Error en descarga (intento $attempts/$maxAttempts): ${e.message}. Reintentando en ${delayMs}ms...")
+                    Thread.sleep(delayMs)
+                } else {
+                    Log.e(TAG, "Falló descarga después de $maxAttempts intentos", e)
                 }
             }
-            
-            Log.d(TAG, "Archivo descargado completamente: ${outputFile.absolutePath}")
         }
+        
+        // Si llegamos aquí, todos los intentos fallaron
+        throw lastException ?: Exception("Download failed after $maxAttempts attempts")
     }
 }

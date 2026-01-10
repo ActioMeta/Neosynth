@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.neosynth.data.preferences.SettingsPreferences
@@ -95,6 +97,20 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
+                        // Controlar status bar según la ruta actual
+                        LaunchedEffect(currentRoute) {
+                            val shouldHideStatusBar = currentRoute == "player_full" || currentRoute == "lyrics"
+                            window?.let { win ->
+                                val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+                                if (shouldHideStatusBar) {
+                                    insetsController.hide(WindowInsetsCompat.Type.statusBars())
+                                    insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                } else {
+                                    insetsController.show(WindowInsetsCompat.Type.statusBars())
+                                }
+                            }
+                        }
+                        
                         // Usamos Box en lugar de Scaffold para mejor control de animaciones
                         Box(modifier = Modifier.fillMaxSize()) {
                             NeosynthNavGraph(
@@ -104,7 +120,7 @@ class MainActivity : ComponentActivity() {
                             
                             // NavBar con animación sincronizada
                             androidx.compose.animation.AnimatedVisibility(
-                                visible = currentRoute != "login" && currentRoute != "player_full",
+                                visible = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics",
                                 enter = androidx.compose.animation.fadeIn(
                                     animationSpec = androidx.compose.animation.core.tween(200)
                                 ) + androidx.compose.animation.slideInVertically(

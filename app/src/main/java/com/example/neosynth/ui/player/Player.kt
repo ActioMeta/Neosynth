@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -46,10 +47,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import coil.compose.AsyncImage
 import com.example.neosynth.player.MusicController
@@ -65,6 +70,7 @@ fun PlayerScreen(
     musicController: MusicController,
     onBack: () -> Unit,
     onDownload: () -> Unit = {},
+    onLyricsClick: () -> Unit = {},
     isCurrentSongDownloaded: Boolean = false,
     isFavorite: Boolean = false,
     onToggleFavorite: () -> Unit = {}
@@ -283,6 +289,7 @@ fun PlayerScreen(
             musicController = musicController,
             onDownloadClick = onDownload,
             onQueueClick = { showQueueSheet = true },
+            onLyricsClick = onLyricsClick,
             isDownloaded = isCurrentSongDownloaded,
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite

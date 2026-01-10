@@ -34,6 +34,7 @@ import com.example.neosynth.ui.components.MiniPlayer
 import com.example.neosynth.ui.discover.DiscoverScreen
 import com.example.neosynth.ui.downloads.DownloadsScreen
 import com.example.neosynth.ui.player.PlayerScreen
+import com.example.neosynth.ui.lyrics.LyricsScreen
 import com.example.neosynth.ui.artist.ArtistDetailScreen
 import com.example.neosynth.ui.album.AlbumDetailScreen
 import com.example.neosynth.ui.library.LibraryScreen
@@ -211,14 +212,52 @@ fun NeosynthNavGraph(
                     musicController = musicController,
                     onBack = { navController.popBackStack() },
                     onDownload = { homeViewModel.downloadCurrentSong() },
+                    onLyricsClick = { navController.navigate("lyrics") },
                     isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
                     isFavorite = isFavorite,
                     onToggleFavorite = { homeViewModel.toggleFavorite() }
                 )
-            }        }
+            }
+
+            composable(
+                route = "lyrics",
+                enterTransition = {
+                    fadeIn(animationSpec = tween(300)) + scaleIn(
+                        initialScale = 0.95f,
+                        animationSpec = tween(300)
+                    )
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(250)) + scaleOut(
+                        targetScale = 0.95f,
+                        animationSpec = tween(250)
+                    )
+                }
+            ) {
+                val currentSongId = currentSong?.mediaId
+                val currentLyrics by homeViewModel.currentLyrics.collectAsState()
+                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
+                val lyricsError by homeViewModel.lyricsError.collectAsState()
+                
+                // Cargar letras cuando cambia la canción
+                LaunchedEffect(currentSongId) {
+                    if (currentSongId != null) {
+                        homeViewModel.loadLyrics()
+                    }
+                }
+                
+                LyricsScreen(
+                    musicController = musicController,
+                    lyrics = currentLyrics,
+                    isLoadingLyrics = isLoadingLyrics,
+                    lyricsError = lyricsError,
+                    onClose = { navController.popBackStack() }
+                )
+            }
+        }
 
         val song = currentSong
-        val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && song != null
+        val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && song != null
         AnimatedVisibility(
             visible = showMiniPlayer,
             enter = fadeIn(animationSpec = tween(200)) + scaleIn(

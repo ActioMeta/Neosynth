@@ -42,13 +42,16 @@ import com.example.neosynth.data.preferences.SettingsPreferences
 import com.example.neosynth.utils.NetworkHelper
 import com.example.neosynth.utils.StreamUrlBuilder
 import com.example.neosynth.utils.ConnectionType
+import com.example.neosynth.data.repository.LyricsRepository
 import kotlinx.coroutines.flow.first
+import android.util.Log
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val api: NavidromeApiService,
     private val serverDao: ServerDao,
     private val musicRepository: MusicRepository,
+    private val lyricsRepository: LyricsRepository,
     val musicController: MusicController,
     private val urlInterceptor: DynamicUrlInterceptor,
     private val settingsPreferences: SettingsPreferences,
@@ -76,6 +79,19 @@ class HomeViewModel @Inject constructor(
     private val _isCurrentSongFavorite = MutableStateFlow(false)
     val isCurrentSongFavorite: StateFlow<Boolean> = _isCurrentSongFavorite
     
+    // Estado de letras con caché
+    private val _currentLyrics = MutableStateFlow<String?>(null)
+    val currentLyrics: StateFlow<String?> = _currentLyrics
+    
+    private val _isLoadingLyrics = MutableStateFlow(false)
+    val isLoadingLyrics: StateFlow<Boolean> = _isLoadingLyrics
+    
+    private val _lyricsError = MutableStateFlow<String?>(null)
+    val lyricsError: StateFlow<String?> = _lyricsError
+    
+    // Caché de letras (songId -> lyrics)
+    private val lyricsCache = mutableMapOf<String, String?>()
+    
     /**
      * Actualizar el estado de favorito de la canción actual
      * Debe llamarse cuando cambie la canción
@@ -89,6 +105,78 @@ class HomeViewModel @Inject constructor(
                 false
             }
         }
+    }
+    
+    /**
+     * Cargar letras sincronizadas de la canción actual (con caché)
+     */
+    fun loadLyrics() {
+        viewModelScope.launch {
+            val mediaItem = musicController.currentMediaItem.value
+            if (mediaItem == null) {
+                _currentLyrics.value = null
+                _lyricsError.value = null
+                return@launch
+            }
+            
+            val songId = mediaItem.mediaId
+            
+            // Verificar caché primero (solo si fue exitoso)
+            if (lyricsCache.containsKey(songId)) {
+                val cachedLyrics = lyricsCache[songId]
+                if (cachedLyrics != null) {
+                    // Letras encontradas en cache
+                    _currentLyrics.value = cachedLyrics
+                    _lyricsError.value = null
+                    return@launch
+                }
+                // Si hay null en cache, significa que falló antes, reintentar
+            }
+            
+            _isLoadingLyrics.value = true
+            _lyricsError.value = null
+            _currentLyrics.value = null
+            
+            try {
+                val artist = mediaItem.mediaMetadata.artist?.toString() ?: ""
+                val title = mediaItem.mediaMetadata.title?.toString() ?: ""
+                val album = mediaItem.mediaMetadata.albumTitle?.toString()
+                
+                Log.d("HomeViewModel", "Fetching lyrics: $artist - $title")
+                
+                val lyrics = lyricsRepository.getSyncedLyrics(
+                    artist = artist,
+                    title = title,
+                    album = album
+                )
+                
+                _currentLyrics.value = lyrics
+                
+                if (lyrics != null) {
+                    // Solo cachear si se encontraron letras
+                    lyricsCache[songId] = lyrics
+                    _lyricsError.value = null
+                } else {
+                    // NO cachear errores - permitir reintentos
+                    _lyricsError.value = "No se encontraron letras para esta canción"
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading lyrics", e)
+                _currentLyrics.value = null
+                // NO cachear excepciones - permitir reintentos
+                _lyricsError.value = "Error al cargar las letras: ${e.message}"
+            } finally {
+                _isLoadingLyrics.value = false
+            }
+        }
+    }
+    
+    /**
+     * Limpiar letras (cuando cambia la canción)
+     */
+    fun clearLyrics() {
+        _currentLyrics.value = null
+        _lyricsError.value = null
     }
 
     // Eventos de UI (Snackbar messages)

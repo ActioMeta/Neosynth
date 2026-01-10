@@ -32,6 +32,7 @@ fun PlayerOptionsBar(
     musicController: MusicController,
     onDownloadClick: () -> Unit = {},
     onQueueClick: () -> Unit = {},
+    onLyricsClick: () -> Unit = {},
     isDownloaded: Boolean = false,
     isFavorite: Boolean = false,
     onToggleFavorite: () -> Unit = {}
@@ -58,6 +59,12 @@ fun PlayerOptionsBar(
             icon = Icons.Rounded.QueueMusic,
             isActive = false,
             onClick = onQueueClick
+        )
+        
+        OptionPillButton(
+            icon = Icons.Rounded.Lyrics,
+            isActive = false,
+            onClick = onLyricsClick
         )
 
         OptionPillButton(

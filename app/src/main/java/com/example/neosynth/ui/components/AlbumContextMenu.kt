@@ -56,13 +56,18 @@ fun AlbumContextMenu(
             }
         )
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        
+        var downloadStarted by remember { mutableStateOf(false) }
+        
         ContextMenuItem(
             icon = Icons.Rounded.Download,
-            label = "Descargar álbum",
+            label = if (downloadStarted) "Descargando álbum..." else "Descargar álbum",
             onClick = {
+                downloadStarted = true
                 onDownload()
                 onDismiss()
-            }
+            },
+            isLoading = downloadStarted
         )
         ContextMenuItem(
             icon = Icons.Rounded.Person,
@@ -79,7 +84,8 @@ fun AlbumContextMenu(
 private fun ContextMenuItem(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isLoading: Boolean = false
 ) {
     DropdownMenuItem(
         text = {
@@ -87,12 +93,20 @@ private fun ContextMenuItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyMedium

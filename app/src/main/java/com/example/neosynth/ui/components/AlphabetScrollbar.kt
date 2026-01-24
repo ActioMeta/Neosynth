@@ -60,7 +60,6 @@ fun AlphabetScrollbar(
         modifier = modifier
             .width(28.dp)
             .onSizeChanged { componentHeight = it.height }
-            .scale(scale)
             .pointerInput(availableLetters) {
                 detectVerticalDragGestures(
                     onDragStart = { offset ->
@@ -105,7 +104,9 @@ fun AlphabetScrollbar(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.fillMaxHeight(),
+            modifier = Modifier
+                .fillMaxHeight()
+                .scale(scale), // Scale aplicado aquí para evitar desplazamiento del Box
             verticalArrangement = Arrangement.SpaceEvenly,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

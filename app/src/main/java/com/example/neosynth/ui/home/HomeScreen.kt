@@ -120,7 +120,10 @@ fun HomeScreen(
                 }
             } else if (errorMsg != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ServerErrorScreen(onRetry = { viewModel.loadHomeData() })
+                    ServerErrorScreen(
+                        onRetry = { viewModel.loadHomeData() },
+                        onSettings = onNavigateToSettings
+                    )
                 }
             } else {
                 PullToRefreshBox(

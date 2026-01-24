@@ -263,17 +263,27 @@ fun AnimatedSongRow(
                         
                         // Descargar (solo si no está descargado)
                         if (!isDownloaded && onDownload != null) {
+                            var downloadStarted by remember { mutableStateOf(false) }
+                            
                             DropdownMenuItem(
-                                text = { Text("Descargar") },
+                                text = { Text(if (downloadStarted) "Descargando..." else "Descargar") },
                                 onClick = {
+                                    downloadStarted = true
                                     onDownload()
                                     showMenu = false
                                 },
                                 leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Download,
-                                        contentDescription = null
-                                    )
+                                    if (downloadStarted) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Download,
+                                            contentDescription = null
+                                        )
+                                    }
                                 }
                             )
                         }

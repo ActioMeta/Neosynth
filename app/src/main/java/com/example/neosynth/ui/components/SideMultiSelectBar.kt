@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -61,8 +62,8 @@ fun SideMultiSelectBar(
         Surface(
             modifier = Modifier
                 .wrapContentHeight() // No ocupar toda la altura
-                .width(72.dp) // Aumentado de 64dp a 72dp para dar más espacio
-                .padding(vertical = 16.dp, horizontal = 8.dp)
+                .width(78.dp) // Ancho ajustado
+                .padding(top = 16.dp, bottom = 16.dp, end = 26.dp) // Padding reducido para estar más cerca del scrollbar
                 .shadow(
                     elevation = 8.dp,
                     shape = RoundedCornerShape(20.dp),
@@ -113,7 +114,9 @@ fun SideMultiSelectBar(
                 actions.forEach { action ->
                     FilledTonalIconButton(
                         onClick = action.onClick,
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape), // Clip para que el ripple respete la forma
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer

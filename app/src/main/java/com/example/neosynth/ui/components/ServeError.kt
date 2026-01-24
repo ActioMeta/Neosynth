@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,7 +16,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ServerErrorScreen(onRetry: () -> Unit) {
+fun ServerErrorScreen(
+    onRetry: () -> Unit,
+    onSettings: (() -> Unit)? = null
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -44,14 +48,32 @@ fun ServerErrorScreen(onRetry: () -> Unit) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
+        
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Rounded.Refresh, null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Reintentar")
+            Button(
+                onClick = onRetry,
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
+            ) {
+                Icon(Icons.Rounded.Refresh, null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Reintentar")
+            }
+            
+            if (onSettings != null) {
+                OutlinedButton(
+                    onClick = onSettings,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
+                ) {
+                    Icon(Icons.Rounded.Settings, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Configuración")
+                }
+            }
         }
     }
 }

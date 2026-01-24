@@ -125,6 +125,15 @@ fun DownloadsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Spacer para status bar cuando está en modo selección
+            if (isSelectionMode) {
+                Spacer(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .height(16.dp) // Padding adicional para separar de la status bar
+                )
+            }
+            
             // Barra superior compacta con padding para status bar (solo visible cuando NO hay selección)
             if (!isSelectionMode) {
                 Row(
@@ -255,7 +264,10 @@ fun DownloadsScreen(
                 filteredSongs.keys.toSet()
             }
             
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceBetween // Asegurar que el scrollbar permanezca a la derecha
+            ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.weight(1f),
@@ -592,8 +604,38 @@ fun DownloadsScreen(
                             if (targetKeyIndex >= 0) {
                                 // Calcular el índice real en la lista (headers + items)
                                 var itemIndex = 0
+                                
+                                // Agregar offset por playlists si existen
+                                if (downloadedPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
+                                    itemIndex += 1 // Header de playlists
+                                    itemIndex += downloadedPlaylists.size // Items de playlists
+                                    if (selectedPlaylistId != null) {
+                                        itemIndex += 1 // Chip de filtro
+                                    }
+                                    itemIndex += 1 // Spacer
+                                }
+                                
+                                // Calcular índices para las secciones anteriores
                                 for (i in 0 until targetKeyIndex) {
-                                    itemIndex += 1 + (filteredSongs[keys[i]]?.size ?: 0)
+                                    itemIndex += 1 // Header de letra
+                                    val songsInGroup = filteredSongs[keys[i]] ?: emptyList()
+                                    
+                                    // Si estamos en modo álbum o artista, contar headers adicionales
+                                    if (showAlbumHeaders) {
+                                        val albumGroups = songsInGroup.groupBy { it.album }
+                                        albumGroups.forEach { (_, albumSongs) ->
+                                            itemIndex += 1 // Header de álbum
+                                            itemIndex += albumSongs.size // Canciones del álbum
+                                        }
+                                    } else if (showArtistHeaders) {
+                                        val artistGroups = songsInGroup.groupBy { it.artist }
+                                        artistGroups.forEach { (_, artistSongs) ->
+                                            itemIndex += 1 // Header de artista
+                                            itemIndex += artistSongs.size // Canciones del artista
+                                        }
+                                    } else {
+                                        itemIndex += songsInGroup.size // Solo canciones
+                                    }
                                 }
                                 scope.launch {
                                     listState.animateScrollToItem(itemIndex)
@@ -652,7 +694,9 @@ fun DownloadsScreen(
                 )
             ),
             onClose = { selectedSongIds = emptySet() },
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 8.dp) // Espacio reducido para el alphabet scrollbar
         )
 
         // FAB Group (solo visible cuando NO hay selección)

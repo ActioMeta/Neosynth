@@ -141,9 +141,9 @@ interface MusicDataSource {
  * Enum para calidad de streaming (reutilizado de SettingsPreferences)
  */
 enum class StreamQuality(val bitrate: Int, val format: String) {
-    LOW(128, "mp3"),
+    LOW(128, "opus"),
     MEDIUM(192, "mp3"),
-    HIGH(256, "mp3"),
+    HIGH(256, "aac"),
     VERY_HIGH(320, "mp3"),
     LOSSLESS(0, "raw")
 }
@@ -152,9 +152,9 @@ enum class StreamQuality(val bitrate: Int, val format: String) {
  * Enum para calidad de descarga
  */
 enum class DownloadQuality(val bitrate: Int, val format: String) {
-    LOW(128, "mp3"),
+    LOW(128, "opus"),
     MEDIUM(192, "mp3"),
-    HIGH(256, "mp3"),
+    HIGH(256, "aac"),
     VERY_HIGH(320, "mp3"),
     LOSSLESS(0, "raw")
 }

@@ -11,6 +11,8 @@ import com.example.neosynth.data.local.entities.PlaylistEntity
 import com.example.neosynth.data.local.entities.PlaylistSongCrossRef
 import com.example.neosynth.data.local.entities.ServerEntity
 import com.example.neosynth.data.local.entities.SongEntity
+import com.example.neosynth.data.local.dao.PlaybackHistoryDao
+import com.example.neosynth.data.local.entities.PlaybackHistoryEntity
 
 /**
  * Migration from version 2 to 3: Add multi-source support
@@ -70,6 +72,27 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+
+
+/**
+ * Migration from version 4 to 5: Add playback history support
+ * Creates playback_history table
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `playback_history` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                `songId` TEXT NOT NULL, 
+                `title` TEXT NOT NULL, 
+                `artist` TEXT NOT NULL, 
+                `timestamp` INTEGER NOT NULL, 
+                `durationListened` INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
 @Database(
     entities = [
         SongEntity::class,
@@ -77,11 +100,13 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         ArtistEntity::class,
         ServerEntity::class,
         PlaylistEntity::class,
-        PlaylistSongCrossRef::class],
-    version = 4, // Incremented from 3 to 4
+        PlaylistSongCrossRef::class,
+        PlaybackHistoryEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {
     abstract val musicDao : MusicDao
     abstract val serverDao : ServerDao
+    abstract val playbackHistoryDao: PlaybackHistoryDao
 }

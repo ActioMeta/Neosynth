@@ -1,6 +1,8 @@
 package com.example.neosynth.ui.lyrics
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,7 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +46,29 @@ fun LyricsScreen(
     val isPlaying by musicController.isPlaying
     val currentPosition by musicController.currentPosition
     
+    // Extract dominant color for Fade effect
+    var dominantColor by remember { mutableStateOf<Color>(Color.DarkGray) }
+    val context = LocalContext.current
+    LaunchedEffect(currentSong) {
+        currentSong?.mediaMetadata?.artworkUri?.let { uri ->
+            val loader = coil.ImageLoader(context)
+            val request = coil.request.ImageRequest.Builder(context)
+                .data(uri)
+                .allowHardware(false)
+                .target { result ->
+                    val bitmap = (result as android.graphics.drawable.BitmapDrawable).bitmap
+                    androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
+                         val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.mutedSwatch
+                         swatch?.rgb?.let { colorValue ->
+                            dominantColor = Color(colorValue)
+                         }
+                    }
+                }
+                .build()
+            loader.enqueue(request)
+        }
+    }
+
     // Parsear letras
     val parsedLyrics = remember(lyrics) {
         LrcParser.parse(lyrics)
@@ -74,69 +101,91 @@ fun LyricsScreen(
             }
         }
     }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-    ) {
-        // Header con botón cerrar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "Cerrar",
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Información de la canción
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = currentSong?.mediaMetadata?.title?.toString() ?: "Sin título",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            Text(
-                text = currentSong?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Letras (scrollable)
+
+    // Animación suave del color de fondo
+    val animatedColor by animateColorAsState(
+        targetValue = dominantColor,
+        animationSpec = tween(durationMillis = 1000),
+        label = "bg_color_anim"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Dynamic Background (Color sólido animado)
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            animatedColor.copy(alpha = 0.6f),
+                            MaterialTheme.colorScheme.background, // Negro/Oscuro abajo
+                        )
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // Removed solid background to show gradient
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            when {
-                isLoadingLyrics -> {
-                    // Loading
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
+            // Header con botón cerrar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onClose) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Cerrar",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+        // Información de la canción
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = currentSong?.mediaMetadata?.title?.toString() ?: "Sin título",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Text(
+                    text = currentSong?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
+                    style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
+        Spacer(modifier = Modifier.height(24.dp))
+            
+            // Letras (scrollable)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                when {
+                    isLoadingLyrics -> {
+                        // Loading
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
                             modifier = Modifier.size(64.dp),
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -145,78 +194,78 @@ fun LyricsScreen(
                             text = "Cargando letras...",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            )
+                        }
                     }
-                }
-                
-                lyricsError != null -> {
-                    // Error
+                    
+                    lyricsError != null -> {
+                        // Error
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = lyricsError,
-                            style = MaterialTheme.typography.bodyLarge,
+                             Text(
+                                text = lyricsError,
+                                style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
-                }
-                
-                hasLyrics -> {
-                    // Letras sincronizadas
-                    LazyColumn(
-                        state = lyricsListState,
+                    
+                    hasLyrics -> {
+                        // Letras sincronizadas
+                        LazyColumn(
+                            state = lyricsListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 100.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        itemsIndexed(parsedLyrics) { index, lyricLine ->
-                            val isCurrent = isLrcFormat && index == currentLyricIndex
-                            val isPast = isLrcFormat && index < currentLyricIndex
-                            
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            itemsIndexed(parsedLyrics) { index, lyricLine ->
+                                val isCurrent = isLrcFormat && index == currentLyricIndex
+                                val isPast = isLrcFormat && index < currentLyricIndex
+                                
                             val scale by animateFloatAsState(
                                 targetValue = if (isCurrent) 1.15f else 1f,
                                 label = "scale"
                             )
-                            
-                            Text(
-                                text = lyricLine.text,
+                                
+                                Text(
+                                    text = lyricLine.text,
                                 fontSize = when {
                                     isCurrent -> 28.sp
                                     else -> 22.sp
                                 },
-                                fontFamily = FontFamily.SansSerif,
+                                    fontFamily = FontFamily.SansSerif,
                                 fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                                 color = when {
                                     isCurrent -> MaterialTheme.colorScheme.primary
                                     isPast -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                     else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 },
-                                textAlign = TextAlign.Center,
+                                    textAlign = TextAlign.Center,
                                 lineHeight = 36.sp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp, horizontal = 16.dp)
-                                    .graphicsLayer {
-                                        scaleX = scale
-                                        scaleY = scale
-                                    }
-                            )
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 16.dp)
+                                        .graphicsLayer {
+                                            scaleX = scale
+                                            scaleY = scale
+                                        }
+                                )
+                            }
                         }
                     }
-                }
-                
-                else -> {
-                    // Sin letras
+                    
+                    else -> {
+                        // Sin letras
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
+                            Text(
                             text = "🎵",
                             style = MaterialTheme.typography.displayLarge
                         )
@@ -225,38 +274,39 @@ fun LyricsScreen(
                             text = "No hay letras disponibles",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            )
+                        }
                     }
                 }
             }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
         // Controles básicos
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+            ) {
             // Slider de progreso
             AnimatedPlayerSlider(musicController = musicController)
             
             Spacer(modifier = Modifier.height(16.dp))
             
             // Botón Play/Pause
-            FloatingActionButton(
-                onClick = { musicController.togglePlayPause() },
-                modifier = Modifier.size(64.dp),
+                 FloatingActionButton(
+                    onClick = { musicController.togglePlayPause() },
+                    modifier = Modifier.size(64.dp),
                 containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                    modifier = Modifier.size(32.dp)
-                )
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
-        }
         
         Spacer(modifier = Modifier.height(16.dp))
+    }
     }
 }

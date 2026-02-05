@@ -82,6 +82,9 @@ interface MusicDao {
     
     @Query("SELECT * FROM songs WHERE id IN (SELECT songId FROM playlist_song_cross_ref WHERE playlistId = :playlistId ORDER BY position)")
     fun getSongsInPlaylist(playlistId: String): Flow<List<SongEntity>>
+
+    @Query("SELECT COUNT(*) FROM songs INNER JOIN playlist_song_cross_ref ON songs.id = playlist_song_cross_ref.songId WHERE playlist_song_cross_ref.playlistId = :playlistId AND songs.isDownloaded = 1")
+    suspend fun getPlaylistDownloadedCount(playlistId: String): Int
     
     // Favorites
     @Query("UPDATE songs SET isFavorite = 1 WHERE id = :songId")
@@ -95,4 +98,7 @@ interface MusicDao {
     
     @Query("SELECT isFavorite FROM songs WHERE id = :songId")
     suspend fun isFavorite(songId: String): Boolean?
+
+    @Query("UPDATE songs SET path = :path, imageUrl = :imageUrl, isDownloaded = :isDownloaded WHERE id = :songId")
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean)
 }

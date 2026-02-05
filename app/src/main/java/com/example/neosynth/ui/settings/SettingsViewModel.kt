@@ -168,6 +168,18 @@ class SettingsViewModel @Inject constructor(
             settingsPreferences.updateNormalizeVolume(enabled)
         }
     }
+
+    fun updateCrossfeedEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsPreferences.updateCrossfeedEnabled(enabled)
+        }
+    }
+    
+    fun updateCrossfeedStrength(strength: Int) {
+        viewModelScope.launch {
+            settingsPreferences.updateCrossfeedStrength(strength)
+        }
+    }
     
     // Audio Quality Functions - Streaming
     fun updateStreamWifiQuality(quality: StreamQuality) {
@@ -201,12 +213,14 @@ class SettingsViewModel @Inject constructor(
             settingsPreferences.updateThemeMode(mode)
         }
     }
-    
-    fun updateDynamicColors(enabled: Boolean) {
+
+    fun updateVisualizerEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsPreferences.updateDynamicColors(enabled)
+            settingsPreferences.updateVisualizerEnabled(enabled)
         }
     }
+    
+    // Dynamic Colors removed
     
     // Server Management
     fun addServer(server: ServerEntity) {

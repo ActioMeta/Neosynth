@@ -34,20 +34,14 @@ class DownloadsViewModel @Inject constructor(
     private val _selectedPlaylistId = MutableStateFlow<String?>(null)
     val selectedPlaylistId: StateFlow<String?> = _selectedPlaylistId.asStateFlow()
 
-    // Flow de playlists descargadas (necesario antes para usarlo en el filtro)
-    // Solo mostrar playlists que tengan al menos 1 canción descargada
-    val downloadedPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()
+    // Flow de playlists (sincronizadas y descargadas)
+    // Mostrar TODAS las playlists del servidor activo
+    val allPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()
         .flatMapLatest { server ->
             if (server != null) {
                 musicRepository.getPlaylistsWithSongs(server.id)
             } else {
                 flowOf(emptyList())
-            }
-        }
-        .map { playlists ->
-            // Filtrar solo playlists con al menos 1 canción descargada
-            playlists.filter { playlistWithSongs ->
-                playlistWithSongs.songs.any { it.isDownloaded && it.path.isNotEmpty() }
             }
         }
         .stateIn(
@@ -61,7 +55,7 @@ class DownloadsViewModel @Inject constructor(
     val groupedSongs: StateFlow<Map<Char, List<SongEntity>>> = combine(
         musicRepository.getDownloadedSongs(),
         _selectedPlaylistId,
-        downloadedPlaylists
+        allPlaylists
     ) { allSongs, playlistId, playlists ->
         val filteredSongs = if (playlistId != null) {
             // Encontrar la playlist seleccionada y mostrar TODAS sus canciones (descargadas o no)
@@ -197,7 +191,8 @@ class DownloadsViewModel @Inject constructor(
         }
         
         if (downloadedSongs.isEmpty()) {
-            // TODO: Mostrar mensaje de que no hay canciones descargadas aún
+            android.util.Log.w("DownloadViewModel", "No downloaded songs in playlist '${playlistWithSongs.playlist.name}'")
+            // TODO: Mostrar snackbar de que no hay canciones descargadas aún
             return
         }
         

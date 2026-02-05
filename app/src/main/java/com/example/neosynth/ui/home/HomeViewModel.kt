@@ -92,6 +92,10 @@ class HomeViewModel @Inject constructor(
     // Caché de letras (songId -> lyrics)
     private val lyricsCache = mutableMapOf<String, String?>()
     
+    val visualizerEnabled: StateFlow<Boolean> = settingsPreferences.appSettings
+        .map { it.visualizerEnabled }
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
     /**
      * Actualizar el estado de favorito de la canción actual
      * Debe llamarse cuando cambie la canción
@@ -319,25 +323,8 @@ class HomeViewModel @Inject constructor(
                 randomCoverArts =
                     songsDto.take(3).mapNotNull { buildCoverArtUrl(server, it.coverArt) }
 
-                val mediaItems = songsDto.map { songDto ->
-                    val baseUrl = server.url.removeSuffix("/")
-                    val streamUrl =
-                        "$baseUrl/rest/stream?id=${songDto.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-
-                    MediaItem.Builder()
-                        .setMediaId(songDto.id)
-                        .setUri(streamUrl)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(songDto.title)
-                                .setArtist(songDto.artist)
-                                .setArtworkUri(buildCoverArtUrl(server, songDto.coverArt)?.toUri())
-                                .build()
-                        )
-                        .build()
-                }
-
-                musicController.playQueue(mediaItems,0)
+                val mediaItems = songsDto.map { songDtoToMediaItem(it, server) }
+                musicController.playQueue(mediaItems, 0)
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -453,7 +440,7 @@ class HomeViewModel @Inject constructor(
                     .putString("album", currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown")
                     .putString("albumId", "") // ← Corregido de "album_id"
                     .putInt("duration", 0) // ← Corregido a Int
-                    .putString("coverArt", currentItem.mediaMetadata.artworkUri?.toString()) // ← Corregido de "image_url"
+                    .putString("coverArt", currentItem.mediaMetadata.extras?.getString("coverArtId")) // Use raw ID for DownloadWorker
                     .putLong("serverId", server.id) // ← Corregido de "server_id"
                     .putString("serverUrl", server.url) // ← Agregado
                     .putString("username", server.username) // ← Agregado
@@ -607,16 +594,19 @@ class HomeViewModel @Inject constructor(
         android.util.Log.d("HomeViewModel", "Stream URL: $streamUrl")
 
         val inputData = Data.Builder()
-            .putString("song_id", songDto.id)
-            .putString("url", streamUrl)
+            .putString("songId", songDto.id)
             .putString("title", songDto.title)
             .putString("artist", songDto.artist)
-            .putString("artist_id", songDto.artistId ?: "")
+            .putString("artistId", songDto.artistId ?: "")
             .putString("album", songDto.album)
-            .putString("album_id", songDto.albumId ?: "")
-            .putLong("duration", songDto.duration.toLong())
-            .putString("image_url", coverUrl)
-            .putLong("server_id", server.id)
+            .putString("albumId", songDto.albumId ?: "")
+            .putInt("duration", songDto.duration) // Worker reads Int
+            .putString("coverArt", songDto.coverArt) // Pass ID
+            .putLong("serverId", server.id)
+            .putString("serverUrl", server.url)
+            .putString("username", server.username)
+            .putString("token", server.token)
+            .putString("salt", server.salt)
             .build()
 
         val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
@@ -628,20 +618,31 @@ class HomeViewModel @Inject constructor(
         android.util.Log.d("HomeViewModel", "Download request enqueued for: ${songDto.title}")
     }
 
-    private fun songDtoToMediaItem(
+    private suspend fun songDtoToMediaItem(
         songDto: SongDto,
         server: com.example.neosynth.data.local.entities.ServerEntity
     ): MediaItem {
         // Obtener configuración de calidad según tipo de conexión
         val connectionType = networkHelper.getConnectionType()
-        val audioSettings = runCatching { 
-            kotlinx.coroutines.runBlocking { settingsPreferences.audioSettings.first() }
-        }.getOrNull()
+        val audioSettings = settingsPreferences.audioSettings.first()
         
         val streamQuality = when (connectionType) {
-            ConnectionType.WIFI -> audioSettings?.streamWifiQuality ?: com.example.neosynth.data.preferences.StreamQuality.LOSSLESS
-            ConnectionType.MOBILE -> audioSettings?.streamMobileQuality ?: com.example.neosynth.data.preferences.StreamQuality.MEDIUM
+            ConnectionType.WIFI -> audioSettings.streamWifiQuality
+            ConnectionType.MOBILE -> audioSettings.streamMobileQuality
             ConnectionType.NONE -> com.example.neosynth.data.preferences.StreamQuality.MEDIUM // Fallback
+        }
+        
+        // Determinar bitrate y formato efectivos para mostrar en el badge
+        val effectiveBitrate = if (streamQuality != com.example.neosynth.data.preferences.StreamQuality.LOSSLESS) {
+            streamQuality.bitrate
+        } else {
+            songDto.bitRate ?: 0
+        }
+        
+        val effectiveFormat = if (streamQuality != com.example.neosynth.data.preferences.StreamQuality.LOSSLESS) {
+            streamQuality.format.uppercase()
+        } else {
+            songDto.suffix?.uppercase() ?: "MP3"
         }
         
         // Construir URL con parámetros de transcodificación
@@ -656,6 +657,20 @@ class HomeViewModel @Inject constructor(
                     .setArtist(songDto.artist)
                     .setAlbumTitle(songDto.album)
                     .setArtworkUri(buildCoverArtUrl(server, songDto.coverArt)?.toUri())
+                    .setExtras(
+                        android.os.Bundle().apply {
+                            putString("path", songDto.path)
+                            putString("coverArtId", songDto.coverArt) // Add coverArt ID for downloads
+                            // Usamos el bitrate efectivo para que el badge muestre la calidad de transcodificación
+                            putInt("bitRate", effectiveBitrate)
+                            putString("contentType", songDto.contentType)
+                            putString("suffix", effectiveFormat)
+                            // Actualizar JSON de metadata para el Player Badge
+                            putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
+                            // Add Duration for fallback in case of transcoding (which often results in unset duration)
+                            putLong("duration", songDto.duration * 1000L)
+                        }
+                    )
                     .build()
             )
             .build()

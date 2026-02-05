@@ -142,10 +142,18 @@ fun SettingsScreen(
                     SettingsCard {
                         SettingsSwitchItem(
                             icon = Icons.Rounded.GraphicEq,
-                            title = "Crossfade",
-                            subtitle = "Transición suave entre canciones",
+                            title = "Fade In Suave",
+                            subtitle = "Suavizar inicio de canciones (Fade In)",
                             checked = audioSettings.crossfadeEnabled,
                             onCheckedChange = { viewModel.updateCrossfadeEnabled(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchItem(
+                            icon = Icons.Rounded.Headphones,
+                            title = "Crossfeed",
+                            subtitle = "Mezcla ligera para reducir fatiga con audífonos",
+                            checked = audioSettings.crossfeedEnabled,
+                            onCheckedChange = { viewModel.updateCrossfeedEnabled(it) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsSwitchItem(
@@ -213,12 +221,13 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsSwitchItem(
-                            icon = Icons.Rounded.ColorLens,
-                            title = "Colores dinámicos",
-                            subtitle = "Adaptar colores a la carátula",
-                            checked = appSettings.dynamicColors,
-                            onCheckedChange = { viewModel.updateDynamicColors(it) }
+                            icon = Icons.Rounded.GraphicEq,
+                            title = "Visualizador de Audio",
+                            subtitle = "Mostrar ondas de sonido en el reproductor (Requiere permiso de micrófono)",
+                            checked = appSettings.visualizerEnabled,
+                            onCheckedChange = { viewModel.updateVisualizerEnabled(it) }
                         )
+                        // Dynamic Colors removed
                     }
                 }
             }
@@ -375,9 +384,9 @@ private enum class QualityDialogType {
 
 private fun getStreamQualityLabel(quality: StreamQuality): String {
     return when (quality) {
-        StreamQuality.LOW -> "Baja (128 kbps MP3)"
+        StreamQuality.LOW -> "Baja (128 kbps Opus)"
         StreamQuality.MEDIUM -> "Media (192 kbps MP3)"
-        StreamQuality.HIGH -> "Alta (256 kbps MP3)"
+        StreamQuality.HIGH -> "Alta (256 kbps AAC)"
         StreamQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
         StreamQuality.LOSSLESS -> "Sin pérdida (Original)"
     }
@@ -385,9 +394,9 @@ private fun getStreamQualityLabel(quality: StreamQuality): String {
 
 private fun getDownloadQualityLabel(quality: DownloadQuality): String {
     return when (quality) {
-        DownloadQuality.LOW -> "Baja (128 kbps MP3)"
+        DownloadQuality.LOW -> "Baja (128 kbps Opus)"
         DownloadQuality.MEDIUM -> "Media (192 kbps MP3)"
-        DownloadQuality.HIGH -> "Alta (256 kbps MP3)"
+        DownloadQuality.HIGH -> "Alta (256 kbps AAC)"
         DownloadQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
         DownloadQuality.LOSSLESS -> "Sin pérdida (Original)"
     }
@@ -633,10 +642,10 @@ private fun StreamQualityPickerDialog(
                             )
                             Text(
                                 text = when (quality) {
-                                    StreamQuality.LOW -> "128 kbps MP3 - Ahorro de datos"
+                                    StreamQuality.LOW -> "128 kbps Opus - Ahorro de datos"
                                     StreamQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
-                                    StreamQuality.HIGH -> "256 kbps MP3 - Calidad alta"
-                                    StreamQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad MP3"
+                                    StreamQuality.HIGH -> "256 kbps AAC - Calidad alta"
+                                    StreamQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad"
                                     StreamQuality.LOSSLESS -> "Original - Sin transcodificar"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -699,10 +708,10 @@ private fun DownloadQualityPickerDialog(
                             )
                             Text(
                                 text = when (quality) {
-                                    DownloadQuality.LOW -> "128 kbps MP3 - Ahorro de espacio"
+                                    DownloadQuality.LOW -> "128 kbps Opus - Ahorro de espacio"
                                     DownloadQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
-                                    DownloadQuality.HIGH -> "256 kbps MP3 - Calidad alta"
-                                    DownloadQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad MP3"
+                                    DownloadQuality.HIGH -> "256 kbps AAC - Calidad alta"
+                                    DownloadQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad"
                                     DownloadQuality.LOSSLESS -> "Original - Sin transcodificar"
                                 },
                                 style = MaterialTheme.typography.bodySmall,

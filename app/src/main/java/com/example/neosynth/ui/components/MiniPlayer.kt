@@ -39,8 +39,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+
 @Composable
 fun MiniPlayer(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    mediaId: String?,
     title: String,
     artist: String,
     artworkUri: String?,
@@ -86,13 +92,21 @@ fun MiniPlayer(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Artwork
-            AsyncImage(
-                model = artworkUri,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
+            // Artwork with Shared Element Transition
+            with(sharedTransitionScope) {
+                 AsyncImage(
+                    model = artworkUri,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .sharedElement(
+                    sharedContentState = rememberSharedContentState(key = "artwork-$mediaId"),
+                    animatedVisibilityScope = animatedVisibilityScope
+                ),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(

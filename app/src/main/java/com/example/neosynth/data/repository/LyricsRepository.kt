@@ -65,10 +65,10 @@ class LyricsRepository @Inject constructor(
         
         Log.d("LyricsRepository", "Artist variants for '$artist': $artistVariants")
         
-        // Intentar con cada variante del artista
+        // PASO 1: Intentar con cada variante del artista usando /api/get (coincidencia exacta)
         for (artistVariant in artistVariants) {
             try {
-                Log.d("LyricsRepository", "Trying LRCLIB with artist: '$artistVariant', title: '$title'")
+                Log.d("LyricsRepository", "Trying LRCLIB /get with artist: '$artistVariant', title: '$title'")
                 
                 val response = lyricsApi.getLyricsFromLrclib(
                     artistName = artistVariant,
@@ -93,7 +93,7 @@ class LyricsRepository @Inject constructor(
                 // Si encontramos letras, retornarlas
                 val lyrics = body.syncedLyrics ?: body.plainLyrics
                 if (lyrics != null && lyrics.isNotBlank()) {
-                    Log.d("LyricsRepository", "✅ LRCLIB SUCCESS with artist: '$artistVariant' (${lyrics.length} chars)")
+                    Log.d("LyricsRepository", "✅ LRCLIB /get SUCCESS with artist: '$artistVariant' (${lyrics.length} chars)")
                     return lyrics
                 } else {
                     Log.d("LyricsRepository", "LRCLIB returned empty lyrics with artist '$artistVariant'")
@@ -105,7 +105,62 @@ class LyricsRepository @Inject constructor(
             }
         }
         
-        Log.d("LyricsRepository", "❌ LRCLIB: No results with any artist variant")
+        Log.d("LyricsRepository", "❌ LRCLIB /get: No results with any artist variant")
+        
+        // PASO 2: Intentar con /api/search (búsqueda por palabras clave, más flexible)
+        try {
+            Log.d("LyricsRepository", "Trying LRCLIB /search as fallback")
+            
+            // Intentar primero con artista y título
+            for (artistVariant in artistVariants) {
+                try {
+                    Log.d("LyricsRepository", "Searching with artist: '$artistVariant', title: '$title'")
+                    
+                    val searchResponse = lyricsApi.searchLyrics(
+                        trackName = title,
+                        artistName = artistVariant,
+                        duration = duration
+                    )
+                    
+                    if (!searchResponse.isSuccessful || searchResponse.body().isNullOrEmpty()) {
+                        Log.d("LyricsRepository", "LRCLIB /search: No results with artist '$artistVariant'")
+                        continue
+                    }
+                    
+                    // Tomar el primer resultado (mejor match)
+                    val bestMatch = searchResponse.body()!!.firstOrNull()
+                    if (bestMatch != null) {
+                        val lyrics = bestMatch.syncedLyrics ?: bestMatch.plainLyrics
+                        if (lyrics != null && lyrics.isNotBlank()) {
+                            Log.d("LyricsRepository", "✅ LRCLIB /search SUCCESS with artist: '$artistVariant' (${lyrics.length} chars)")
+                            return lyrics
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("LyricsRepository", "LRCLIB /search exception with artist '$artistVariant': ${e.message}")
+                }
+            }
+            
+            // Si falla con artista específico, intentar búsqueda por palabras clave
+            Log.d("LyricsRepository", "Trying LRCLIB /search with keyword query")
+            val keywords = "$artist $title"
+            val keywordResponse = lyricsApi.searchLyrics(query = keywords)
+            
+            if (keywordResponse.isSuccessful && !keywordResponse.body().isNullOrEmpty()) {
+                val bestMatch = keywordResponse.body()!!.firstOrNull()
+                if (bestMatch != null) {
+                    val lyrics = bestMatch.syncedLyrics ?: bestMatch.plainLyrics
+                    if (lyrics != null && lyrics.isNotBlank()) {
+                        Log.d("LyricsRepository", "✅ LRCLIB /search SUCCESS with keywords (${lyrics.length} chars)")
+                        return lyrics
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("LyricsRepository", "LRCLIB /search failed: ${e.message}")
+        }
+        
+        Log.d("LyricsRepository", "❌ LRCLIB: No results with /get or /search")
         return null
     }
     

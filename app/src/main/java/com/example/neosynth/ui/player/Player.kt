@@ -1,6 +1,7 @@
 package com.example.neosynth.ui.player
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -11,11 +12,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.scrollBy
+import kotlin.math.abs
+
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -26,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,20 +67,26 @@ import coil.compose.AsyncImage
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.components.AlphabetScrollbar
 import com.example.neosynth.ui.components.AnimatedPlayerSlider
-import com.example.neosynth.ui.components.PlayerOptionsBar
 import com.example.neosynth.ui.components.bounceClick
 import kotlinx.coroutines.launch
+import androidx.media3.common.Player
+
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     musicController: MusicController,
     onBack: () -> Unit,
     onDownload: () -> Unit = {},
     onLyricsClick: () -> Unit = {},
     isCurrentSongDownloaded: Boolean = false,
     isFavorite: Boolean = false,
-    onToggleFavorite: () -> Unit = {}
+    onToggleFavorite: () -> Unit = {},
+    visualizerEnabled: Boolean = false
 ) {
     val currentSong by musicController.currentMediaItem
     val isPlaying by musicController.isPlaying
@@ -108,55 +121,308 @@ fun PlayerScreen(
         )
     }
 
+    // Color dominante extraído del cover
+    var dominantColor by remember { mutableStateOf(Color.DarkGray) }
+    
+    // Animación suave del color de fondo
+    val animatedColor by animateColorAsState(
+        targetValue = dominantColor,
+        animationSpec = tween(durationMillis = 1000),
+        label = "bg_color_anim"
+    )
+
+    // Dynamic Background (Color sólido animado con gradiente radial premium)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black) // Fondo base negro
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            animatedColor.copy(alpha = 0.8f), // Color vibrante en el centro/arriba
+                            animatedColor.copy(alpha = 0.4f), // Desvanecimiento medio
+                            Color.Black.copy(alpha = 0.9f)    // Casi negro en los bordes
+                        ),
+                        center = Offset.Unspecified, // Centro default
+                        radius = 2500f // Radio grande para cubrir bien
+                    )
+                )
+        )
+        // Capa extra de oscurecimiento abajo para asegurar legibilidad de controles
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.8f)
+                        ),
+                        startY = 500f
+                    )
+                )
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // BOTÓN BACK: Más grande y alineado totalmente a la izquierda
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .align(Alignment.Start)
-                .padding(top = 8.dp)
-                .size(48.dp) // Tamaño del área de clic aumentado
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.KeyboardArrowDown,
-                contentDescription = "Cerrar",
-                modifier = Modifier.size(40.dp) // Icono más grande
-            )
+        // Espacio superior aumentado para bajar todo el contenido
+        Spacer(modifier = Modifier.weight(0.15f))
+
+        // Artwork con overlay de controles (click para mostrar/ocultar)
+        var showControls by remember { mutableStateOf(false) }
+        
+        // Reset color when song changes
+        LaunchedEffect(song) {
+            dominantColor = Color.DarkGray // Reset to default while loading
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Artwork con crossfade
-        Card(
+        
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
-                .aspectRatio(1f),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(15.dp)
+                .aspectRatio(1f)
         ) {
-            Crossfade(
-                targetState = song?.mediaMetadata?.artworkUri,
-                animationSpec = tween(durationMillis = 300),
-                label = "cover_crossfade"
-            ) { artworkUri ->
-                AsyncImage(
-                    model = artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(24.dp))
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { showControls = !showControls }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        var totalDrag = Offset.Zero
+                        detectDragGestures(
+                            onDragStart = { totalDrag = Offset.Zero },
+                            onDragEnd = {
+                                val x = totalDrag.x
+                                val y = totalDrag.y
+                                val threshold = 100f // Threshold for swipe action
+
+                                when {
+                                    // Vertical Swipes
+                                    abs(y) > abs(x) -> {
+                                        if (y < -threshold) { // Up -> Queue
+                                            showQueueSheet = true
+                                        } else if (y > threshold) { // Down -> Minimize/Back
+                                            onBack()
+                                        }
+                                    }
+                                    // Horizontal Swipes
+                                    abs(x) > abs(y) -> {
+                                        if (x < -threshold) { // Left -> Next
+                                            if (musicController.hasNext.value) musicController.skipNext()
+                                        } else if (x > threshold) { // Right -> Prev
+                                            if (musicController.hasPrevious.value) musicController.skipPrevious()
+                                        }
+                                    }
+                                }
+                            },
+                             onDrag = { change, dragAmount ->
+                                change.consume()
+                                totalDrag += dragAmount
+                            }
+                        )
+                    },
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(15.dp)
+            ) {
+                Crossfade(
+                    targetState = song?.mediaMetadata?.artworkUri,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "cover_crossfade"
+                ) { artworkUri ->
+                    with(sharedTransitionScope) {
+                        AsyncImage(
+                            model = androidx.compose.ui.platform.LocalContext.current.let { context ->
+                                coil.request.ImageRequest.Builder(context)
+                                    .data(artworkUri)
+                                    .allowHardware(false) // CRITICAL for Palette access
+                                    .crossfade(true)
+                                    .build()
+                            },
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "artwork-${song?.mediaId ?: ""}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                ),
+                            onSuccess = { state ->
+                            val bitmap = (state.result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                            if (bitmap != null) {
+                                androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
+                                    // Prioritize Vibrant colors for a "premium" feel
+                                    val swatch = palette?.vibrantSwatch 
+                                        ?: palette?.darkVibrantSwatch 
+                                        ?: palette?.lightVibrantSwatch 
+                                        ?: palette?.mutedSwatch 
+                                        ?: palette?.dominantSwatch
+                                    
+                                    swatch?.rgb?.let { colorValue ->
+                                        val originalColor = Color(colorValue)
+                                        
+                                        // Boost Saturation and Brightness logic
+                                        val hsv = FloatArray(3)
+                                        android.graphics.Color.colorToHSV(originalColor.toArgb(), hsv)
+                                        
+                                        // Boost Saturation if too dull
+                                        if (hsv[1] < 0.5f) {
+                                            hsv[1] = (hsv[1] + 0.4f).coerceAtMost(0.9f)
+                                        }
+                                        
+                                        // Boost Brightness (Value) if too dark (ensure glow is visible)
+                                        if (hsv[2] < 0.3f) {
+                                            hsv[2] = 0.4f
+                                        }
+                                        
+                                        dominantColor = Color(android.graphics.Color.HSVToColor(hsv))
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+            }
+            
+            // Overlay con blur y botones
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showControls,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable { showControls = false },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Grid de botones 2x3
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CoverArtButton(
+                                icon = Icons.Rounded.Shuffle,
+                                isActive = musicController.shuffleModeEnabled.value,
+                                onClick = { musicController.toggleShuffle() }
+                            )
+                            CoverArtButton(
+                                icon = if (musicController.repeatMode.value == Player.REPEAT_MODE_ONE) 
+                                    Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                                isActive = musicController.repeatMode.value != Player.REPEAT_MODE_OFF,
+                                onClick = { musicController.toggleRepeat() }
+                            )
+                            CoverArtButton(
+                                icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                isActive = isFavorite,
+                                onClick = onToggleFavorite
+                            )
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CoverArtButton(
+                                icon = if (isCurrentSongDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                isActive = isCurrentSongDownloaded,
+                                onClick = onDownload
+                            )
+                            CoverArtButton(
+                                icon = Icons.Rounded.QueueMusic,
+                                isActive = false,
+                                onClick = { showQueueSheet = true }
+                            )
+                            CoverArtButton(
+                                icon = Icons.Rounded.Lyrics,
+                                isActive = false,
+                                onClick = onLyricsClick
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.weight(0.1f))
 
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Audio Quality Badge (Bitrate Real y Dinámico) - Moved closer to Cover Art
+        val bitrateText = remember(song) {
+            try {
+                val extras = song?.mediaMetadata?.extras
+                val json = extras?.getString("metadata")
+                
+                if (!json.isNullOrEmpty()) {
+                    val jsonObj = org.json.JSONObject(json)
+                    val bitrate = jsonObj.optInt("bitRate", 0)
+                    val format = jsonObj.optString("suffix", "").uppercase()
+                    
+                    if (bitrate > 0) {
+                        "$format • $bitrate kbps"
+                    } else {
+                        val path = extras?.getString("path") ?: ""
+                        val lowerPath = path.lowercase()
+                        when {
+                            lowerPath.endsWith(".flac") -> "FLAC"
+                            lowerPath.endsWith(".wav") -> "WAV"
+                            lowerPath.endsWith(".m4a") -> "AAC • 256 kbps" 
+                            else -> "MP3 • 320 kbps"
+                        }
+                    }
+                } else {
+                     val path = extras?.getString("path") ?: ""
+                     val lowerPath = path.lowercase()
+                     when {
+                         lowerPath.endsWith(".flac") -> "FLAC"
+                         lowerPath.endsWith(".wav") -> "WAV"
+                         else -> "MP3 • 320 kbps"
+                     }
+                }
+            } catch (e: Exception) {
+                "MP3 • 320 kbps"
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .clip(RoundedCornerShape(4.dp))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = bitrateText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(0.1f))
+        
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+            // Title and Artist Column (Empty)
+
             Text(
                 text = song?.mediaMetadata?.title?.toString() ?: "Sin título",
                 style = MaterialTheme.typography.headlineMedium,
@@ -182,9 +448,59 @@ fun PlayerScreen(
             )
         }
         Spacer(modifier = Modifier.height(30.dp))
-        AnimatedPlayerSlider(
-            musicController = musicController
-        )
+        
+        val permissionState = remember { mutableStateOf(false) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        
+        LaunchedEffect(visualizerEnabled) {
+            if (visualizerEnabled) {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.RECORD_AUDIO
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    permissionState.value = true
+                } else {
+                     // We rely on the user granting it via Settings or a dedicated prompt.
+                     // But for now, let's assume if enabled in settings, we try to show it.
+                     // A proper implementation would launch permission request here if this is the first time.
+                     // However, requesting permission inside a Composable LaunchedEffect might loop if checking result isn't reactive.
+                }
+            }
+        }
+        
+        // Permission request launcher
+        val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            permissionState.value = isGranted
+        }
+        
+        LaunchedEffect(visualizerEnabled) {
+             if (visualizerEnabled && !permissionState.value) {
+                 launcher.launch(android.Manifest.permission.RECORD_AUDIO)
+             }
+        }
+        
+        if (visualizerEnabled && permissionState.value) {
+            val audioSessionId by musicController.audioSessionId
+            com.example.neosynth.ui.components.AudioVisualizerSlider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                audioSessionId = audioSessionId,
+                progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                onProgressChange = { newProgress ->
+                    musicController.seekTo((newProgress * duration).toLong())
+                },
+                color = MaterialTheme.colorScheme.primary
+            )
+        } else {
+             AnimatedPlayerSlider(
+                musicController = musicController
+            )
+        }
+        
         Spacer(modifier = Modifier.weight(0.1f))
 
         // Botones de control con animaciones más visibles
@@ -194,6 +510,9 @@ fun PlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Botón anterior con animación
+            val hasPrevious by musicController.hasPrevious
+            val prevAlpha by animateFloatAsState(targetValue = if (hasPrevious) 1f else 0.3f, label = "prev_alpha")
+            
             val interactionSourcePrev = remember { MutableInteractionSource() }
             val isPressedPrev by interactionSourcePrev.collectIsPressedAsState()
             val scalePrev by animateFloatAsState(
@@ -206,11 +525,13 @@ fun PlayerScreen(
             )
             
             IconButton(
-                onClick = { musicController.skipPrevious() },
+                onClick = { if (hasPrevious) musicController.skipPrevious() },
+                enabled = hasPrevious,
                 interactionSource = interactionSourcePrev,
                 modifier = Modifier.graphicsLayer {
                     scaleX = scalePrev
                     scaleY = scalePrev
+                    // Alpha removed as requested
                 }
             ) {
                 Icon(
@@ -284,17 +605,6 @@ fun PlayerScreen(
         }
 
         Spacer(modifier = Modifier.weight(0.15f))
-
-        PlayerOptionsBar(
-            musicController = musicController,
-            onDownloadClick = onDownload,
-            onQueueClick = { showQueueSheet = true },
-            onLyricsClick = onLyricsClick,
-            isDownloaded = isCurrentSongDownloaded,
-            isFavorite = isFavorite,
-            onToggleFavorite = onToggleFavorite
-        )
-
         Spacer(modifier = Modifier.height(10.dp))
     }
 }

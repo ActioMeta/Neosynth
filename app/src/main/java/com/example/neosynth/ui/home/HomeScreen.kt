@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -42,12 +43,18 @@ import com.example.neosynth.ui.components.CardItem
 import com.example.neosynth.ui.components.ServerErrorScreen
 import kotlinx.coroutines.flow.collectLatest
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {},
     onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> }
 ) {
     val recentlyAdded = viewModel.recentlyAdded
@@ -153,6 +160,13 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.LibraryMusic,
                                     contentDescription = "Biblioteca",
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            IconButton(onClick = onNavigateToStats) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Assessment,
+                                    contentDescription = "Estadísticas",
                                     tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }

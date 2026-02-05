@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -16,6 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,8 +57,12 @@ fun DownloadsScreen(
     onBack: () -> Unit
 ) {
     val groupedSongs: Map<Char, List<SongEntity>> by viewModel.groupedSongs.collectAsState(initial = emptyMap())
-    val downloadedPlaylists by viewModel.downloadedPlaylists.collectAsState()
+    val allPlaylists by viewModel.allPlaylists.collectAsState()
     val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
+    
+    // Estado para colapsar/expandir playlists
+    var playlistsExpanded by remember { mutableStateOf(true) }
+
     val allSongs = remember(groupedSongs) { groupedSongs.values.flatten() }
 
     var selectedSongIds by rememberSaveable { mutableStateOf<Set<String>>(setOf()) }
@@ -298,48 +307,65 @@ fun DownloadsScreen(
                         }
                     }
                 } else {
-                    // Sección de Playlists descargadas
-                    if (downloadedPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
+                    // Sección de Playlists descargadas (colapsable)
+                    if (allPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
                         stickyHeader(key = "playlists_header") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(MaterialTheme.colorScheme.background)
-                                    .padding(horizontal = 24.dp, vertical = 6.dp)
+                                    .clickable { playlistsExpanded = !playlistsExpanded }
+                                    .padding(horizontal = 24.dp, vertical = 12.dp)
                             ) {
-                                Text(
-                                    text = "Playlists",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Playlists (${allPlaylists.size})",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Icon(
+                                        imageVector = if (playlistsExpanded) 
+                                            Icons.Rounded.ExpandLess 
+                                        else 
+                                            Icons.Rounded.ExpandMore,
+                                        contentDescription = if (playlistsExpanded) "Colapsar" else "Expandir",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                         
-                        items(
-                            items = downloadedPlaylists,
-                            key = { it.playlist.id }
-                        ) { playlistWithSongs ->
-                            PlaylistDownloadItem(
-                                playlistWithSongs = playlistWithSongs,
-                                isSelected = selectedPlaylistId == playlistWithSongs.playlist.id,
-                                onClick = {
-                                    // Toggle: Si ya está seleccionada, limpiar filtro; si no, seleccionarla
-                                    if (selectedPlaylistId == playlistWithSongs.playlist.id) {
-                                        viewModel.clearPlaylistFilter()
-                                    } else {
-                                        viewModel.selectPlaylist(playlistWithSongs.playlist.id)
-                                    }
-                                },
-                                onPlay = { viewModel.playPlaylist(playlistWithSongs) },
-                                onDelete = { viewModel.deletePlaylist(playlistWithSongs.playlist.id) }
-                            )
+                        if (playlistsExpanded) {
+                            items(
+                                items = allPlaylists,
+                                key = { it.playlist.id }
+                            ) { playlistWithSongs ->
+                                PlaylistDownloadItem(
+                                    playlistWithSongs = playlistWithSongs,
+                                    isSelected = selectedPlaylistId == playlistWithSongs.playlist.id,
+                                    onClick = {
+                                        // Toggle: Si ya está seleccionada, limpiar filtro; si no, seleccionarla
+                                        if (selectedPlaylistId == playlistWithSongs.playlist.id) {
+                                            viewModel.clearPlaylistFilter()
+                                        } else {
+                                            viewModel.selectPlaylist(playlistWithSongs.playlist.id)
+                                        }
+                                    },
+                                    onPlay = { viewModel.playPlaylist(playlistWithSongs) },
+                                    onDelete = { viewModel.deletePlaylist(playlistWithSongs.playlist.id) }
+                                )
+                            }
                         }
                         
                         // Chip de filtro activo
                         if (selectedPlaylistId != null) {
                             item {
-                                val selectedPlaylist = downloadedPlaylists.find { it.playlist.id == selectedPlaylistId }
+                                val selectedPlaylist = allPlaylists.find { it.playlist.id == selectedPlaylistId }
                                 if (selectedPlaylist != null) {
                                     FilterChip(
                                         selected = true,
@@ -606,9 +632,9 @@ fun DownloadsScreen(
                                 var itemIndex = 0
                                 
                                 // Agregar offset por playlists si existen
-                                if (downloadedPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
+                                if (allPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
                                     itemIndex += 1 // Header de playlists
-                                    itemIndex += downloadedPlaylists.size // Items de playlists
+                                    itemIndex += allPlaylists.size // Items de playlists
                                     if (selectedPlaylistId != null) {
                                         itemIndex += 1 // Chip de filtro
                                     }

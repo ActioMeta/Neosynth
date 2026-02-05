@@ -53,7 +53,10 @@ data class SongDto(
     val duration: Int,
     val coverArt: String? = null,
     val path: String? = null,
-    val year: Int? = null
+    val year: Int? = null,
+    val bitRate: Int? = null,
+    val contentType: String? = null,
+    val suffix: String? = null
 )
 
 data class ArtistsContainer(

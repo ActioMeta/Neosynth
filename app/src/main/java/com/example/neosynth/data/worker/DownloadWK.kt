@@ -3,7 +3,9 @@ package com.example.neosynth.data.worker
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
@@ -87,10 +89,14 @@ class DownloadWorker @AssistedInject constructor(
 
         // Notificación consolidada para playlists
         if (playlistName != null && total > 0) {
-            builder.setContentTitle("Descargando $playlistName")
-            builder.setContentText("$current de $total canciones")
-            val percentage = (current * 100) / total
-            builder.setProgress(100, percentage, false)
+            builder.setContentTitle("$playlistName ($current/$total)")
+            builder.setContentText(title)
+            // Usar el progreso de la canción actual para que la barra se mueva
+            if (progress >= 0) {
+                builder.setProgress(100, progress, false)
+            } else {
+                builder.setProgress(0, 0, true)
+            }
         } else {
             // Notificación individual para canciones sueltas
             builder.setContentTitle("Descargando")
@@ -108,10 +114,26 @@ class DownloadWorker @AssistedInject constructor(
     private fun showCompleteNotification(title: String, playlistName: String? = null, total: Int = 0) {
         if (!hasNotificationPermission()) return
 
+        // Cancelar la notificación de progreso antes de mostrar la de completado
+        notificationManager.cancel(notificationId)
+
+        // Crear PendingIntent para abrir MainActivity al hacer click
+        val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
+            .setOngoing(false) // Asegurar que no sea persistente
+            .setContentIntent(pendingIntent) // Hacer clickeable
 
         if (playlistName != null && total > 0) {
             builder.setContentTitle("Descarga completada")
@@ -127,12 +149,27 @@ class DownloadWorker @AssistedInject constructor(
     private fun showErrorNotification(title: String) {
         if (!hasNotificationPermission()) return
 
+        // Cancelar la notificación de progreso antes de mostrar la de error
+        notificationManager.cancel(notificationId)
+
+        // Crear PendingIntent para abrir MainActivity al hacer click
+        val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setContentTitle("Error de descarga")
             .setContentText(title)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent) // Hacer clickeable
             .build()
 
         notificationManager.notify(notificationId, notification)
@@ -178,24 +215,22 @@ class DownloadWorker @AssistedInject constructor(
             ConnectionType.NONE -> audioSettings.downloadMobileQuality // Fallback
         }
         
-        // Construir URL de descarga con parámetros de transcodificación
-        val url = buildString {
-            append(serverUrl)
-            if (!serverUrl.endsWith("/")) append("/")
-            append("rest/download")
-            append("?id=$songId")
-            append("&u=$username")
-            append("&t=$token")
-            append("&s=$salt")
-            append("&v=1.16.1")
-            append("&c=NeoSynth")
-            
-            // Agregar parámetros de transcodificación si no es LOSSLESS
-            if (downloadQuality != com.example.neosynth.data.preferences.DownloadQuality.LOSSLESS) {
-                append("&maxBitRate=${downloadQuality.bitrate}")
-                append("&format=${downloadQuality.format}")
-            }
-        }
+        // Construir URL de descarga usando StreamUrlBuilder
+        val serverEntity = com.example.neosynth.data.local.entities.ServerEntity(
+            id = serverId,
+            url = serverUrl,
+            username = username,
+            token = token,
+            salt = salt,
+            name = "Active Server", // Placeholder
+            isActive = true
+        )
+        
+        val url = com.example.neosynth.utils.StreamUrlBuilder.buildDownloadUrl(
+            server = serverEntity,
+            songId = songId,
+            quality = downloadQuality
+        )
         
         val imageUrl = coverArt
 
@@ -205,8 +240,23 @@ class DownloadWorker @AssistedInject constructor(
         }
         Log.d(TAG, "URL: $url")
 
-        // No mostrar notificación al inicio, solo cuando termine
-        // Esto evita actualizaciones desordenadas
+        // Mostrar notificación de inicio inmediatamente (0%)
+        // Para playlists, consultamos el progreso real de la DB si es posible, o usamos el input
+        // Pero para UI inmediata, usamos lo que tenemos
+        if (isPartOfBatch) {
+             showProgressNotification(
+                title = "$title - $artist",
+                progress = 0,
+                playlistName = playlistName,
+                current = currentIndex, // Usamos currentIndex para mostrar "X de Y"
+                total = totalSongs
+            )
+        } else {
+             showProgressNotification(
+                title = "$title - $artist",
+                progress = 0
+            )
+        }
 
         try {
             // Crear directorio de música si no existe
@@ -223,9 +273,27 @@ class DownloadWorker @AssistedInject constructor(
                 Log.d(TAG, "Directorio de covers creado: ${coversDir.absolutePath}")
             }
 
-            // Descargar el archivo de audio con OkHttp
+            // Callback para progreso de descarga (bytes)
+            val onProgress: (Int) -> Unit = { progress ->
+                if (isPartOfBatch) {
+                    showProgressNotification(
+                        title = "$title - $artist",
+                        progress = progress,
+                        playlistName = playlistName,
+                        current = currentIndex,
+                        total = totalSongs
+                    )
+                } else {
+                    showProgressNotification(
+                        title = "$title - $artist",
+                        progress = progress
+                    )
+                }
+            }
+
+            // Descargar el archivo de audio con OkHttp y progreso
             val outputFile = File(musicDir, "$songId.mp3")
-            downloadFile(url, outputFile)
+            downloadFile(url, outputFile, onProgress)
 
             Log.d(TAG, "Archivo descargado: ${outputFile.absolutePath}")
             Log.d(TAG, "Tamaño: ${outputFile.length()} bytes")
@@ -260,7 +328,8 @@ class DownloadWorker @AssistedInject constructor(
                             }
                             
                             Log.d(TAG, "Descargando cover art (intento ${4 - retries}/3): $coverUrl")
-                            downloadFile(coverUrl, coverFile)
+                            // No necesitamos callback para el cover art (es rápido y pequeño)
+                            downloadFile(coverUrl, coverFile) { } 
                             localCoverPath = coverFile.absolutePath
                             downloaded = true
                             Log.d(TAG, "Cover art descargado: ${coverFile.absolutePath} (${coverFile.length()} bytes)")
@@ -280,53 +349,37 @@ class DownloadWorker @AssistedInject constructor(
             }
 
             // Registrar en Room una vez descargado
-            // IMPORTANTE: La canción ya existe en Room (insertada desde PlaylistDetailViewModel)
-            // Solo actualizamos path, imageUrl y isDownloaded
-            val entity = SongEntity(
-                id = songId,
-                title = title,
-                serverID = 0L, // DEPRECATED
-                sourceType = "SUBSONIC", // NOTE: Currently only SUBSONIC source is supported. Will be parameterized when LOCAL_FILES or other sources are added.
-                sourceId = serverId.toString(),
-                artistID = artistId,
-                artist = artist,
-                albumID = albumId,
-                album = album,
-                duration = duration,
-                imageUrl = localCoverPath ?: imageUrl, // Usar ruta local si está disponible
-                path = outputFile.absolutePath, // Actualizar con la ruta local
-                isDownloaded = true // Marcar como descargada
+            // IMPORTANTE: Usamos UPDATE para no romper relaciones (PlaylistSongCrossRef)
+            // Si usamos insertSong (REPLACE), se borra la fila y se vuelve a crear,
+            // lo que dispara el CASCADE DELETE en la tabla de playlist_song_cross_ref.
+            musicRepository.updateSongDownloadState(
+                songId = songId,
+                path = outputFile.absolutePath,
+                imageUrl = localCoverPath ?: imageUrl,
+                isDownloaded = true
             )
-            musicRepository.insertSong(entity) // insertSong usa REPLACE, así que actualiza
-            Log.d(TAG, "Canción guardada en Room: $title")
+            Log.d(TAG, "Canción actualizada en Room: $title")
 
-            // Usar contador atómico para progreso real (evita race conditions)
+            // Notifiación final
             if (isPartOfBatch && playlistId != null) {
-                val actualProgress = DownloadProgress.increment(playlistId)
+                // Consultar DB para cuenta exacta final
+                val actualProgress = musicRepository.getPlaylistDownloadedCount(playlistId)
                 
-                // Actualizar notificación cada 10 canciones o al final
-                if (actualProgress % 10 == 0 || actualProgress == totalSongs) {
-                    if (actualProgress == totalSongs) {
-                        // Última canción: mostrar completado y limpiar contador
-                        showCompleteNotification(
-                            title = "$title - $artist",
-                            playlistName = playlistName,
-                            total = totalSongs
-                        )
-                        DownloadProgress.reset(playlistId)
-                    } else {
-                        // Progreso intermedio
-                        showProgressNotification(
-                            title = "$title - $artist",
-                            playlistName = playlistName,
-                            current = actualProgress,
-                            total = totalSongs
-                        )
-                    }
+                 if (actualProgress >= totalSongs) {
+                    // Última canción: mostrar completado de playlist
+                    showCompleteNotification(
+                        title = "$title - $artist",
+                        playlistName = playlistName,
+                        total = totalSongs
+                    )
+                } else {
+                    // Progreso intermedio completado (preparando para siguiente)
+                     // Opcional: Podríamos dejar el 100% visible o simplemente esperar al siguiente worker
+                     // Pero para consistencia, mostramos completado de esta canción
+                    Log.d(TAG, "✅ [$actualProgress/$totalSongs] $title - $artist")
                 }
-                Log.d(TAG, "✅ [$actualProgress/$totalSongs] $title - $artist")
             } else {
-                // Descarga individual
+                // Descarga individual completada
                 showCompleteNotification("$title - $artist")
                 Log.d(TAG, "✅ Descarga individual completada: $title - $artist")
             }
@@ -352,7 +405,7 @@ class DownloadWorker @AssistedInject constructor(
         }
     }
 
-    private fun downloadFile(urlString: String, outputFile: File) {
+    private fun downloadFile(urlString: String, outputFile: File, onProgress: (Int) -> Unit) {
         // Configuración adaptativa según API level
         val isOlderDevice = Build.VERSION.SDK_INT < Build.VERSION_CODES.R // Android < 11
         
@@ -364,7 +417,7 @@ class DownloadWorker @AssistedInject constructor(
             .followRedirects(true)
             .followSslRedirects(true)
             .connectTimeout(connectTimeout, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(readTimeout, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(300L, java.util.concurrent.TimeUnit.SECONDS) // Aumentado a 5 minutos para transcoding lento
             .writeTimeout(writeTimeout, java.util.concurrent.TimeUnit.SECONDS)
             .retryOnConnectionFailure(true) // Reintentar en fallos de conexión
             .build()
@@ -397,20 +450,19 @@ class DownloadWorker @AssistedInject constructor(
                             val buffer = ByteArray(bufferSize)
                             var bytesRead: Int
                             var totalBytesRead = 0L
+                            var lastProgress = -1
                             
                             while (input.read(buffer).also { bytesRead = it } != -1) {
                                 output.write(buffer, 0, bytesRead)
                                 totalBytesRead += bytesRead
                                 
-                                // Log de progreso cada 100KB
-                                if (totalBytesRead % (100 * 1024) == 0L) {
-                                    val progress = if (contentLength > 0) {
-                                        (totalBytesRead * 100 / contentLength).toInt()
-                                    } else {
-                                        -1
-                                    }
-                                    if (progress >= 0) {
-                                        Log.d(TAG, "Progreso: $progress%")
+                                // Calcular y notificar progreso
+                                if (contentLength > 0) {
+                                    val progress = (totalBytesRead * 100 / contentLength).toInt()
+                                    // Notificar solo si cambia el porcentaje (evita spam de notificaciones)
+                                    if (progress > lastProgress) {
+                                        onProgress(progress)
+                                        lastProgress = progress
                                     }
                                 }
                             }

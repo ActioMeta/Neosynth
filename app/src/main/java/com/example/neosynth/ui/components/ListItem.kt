@@ -30,9 +30,14 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.neosynth.domain.model.Song
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RowListItem(
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     song: Song,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -55,14 +60,26 @@ fun RowListItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val imageModifier = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "artwork-${song.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
+                } else Modifier
+            )
+
         AsyncImage(
             model = song.coverArtUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier = imageModifier
         )
 
         Spacer(modifier = Modifier.width(16.dp))

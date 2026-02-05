@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import com.google.common.util.concurrent.MoreExecutors
 import androidx.media3.common.Player
+import androidx.media3.common.C
 
 @Singleton
 class MusicController @Inject constructor(
@@ -41,6 +42,15 @@ class MusicController @Inject constructor(
     private val _isPlaying = mutableStateOf(false)
     val isPlaying: State<Boolean> = _isPlaying
 
+    private val _hasNext = mutableStateOf(false)
+    val hasNext: State<Boolean> = _hasNext
+
+    private val _hasPrevious = mutableStateOf(false)
+    val hasPrevious: State<Boolean> = _hasPrevious
+
+    private val _audioSessionId = mutableStateOf(0)
+    val audioSessionId: State<Int> = _audioSessionId
+
     private var browserFuture: ListenableFuture<MediaBrowser>? = null
     val browser: MediaBrowser?
         get() = if (browserFuture?.isDone == true) browserFuture?.get() else null
@@ -55,13 +65,21 @@ class MusicController @Inject constructor(
             _currentMediaItem.value = player.currentMediaItem
             _shuffleModeEnabled.value = player.shuffleModeEnabled
             _repeatMode.value = player.repeatMode
-            _duration.value = player.duration.coerceAtLeast(0L)
+            _shuffleModeEnabled.value = player.shuffleModeEnabled
+            _repeatMode.value = player.repeatMode
+            _duration.value = getDuration(player)
+            
+            // Try to get existing session ID if possible, though it might not be exposed directly on Player interface in all versions without the listener.
+            // But we rely on the listener update mostly.
 
             player.addListener(object : androidx.media3.common.Player.Listener {
+                // ... existing callbacks ...
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     _currentMediaItem.value = mediaItem
                     _currentIndex.value = player.currentMediaItemIndex
+                    _duration.value = getDuration(player)
                     updateQueue()
+                    updateNavStates()
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -72,14 +90,33 @@ class MusicController @Inject constructor(
                 }
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     _shuffleModeEnabled.value = shuffleModeEnabled
+                    updateNavStates()
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
                     _repeatMode.value = repeatMode
+                    updateNavStates()
+                }
+                
+                override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                    updateQueue()
+                    updateNavStates()
+                }
+
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    _audioSessionId.value = audioSessionId
                 }
             })
         }, MoreExecutors.directExecutor())
     }
+    
+    private fun updateNavStates() {
+        browser?.let { player ->
+            _hasNext.value = player.hasNextMediaItem()
+            _hasPrevious.value = player.hasPreviousMediaItem()
+        }
+    }
+
 
     fun togglePlayPause() {
         browser?.let {
@@ -143,7 +180,7 @@ class MusicController @Inject constructor(
     private fun updateProgress() {
         val player = browser ?: return
         _currentPosition.value = player.currentPosition
-        _duration.value = player.duration.coerceAtLeast(0L)
+        _duration.value = getDuration(player)
 
         if (player.isPlaying) {
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -194,5 +231,14 @@ class MusicController @Inject constructor(
             _currentMediaItem.value = null
             _isPlaying.value = false
         }
+    }
+    
+    private fun getDuration(player: Player): Long {
+        val duration = player.duration
+        if (duration == C.TIME_UNSET || duration <= 0) {
+            val metadataDuration = player.currentMediaItem?.mediaMetadata?.extras?.getLong("duration") ?: 0L
+            return if (metadataDuration > 0) metadataDuration else 0L
+        }
+        return duration
     }
 }

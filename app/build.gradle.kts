@@ -73,6 +73,7 @@ dependencies {
   ksp(libs.androidx.room.compiler)
   implementation(libs.retrofit)
   implementation(libs.retrofit.gson)
+  implementation(libs.androidx.palette.ktx)
   implementation(libs.coil.compose)
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)

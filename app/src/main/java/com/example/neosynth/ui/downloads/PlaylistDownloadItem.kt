@@ -77,8 +77,11 @@ fun PlaylistDownloadItem(
                 // Mostrar canciones descargadas / total
                 val downloadedCount = playlistWithSongs.songs.count { it.isDownloaded && it.path.isNotEmpty() }
                 val totalCount = playlistWithSongs.songs.size
-                val statusText = if (downloadedCount == totalCount) {
+                
+                val statusText = if (downloadedCount == totalCount && totalCount > 0) {
                     "$totalCount canciones"
+                } else if (totalCount == 0) {
+                    "${playlistWithSongs.playlist.songCount} canciones (sin descargar)"
                 } else {
                     "$downloadedCount/$totalCount descargadas"
                 }

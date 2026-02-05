@@ -36,7 +36,8 @@ object AppModule {
         )
             .addMigrations(
                 com.example.neosynth.data.local.MIGRATION_2_3,
-                com.example.neosynth.data.local.MIGRATION_3_4
+                com.example.neosynth.data.local.MIGRATION_3_4,
+                com.example.neosynth.data.local.MIGRATION_4_5
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -47,6 +48,9 @@ object AppModule {
 
     @Provides
     fun provideServerDao(db: MusicDatabase): ServerDao = db.serverDao
+
+    @Provides
+    fun providePlaybackHistoryDao(db: MusicDatabase): com.example.neosynth.data.local.dao.PlaybackHistoryDao = db.playbackHistoryDao
     
     @Provides
     @Singleton

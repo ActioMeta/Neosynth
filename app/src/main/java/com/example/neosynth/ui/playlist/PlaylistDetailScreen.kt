@@ -15,7 +15,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,9 +43,14 @@ import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistDetailScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     playlistId: String,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
     onBack: () -> Unit,
@@ -188,6 +202,15 @@ fun PlaylistDetailScreen(
                                     iconSize = 24.dp
                                 )
 
+                                val isSyncing by viewModel.isSyncing.collectAsState()
+                                AnimatedIconButton(
+                                    onClick = { viewModel.syncPlaylist() },
+                                    icon = if (isSyncing) Icons.Rounded.Sync else Icons.Rounded.CloudSync,
+                                    contentDescription = "Sincronizar playlist",
+                                    size = 48.dp,
+                                    iconSize = 24.dp
+                                )
+
                                 AnimatedIconButton(
                                     onClick = { viewModel.downloadPlaylist() },
                                     icon = Icons.Rounded.Download,
@@ -240,6 +263,8 @@ fun PlaylistDetailScreen(
                 } else {
                     itemsIndexed(songs) { index, song ->
                         PlaylistSongRow(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
                             index = index + 1,
                             song = song,
                             isDownloaded = song.id in downloadedIds,
@@ -351,6 +376,8 @@ fun PlaylistDetailScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistSongRow(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     index: Int,
     song: SongDto,
     isDownloaded: Boolean,
@@ -410,14 +437,20 @@ private fun PlaylistSongRow(
 
             // Cover
             Box {
-                AsyncImage(
-                    model = coverUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-                    contentScale = ContentScale.Crop
-                )
+                with(sharedTransitionScope) {
+                     AsyncImage(
+                        model = coverUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "artwork-${song.id}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    ),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

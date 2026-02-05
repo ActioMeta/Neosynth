@@ -14,6 +14,7 @@ object DownloadProgress {
      * Incrementa el contador para una playlist y devuelve el nuevo valor
      * Thread-safe: múltiples workers pueden llamar simultáneamente
      */
+    @Deprecated("Use MusicRepository.getPlaylistDownloadedCount instead for robust tracking")
     fun increment(playlistId: String): Int {
         return counters.getOrPut(playlistId) { AtomicInteger(0) }
             .incrementAndGet()
@@ -22,6 +23,7 @@ object DownloadProgress {
     /**
      * Obtiene el progreso actual de una playlist sin incrementar
      */
+    @Deprecated("Use MusicRepository.getPlaylistDownloadedCount instead")
     fun getCurrent(playlistId: String): Int {
         return counters[playlistId]?.get() ?: 0
     }
@@ -29,6 +31,7 @@ object DownloadProgress {
     /**
      * Resetea el contador de una playlist (llamar al finalizar todas las descargas)
      */
+    @Deprecated("No longer needed with DB-based tracking")
     fun reset(playlistId: String) {
         counters.remove(playlistId)
     }
@@ -36,6 +39,7 @@ object DownloadProgress {
     /**
      * Limpia todos los contadores
      */
+    @Deprecated("No longer needed")
     fun clear() {
         counters.clear()
     }

@@ -24,7 +24,8 @@ fun SubsonicResponse.toSongEntities(serverId: Long, pId: String? = null): List<S
             imageUrl = dto.coverArt,
             path = dto.path ?: "",
             isDownloaded = false,
-            playlistID = pId ?: ""
+            playlistID = pId ?: "",
+            metadata = """{"bitRate":${dto.bitRate ?: 0},"format":"${dto.contentType ?: ""}","suffix":"${dto.suffix ?: ""}"}"""
         )
     }
 }

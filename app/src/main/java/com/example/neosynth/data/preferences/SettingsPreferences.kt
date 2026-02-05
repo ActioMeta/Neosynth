@@ -13,17 +13,17 @@ import javax.inject.Singleton
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 enum class StreamQuality(val bitrate: Int, val format: String) {
-    LOW(128, "mp3"),
+    LOW(128, "opus"),
     MEDIUM(192, "mp3"),
-    HIGH(256, "mp3"),
+    HIGH(256, "aac"),
     VERY_HIGH(320, "mp3"),
     LOSSLESS(0, "raw") // Sin transcodificación
 }
 
 enum class DownloadQuality(val bitrate: Int, val format: String) {
-    LOW(128, "mp3"),
+    LOW(128, "opus"),
     MEDIUM(192, "mp3"),
-    HIGH(256, "mp3"),
+    HIGH(256, "aac"),
     VERY_HIGH(320, "mp3"),
     LOSSLESS(0, "raw") // Sin transcodificación
 }
@@ -38,6 +38,9 @@ data class AudioSettings(
     val crossfadeEnabled: Boolean = false,
     val crossfadeDuration: Int = 5, // segundos
     val normalizeVolume: Boolean = true,
+    // Crossfeed
+    val crossfeedEnabled: Boolean = false,
+    val crossfeedStrength: Int = 30, // 0-100 percentage
     // Streaming
     val streamWifiQuality: StreamQuality = StreamQuality.LOSSLESS,
     val streamMobileQuality: StreamQuality = StreamQuality.MEDIUM,
@@ -48,7 +51,8 @@ data class AudioSettings(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColors: Boolean = true
+    val visualizerEnabled: Boolean = false
+    // Dynamic Colors removed by user request
 )
 
 @Singleton
@@ -69,7 +73,10 @@ class SettingsPreferences @Inject constructor(
         val DOWNLOAD_MOBILE_QUALITY = stringPreferencesKey("download_mobile_quality")
         // Apariencia
         val THEME_MODE = stringPreferencesKey("theme_mode")
-        val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors")
+        val VISUALIZER_ENABLED = booleanPreferencesKey("visualizer_enabled")
+        // val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors") // Removed
+        val CROSSFEED_ENABLED = booleanPreferencesKey("crossfeed_enabled")
+        val CROSSFEED_STRENGTH = intPreferencesKey("crossfeed_strength")
     }
 
     // Audio Settings Flow
@@ -78,6 +85,8 @@ class SettingsPreferences @Inject constructor(
             crossfadeEnabled = prefs[Keys.CROSSFADE_ENABLED] ?: false,
             crossfadeDuration = prefs[Keys.CROSSFADE_DURATION] ?: 5,
             normalizeVolume = prefs[Keys.NORMALIZE_VOLUME] ?: true,
+            crossfeedEnabled = prefs[Keys.CROSSFEED_ENABLED] ?: false,
+            crossfeedStrength = prefs[Keys.CROSSFEED_STRENGTH] ?: 30,
             streamWifiQuality = StreamQuality.valueOf(prefs[Keys.STREAM_WIFI_QUALITY] ?: StreamQuality.LOSSLESS.name),
             streamMobileQuality = StreamQuality.valueOf(prefs[Keys.STREAM_MOBILE_QUALITY] ?: StreamQuality.MEDIUM.name),
             downloadWifiQuality = DownloadQuality.valueOf(prefs[Keys.DOWNLOAD_WIFI_QUALITY] ?: DownloadQuality.LOSSLESS.name),
@@ -89,7 +98,8 @@ class SettingsPreferences @Inject constructor(
     val appSettings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
-            dynamicColors = prefs[Keys.DYNAMIC_COLORS] ?: true
+            visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false
+            // dynamicColors removed
         )
     }
 
@@ -126,7 +136,15 @@ class SettingsPreferences @Inject constructor(
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
     }
 
-    suspend fun updateDynamicColors(enabled: Boolean) {
-        dataStore.edit { it[Keys.DYNAMIC_COLORS] = enabled }
+    suspend fun updateVisualizerEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.VISUALIZER_ENABLED] = enabled }
+    }
+
+    suspend fun updateCrossfeedEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.CROSSFEED_ENABLED] = enabled }
+    }
+
+    suspend fun updateCrossfeedStrength(strength: Int) {
+        dataStore.edit { it[Keys.CROSSFEED_STRENGTH] = strength }
     }
 }

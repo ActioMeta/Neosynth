@@ -36,6 +36,84 @@ class MusicRepository @Inject constructor(
     suspend fun insertSong(song: SongEntity) {
         musicDao.insertSong(song)
     }
+    // Sync playlist from server (registers playlist + songs as references, does NOT download audio)
+    suspend fun syncPlaylist(playlistId: String, username: String, token: String, salt: String, serverId: Long) {
+        try {
+            // 1. Fetch playlist details from server
+            val response = api.getPlaylist(
+                playlistId = playlistId,
+                u = username,
+                t = token,
+                s = salt
+            )
+            
+            val playlist = response.response.playlistDetails
+            if (playlist == null) {
+                android.util.Log.e("MusicRepository", "Playlist not found in server response")
+                return
+            }
+            
+            // 2. Insert playlist entity
+            val playlistEntity = PlaylistEntity(
+                id = playlist.id,
+                serverId = serverId,
+                name = playlist.name,
+                songCount = playlist.entry?.size ?: 0,
+                coverArt = playlist.entry?.firstOrNull()?.coverArt
+            )
+            musicDao.insertPlaylist(playlistEntity)
+            
+            // 3. Insert songs as references (isDownloaded = false, path = "")
+            // Check existing songs to preserve downloaded state
+            val songs = playlist.entry ?: emptyList()
+            val newSongs = mutableListOf<SongEntity>()
+            
+            for (song in songs) {
+                val existingSong = musicDao.getSongById(song.id)
+                if (existingSong == null) {
+                    // New song - insert as reference (not downloaded)
+                    newSongs.add(
+                        SongEntity(
+                            id = song.id,
+                            title = song.title,
+                            serverID = 0L,
+                            sourceType = "SUBSONIC",
+                            sourceId = serverId.toString(),
+                            artistID = song.artistId ?: "",
+                            artist = song.artist,
+                            albumID = song.albumId ?: "",
+                            album = song.album,
+                            duration = song.duration.toLong(),
+                            imageUrl = song.coverArt,
+                            path = "",
+                            isDownloaded = false
+                        )
+                    )
+                }
+                // If song exists, skip (preserve its current state)
+            }
+            
+            if (newSongs.isNotEmpty()) {
+                musicDao.insertSongs(newSongs)
+            }
+            
+            // 4. Insert cross references to maintain playlist order
+            val crossRefs = songs.mapIndexed { index, song ->
+                PlaylistSongCrossRef(
+                    playlistId = playlist.id,
+                    songId = song.id,
+                    position = index
+                )
+            }
+            musicDao.insertPlaylistSongCrossRefs(crossRefs)
+            
+            android.util.Log.d("MusicRepository", "✅ Playlist '${playlist.name}' synced (${songs.size} songs, ${newSongs.size} new)")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MusicRepository", "Failed to sync playlist", e)
+            throw e
+        }
+    }
 
     suspend fun fetchSongs(query: String, user: String, token: String, salt: String, serverId: Long) {
         try {
@@ -88,6 +166,10 @@ class MusicRepository @Inject constructor(
     }
     
     fun getSongsInPlaylist(playlistId: String) = musicDao.getSongsInPlaylist(playlistId)
+
+    suspend fun getPlaylistDownloadedCount(playlistId: String): Int {
+        return musicDao.getPlaylistDownloadedCount(playlistId)
+    }
     
     // Favorites methods
     suspend fun addToFavorites(songId: String) {
@@ -102,5 +184,9 @@ class MusicRepository @Inject constructor(
     
     suspend fun isFavorite(songId: String): Boolean {
         return musicDao.isFavorite(songId) ?: false
+    }
+
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean) {
+        musicDao.updateSongDownloadState(songId, path, imageUrl, isDownloaded)
     }
 }

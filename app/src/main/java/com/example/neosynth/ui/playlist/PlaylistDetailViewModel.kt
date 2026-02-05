@@ -47,6 +47,9 @@ class PlaylistDetailViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing
+
     private var cachedServer: ServerEntity? = null
     private var currentPlaylistId: String? = null
 
@@ -115,6 +118,36 @@ class PlaylistDetailViewModel @Inject constructor(
             }
 
             musicController.playQueue(mediaItems, 0)
+        }
+    }
+
+    // Sync playlist (register playlist + songs without downloading audio)
+    fun syncPlaylist() {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            try {
+                val server = cachedServer ?: serverDao.getActiveServer()
+                val playlistId = currentPlaylistId
+                
+                if (server == null || playlistId == null) {
+                    android.util.Log.e("PlaylistDetailVM", "Cannot sync: missing server or playlist ID")
+                    return@launch
+                }
+                
+                musicRepository.syncPlaylist(
+                    playlistId = playlistId,
+                    username = server.username,
+                    token = server.token,
+                    salt = server.salt,
+                    serverId = server.id
+                )
+                
+                android.util.Log.d("PlaylistDetailVM", "Playlist synced successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("PlaylistDetailVM", "Failed to sync playlist", e)
+            } finally {
+                _isSyncing.value = false
+            }
         }
     }
 
@@ -227,26 +260,41 @@ class PlaylistDetailViewModel @Inject constructor(
                 )
                 musicRepository.insertPlaylist(playlistEntity)
                 
-                // 2. Insertar TODAS las canciones INMEDIATAMENTE (aunque aún no estén descargadas)
-                // Esto permite que PlaylistWithSongs funcione correctamente
+                // 2. Insertar SOLO canciones nuevas (preservar canciones ya descargadas)
+                // Verificar cada canción antes de insertar
+                var newSongsCount = 0
+                var preservedSongsCount = 0
+                
                 currentSongs.forEach { song ->
-                    val songEntity = com.example.neosynth.data.local.entities.SongEntity(
-                        id = song.id,
-                        title = song.title,
-                        serverID = 0L, // DEPRECATED
-                        sourceType = "SUBSONIC",
-                        sourceId = server.id.toString(),
-                        artistID = song.artistId ?: "",
-                        artist = song.artist ?: "Unknown Artist",
-                        albumID = song.albumId ?: "",
-                        album = song.album ?: "Unknown Album",
-                        duration = song.duration.toLong(),
-                        imageUrl = song.coverArt,
-                        path = "", // Se actualizará cuando el DownloadWorker termine
-                        isDownloaded = false // Se marcará como true cuando se descargue
-                    )
-                    musicRepository.insertSong(songEntity)
+                    val existingSong = musicRepository.getSongById(song.id)
+                    if (existingSong == null) {
+                        // Canción nueva - insertar con isDownloaded = false
+                        val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                            id = song.id,
+                            title = song.title,
+                            serverID = 0L, // DEPRECATED
+                            sourceType = "SUBSONIC",
+                            sourceId = server.id.toString(),
+                            artistID = song.artistId ?: "",
+                            artist = song.artist ?: "Unknown Artist",
+                            albumID = song.albumId ?: "",
+                            album = song.album ?: "Unknown Album",
+                            duration = song.duration.toLong(),
+                            imageUrl = song.coverArt,
+                            path = "", // Se actualizará cuando el DownloadWorker termine
+                            isDownloaded = false // Se marcará como true cuando se descargue
+                        )
+                        musicRepository.insertSong(songEntity)
+                        newSongsCount++
+                    } else {
+                        // Canción ya existe - preservar su estado actual
+                        preservedSongsCount++
+                        android.util.Log.d("PlaylistDownload", "  ✓ Preservada: ${song.title} (downloaded: ${existingSong.isDownloaded})")
+                    }
                 }
+                
+                android.util.Log.d("PlaylistDownload", "Canciones nuevas insertadas: $newSongsCount")
+                android.util.Log.d("PlaylistDownload", "Canciones preservadas: $preservedSongsCount")
                 
                 // 3. Crear las referencias playlist-canción con posiciones
                 val crossRefs = currentSongs.mapIndexed { index, song ->

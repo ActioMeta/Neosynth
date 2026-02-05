@@ -2,6 +2,8 @@ package com.example.neosynth.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -14,8 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,10 +63,11 @@ fun NeosynthNavGraph(
     val currentRoute = navBackStackEntry?.destination?.route
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = startDestination
-        ) {
+        SharedTransitionLayout {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination
+            ) {
             composable("login") {
                 LoginScreen(onLoginSuccess = {
                     navController.navigate("home") {
@@ -73,9 +78,12 @@ fun NeosynthNavGraph(
 
             composable("home") {
                 HomeScreen(
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this,
                     viewModel = homeViewModel,
                     onNavigateToLibrary = { navController.navigate("library") },
                     onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToStats = { navController.navigate("stats") },
                     onNavigateToArtist = { artistId, artistName ->
                         val encodedName = java.net.URLEncoder.encode(artistName, "UTF-8")
                         navController.navigate("artist/$artistId/$encodedName")
@@ -158,6 +166,8 @@ fun NeosynthNavGraph(
             ) { backStackEntry ->
                 val playlistId = backStackEntry.arguments?.getString("playlistId") ?: ""
                 PlaylistDetailScreen(
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this,
                     playlistId = playlistId,
                     onBack = { navController.popBackStack() },
                     onArtistClick = { artistId, artistName ->
@@ -202,6 +212,7 @@ fun NeosynthNavGraph(
             ) {
                 val currentSongId = currentSong?.mediaId
                 val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
+                val visualizerEnabled by homeViewModel.visualizerEnabled.collectAsState()
                 
                 // Actualizar estado de favorito cuando cambia la canción
                 LaunchedEffect(currentSongId) {
@@ -209,13 +220,16 @@ fun NeosynthNavGraph(
                 }
                 
                 PlayerScreen(
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this,
                     musicController = musicController,
                     onBack = { navController.popBackStack() },
                     onDownload = { homeViewModel.downloadCurrentSong() },
                     onLyricsClick = { navController.navigate("lyrics") },
                     isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
                     isFavorite = isFavorite,
-                    onToggleFavorite = { homeViewModel.toggleFavorite() }
+                    onToggleFavorite = { homeViewModel.toggleFavorite() },
+                    visualizerEnabled = visualizerEnabled
                 )
             }
 
@@ -254,6 +268,20 @@ fun NeosynthNavGraph(
                     onClose = { navController.popBackStack() }
                 )
             }
+
+            composable(
+                route = "stats",
+                enterTransition = {
+                    androidx.compose.animation.slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300))
+                },
+                exitTransition = {
+                    androidx.compose.animation.slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300))
+                }
+            ) {
+                com.example.neosynth.ui.stats.StatsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
 
         val song = currentSong
@@ -275,6 +303,9 @@ fun NeosynthNavGraph(
         ) {
             val miniPlayerSongId = song?.mediaId
             MiniPlayer(
+                sharedTransitionScope = this@SharedTransitionLayout,
+                animatedVisibilityScope = this,
+                mediaId = miniPlayerSongId,
                 title = song?.mediaMetadata?.title?.toString() ?: "",
                 artist = song?.mediaMetadata?.artist?.toString() ?: "Desconocido",
                 artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
@@ -284,4 +315,5 @@ fun NeosynthNavGraph(
             )
         }
     }
+}
 }

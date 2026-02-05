@@ -63,6 +63,7 @@ androidx-compose-animation = { group = "androidx.compose.animation", name = "ani
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-compose-runtime-saveable = { group = "androidx.compose.runtime", name = "runtime-saveable", version.ref = "runtimeSaveable" }
+androidx-palette-ktx = { group = "androidx.palette", name = "palette-ktx", version = "1.0.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

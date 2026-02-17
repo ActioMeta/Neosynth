@@ -51,7 +51,11 @@ fun MiniPlayer(
     artist: String,
     artworkUri: String?,
     isPlaying: Boolean,
+    hasPrevious: Boolean = true,
+    hasNext: Boolean = true,
     onPlayPause: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
     onClick: () -> Unit
 ) {
     if (title.isEmpty()) return
@@ -124,24 +128,71 @@ fun MiniPlayer(
                 )
             }
             
-            // Botón Play/Pause con ripple rectangular
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = true)
-                    ) { onPlayPause() }
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center
+            // Controls Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 8.dp)
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                // Previous Button
+                val prevAlpha by animateFloatAsState(targetValue = if (hasPrevious) 1f else 0.5f, label = "mini_prev_alpha")
+                
+                IconButton(
+                    onClick = onSkipPrevious,
+                    enabled = true, // Always enabled to allow restart if implemented in lambda
+                    modifier = Modifier
+                        .size(36.dp)
+                        .graphicsLayer { alpha = prevAlpha }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Play/Pause Button with Shape Animation
+                val cornerRadiusPercent by androidx.compose.animation.core.animateIntAsState(
+                    targetValue = if (isPlaying) 20 else 50, // 20% for rounded square, 50% for circle
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label = "mini_shape_radius"
                 )
+
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .clip(RoundedCornerShape(percent = cornerRadiusPercent.coerceIn(0, 100)))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true)
+                        ) { onPlayPause() }
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Next Button
+                val nextAlpha by animateFloatAsState(targetValue = if (hasNext) 1f else 0.5f, label = "mini_next_alpha")
+                
+                IconButton(
+                    onClick = onSkipNext, 
+                    enabled = hasNext,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .graphicsLayer { alpha = nextAlpha }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

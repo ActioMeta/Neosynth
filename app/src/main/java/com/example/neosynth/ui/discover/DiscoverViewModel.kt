@@ -29,6 +29,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.neosynth.data.preferences.SettingsPreferences
+import com.example.neosynth.utils.NetworkHelper
+import com.example.neosynth.utils.ConnectionType
+import com.example.neosynth.utils.StreamUrlBuilder
+import com.example.neosynth.data.preferences.StreamQuality
+import kotlinx.coroutines.flow.first
 import androidx.core.net.toUri
 
 data class SearchResults(
@@ -44,6 +50,8 @@ class DiscoverViewModel @Inject constructor(
     private val urlInterceptor: DynamicUrlInterceptor,
     private val musicRepository: MusicRepository,
     val musicController: MusicController,
+    private val settingsPreferences: SettingsPreferences,
+    private val networkHelper: NetworkHelper,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -397,10 +405,31 @@ class DiscoverViewModel @Inject constructor(
     fun playSong(song: SongDto, allSongs: List<SongDto>) {
         viewModelScope.launch {
             val server = serverDao.getActiveServer() ?: return@launch
-            val baseUrl = server.url.removeSuffix("/")
             
+            // Obtener configuración de calidad según tipo de conexión
+            val connectionType = networkHelper.getConnectionType()
+            val audioSettings = settingsPreferences.audioSettings.first()
+        
+            val streamQuality = when (connectionType) {
+                ConnectionType.WIFI -> audioSettings.streamWifiQuality
+                ConnectionType.MOBILE -> audioSettings.streamMobileQuality
+                ConnectionType.NONE -> StreamQuality.MEDIUM
+            }
+
             val mediaItems = allSongs.map { s: SongDto ->
-                val streamUrl = "$baseUrl/rest/stream?id=${s.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
+                val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) {
+                    streamQuality.bitrate
+                } else {
+                    s.bitRate ?: 0
+                }
+            
+                val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) {
+                    streamQuality.format.uppercase()
+                } else {
+                    s.suffix?.uppercase() ?: "MP3"
+                }
+
+                val streamUrl = StreamUrlBuilder.buildStreamUrl(server, s.id, streamQuality)
                 val coverUrl = buildCoverArtUrl(server, s.coverArt)
                 
                 MediaItem.Builder()
@@ -412,6 +441,14 @@ class DiscoverViewModel @Inject constructor(
                             .setArtist(s.artist)
                             .setAlbumTitle(s.album)
                             .setArtworkUri(coverUrl?.toUri())
+                            .setExtras(
+                                android.os.Bundle().apply {
+                                    putInt("bitRate", effectiveBitrate)
+                                    putString("suffix", effectiveFormat)
+                                    putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
+                                    putLong("duration", s.duration * 1000L)
+                                }
+                            )
                             .build()
                     )
                     .build()

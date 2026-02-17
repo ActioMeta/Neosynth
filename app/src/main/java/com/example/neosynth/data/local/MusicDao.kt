@@ -18,6 +18,9 @@ interface MusicDao {
     @Query("SELECT * FROM songs WHERE isDownloaded = 1")
     fun getDownloadedSongs(): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM songs WHERE isDownloaded = 1 ORDER BY downloadedAt DESC LIMIT :limit")
+    fun getRecentlyDownloadedSongs(limit: Int): Flow<List<SongEntity>>
+
     @Query("SELECT * FROM songs WHERE id = :songId LIMIT 1")
     suspend fun getSongById(songId: String): SongEntity?
 
@@ -99,6 +102,6 @@ interface MusicDao {
     @Query("SELECT isFavorite FROM songs WHERE id = :songId")
     suspend fun isFavorite(songId: String): Boolean?
 
-    @Query("UPDATE songs SET path = :path, imageUrl = :imageUrl, isDownloaded = :isDownloaded WHERE id = :songId")
-    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean)
+    @Query("UPDATE songs SET path = :path, imageUrl = :imageUrl, isDownloaded = :isDownloaded, downloadedAt = :downloadedAt WHERE id = :songId")
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?)
 }

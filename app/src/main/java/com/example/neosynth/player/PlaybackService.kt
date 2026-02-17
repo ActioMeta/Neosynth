@@ -7,6 +7,8 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import android.media.audiofx.AudioEffect
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -44,6 +46,16 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .build()
             
+        // Custom LoadControl for better streaming and seeking behavior
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                15000,  // Min buffer: 15s
+                50000,  // Max buffer: 50s
+                2500,   // Playback buffer: 2.5s
+                5000    // Playback rebuffer: 5s
+            )
+            .build()
+            
         // Custom RenderersFactory to inject AudioProcessors
         val renderersFactory = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -63,6 +75,8 @@ class PlaybackService : MediaSessionService() {
         exoPlayer = ExoPlayer.Builder(this, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
+            .setLoadControl(loadControl)
+            .setSeekParameters(SeekParameters.CLOSEST_SYNC)  // Mejor precisión en seeks
             .build()
         
         // Crear PendingIntent para abrir MainActivity al hacer click en la notificación

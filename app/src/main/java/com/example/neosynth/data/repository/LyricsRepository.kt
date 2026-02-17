@@ -1,10 +1,14 @@
 package com.example.neosynth.data.repository
 
 import android.util.Log
+import com.example.neosynth.data.model.LyricsResult
 import com.example.neosynth.data.remote.LyricsApiService
 import com.example.neosynth.data.remote.NeteaseApiService
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 @Singleton
 class LyricsRepository @Inject constructor(
@@ -13,63 +17,49 @@ class LyricsRepository @Inject constructor(
 ) {
     
     /**
-     * Obtener letras sincronizadas con estrategia de fallback:
-     * 1. Intenta LRCLIB (gratis, sin límites, música occidental)
-     * 2. Intenta Netease (gratis, sin límites, fuerte en música asiática)
-     * 3. Si ambos fallan, retorna null
-     * 
-     * Nota: Musixmatch se agregará cuando el usuario configure su API key
+     * Buscar opciones de letras en todas las fuentes disponibles:
+     * 1. LRCLIB (api/get y api/search)
+     * 2. Netease
+     * Returns a list of all found lyrics options.
      */
-    suspend fun getSyncedLyrics(
+    suspend fun searchLyricsOptions(
         artist: String,
         title: String,
         album: String? = null,
         duration: Int? = null
-    ): String? {
-        return try {
-            Log.d("LyricsRepository", "Fetching lyrics for: $artist - $title")
-            
-            // Intentar LRCLIB primero
-            val lrclibResult = getLyricsFromLrclib(artist, title, album, duration)
-            if (lrclibResult != null) {
-                Log.d("LyricsRepository", "Found synced lyrics from LRCLIB (${lrclibResult.length} chars)")
-                return lrclibResult
-            }
-            
-            // Intentar Netease como fallback
-            val neteaseResult = getLyricsFromNetease(artist, title)
-            if (neteaseResult != null) {
-                Log.d("LyricsRepository", "Found synced lyrics from Netease (${neteaseResult.length} chars)")
-                return neteaseResult
-            }
-            
-            Log.d("LyricsRepository", "No synced lyrics found")
-            null
-        } catch (e: Exception) {
-            Log.e("LyricsRepository", "Error fetching lyrics", e)
-            null
-        }
+    ): List<LyricsResult> = coroutineScope {
+        Log.d("LyricsRepository", "Searching lyrics options for: $artist - $title")
+        
+        val results = mutableListOf<LyricsResult>()
+        
+        // Ejecutar búsquedas en paralelo
+        val lrclibJob = async { getLyricsFromLrclib(artist, title, album, duration) }
+        val neteaseJob = async { getLyricsFromNetease(artist, title) }
+        
+        val (lrclibResults, neteaseResults) = awaitAll(lrclibJob, neteaseJob)
+        
+        results.addAll(lrclibResults)
+        results.addAll(neteaseResults)
+        
+        Log.d("LyricsRepository", "Found ${results.size} total lyrics options")
+        return@coroutineScope results.distinctBy { it.id } // Evitar duplicados exactos de ID si los hubiera
     }
     
     /**
-     * Obtener letras de LRCLIB con estrategia de búsqueda múltiple
+     * Obtener letras de LRCLIB
      */
     private suspend fun getLyricsFromLrclib(
         artist: String,
         title: String,
         album: String?,
         duration: Int?
-    ): String? {
-        // Generar variantes del artista para búsqueda
+    ): List<LyricsResult> {
+        val results = mutableListOf<LyricsResult>()
         val artistVariants = generateArtistVariants(artist)
-        
-        Log.d("LyricsRepository", "Artist variants for '$artist': $artistVariants")
         
         // PASO 1: Intentar con cada variante del artista usando /api/get (coincidencia exacta)
         for (artistVariant in artistVariants) {
             try {
-                Log.d("LyricsRepository", "Trying LRCLIB /get with artist: '$artistVariant', title: '$title'")
-                
                 val response = lyricsApi.getLyricsFromLrclib(
                     artistName = artistVariant,
                     trackName = title,
@@ -77,120 +67,164 @@ class LyricsRepository @Inject constructor(
                     duration = duration
                 )
                 
-                // Verificar código de respuesta HTTP
-                if (!response.isSuccessful) {
-                    Log.d("LyricsRepository", "LRCLIB HTTP ${response.code()} with artist '$artistVariant'")
-                    continue
-                }
-                
-                // Verificar si hay datos
-                val body = response.body()
-                if (body == null) {
-                    Log.d("LyricsRepository", "LRCLIB returned null body with artist '$artistVariant'")
-                    continue
-                }
-                
-                // Si encontramos letras, retornarlas
-                val lyrics = body.syncedLyrics ?: body.plainLyrics
-                if (lyrics != null && lyrics.isNotBlank()) {
-                    Log.d("LyricsRepository", "✅ LRCLIB /get SUCCESS with artist: '$artistVariant' (${lyrics.length} chars)")
-                    return lyrics
-                } else {
-                    Log.d("LyricsRepository", "LRCLIB returned empty lyrics with artist '$artistVariant'")
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        val id = body.id?.toString() ?: "lrclib_get_${body.hashCode()}"
+                        
+                        // Agregar synced si existe
+                        if (!body.syncedLyrics.isNullOrBlank()) {
+                            results.add(LyricsResult(
+                                id = "${id}_synced",
+                                source = "LRCLIB (Exact Match)",
+                                isSynced = true,
+                                lyric = body.syncedLyrics
+                            ))
+                        }
+                        
+                        // Agregar plain si existe
+                        if (!body.plainLyrics.isNullOrBlank()) {
+                            results.add(LyricsResult(
+                                id = "${id}_plain",
+                                source = "LRCLIB (Exact Match)",
+                                isSynced = false,
+                                lyric = body.plainLyrics
+                            ))
+                        }
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("LyricsRepository", "LRCLIB exception with artist '$artistVariant': ${e.javaClass.simpleName} - ${e.message}")
-                e.printStackTrace()
-                // Continuar con la siguiente variante
+                Log.e("LyricsRepository", "LRCLIB /get error: ${e.message}")
             }
         }
         
-        Log.d("LyricsRepository", "❌ LRCLIB /get: No results with any artist variant")
-        
-        // PASO 2: Intentar con /api/search (búsqueda por palabras clave, más flexible)
+        // PASO 2: Intentar con /api/search para obtener más opciones
         try {
-            Log.d("LyricsRepository", "Trying LRCLIB /search as fallback")
+            // Usar la primera variante (la más completa) para la búsqueda general
+            val searchResponse = lyricsApi.searchLyrics(
+                trackName = title,
+                artistName = artist,
+                duration = duration
+            )
             
-            // Intentar primero con artista y título
-            for (artistVariant in artistVariants) {
-                try {
-                    Log.d("LyricsRepository", "Searching with artist: '$artistVariant', title: '$title'")
+            if (searchResponse.isSuccessful) {
+                searchResponse.body()?.forEach { match ->
+                    val id = match.id?.toString() ?: "lrclib_search_${match.hashCode()}"
                     
-                    val searchResponse = lyricsApi.searchLyrics(
-                        trackName = title,
-                        artistName = artistVariant,
-                        duration = duration
-                    )
-                    
-                    if (!searchResponse.isSuccessful || searchResponse.body().isNullOrEmpty()) {
-                        Log.d("LyricsRepository", "LRCLIB /search: No results with artist '$artistVariant'")
-                        continue
+                    if (!match.syncedLyrics.isNullOrBlank()) {
+                        results.add(LyricsResult(
+                            id = "${id}_synced",
+                            source = "LRCLIB (Search)",
+                            isSynced = true,
+                            lyric = match.syncedLyrics
+                        ))
                     }
                     
-                    // Tomar el primer resultado (mejor match)
-                    val bestMatch = searchResponse.body()!!.firstOrNull()
-                    if (bestMatch != null) {
-                        val lyrics = bestMatch.syncedLyrics ?: bestMatch.plainLyrics
-                        if (lyrics != null && lyrics.isNotBlank()) {
-                            Log.d("LyricsRepository", "✅ LRCLIB /search SUCCESS with artist: '$artistVariant' (${lyrics.length} chars)")
-                            return lyrics
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("LyricsRepository", "LRCLIB /search exception with artist '$artistVariant': ${e.message}")
-                }
-            }
-            
-            // Si falla con artista específico, intentar búsqueda por palabras clave
-            Log.d("LyricsRepository", "Trying LRCLIB /search with keyword query")
-            val keywords = "$artist $title"
-            val keywordResponse = lyricsApi.searchLyrics(query = keywords)
-            
-            if (keywordResponse.isSuccessful && !keywordResponse.body().isNullOrEmpty()) {
-                val bestMatch = keywordResponse.body()!!.firstOrNull()
-                if (bestMatch != null) {
-                    val lyrics = bestMatch.syncedLyrics ?: bestMatch.plainLyrics
-                    if (lyrics != null && lyrics.isNotBlank()) {
-                        Log.d("LyricsRepository", "✅ LRCLIB /search SUCCESS with keywords (${lyrics.length} chars)")
-                        return lyrics
+                    if (!match.plainLyrics.isNullOrBlank()) {
+                        results.add(LyricsResult(
+                            id = "${id}_plain",
+                            source = "LRCLIB (Search)",
+                            isSynced = false,
+                            lyric = match.plainLyrics
+                        ))
                     }
                 }
             }
         } catch (e: Exception) {
-            Log.e("LyricsRepository", "LRCLIB /search failed: ${e.message}")
+            Log.e("LyricsRepository", "LRCLIB /search error: ${e.message}")
         }
         
-        Log.d("LyricsRepository", "❌ LRCLIB: No results with /get or /search")
-        return null
+        return results
     }
     
     /**
-     * Genera variantes del nombre del artista para mejorar búsqueda
-     * Ejemplo: "Pearl Jam • Stone Gossard • Eddie Vedder" -> ["Pearl Jam • Stone Gossard • Eddie Vedder", "Pearl Jam", "Stone Gossard", "Eddie Vedder"]
+     * Obtener letras de Netease Cloud Music
      */
+    private suspend fun getLyricsFromNetease(
+        artist: String,
+        title: String
+    ): List<LyricsResult> {
+        val results = mutableListOf<LyricsResult>()
+        val artistVariants = generateArtistVariants(artist)
+        
+        // Intentar con variantes hasta encontrar algo, pero netease suele devolver una lista de canciones en search
+        // Así que buscaremos con la variante principal y procesaremos los resultados
+        
+        for (artistVariant in artistVariants) {
+            try {
+                val keywords = "$artistVariant $title"
+                val searchResponse = neteaseApi.searchSong(keywords = keywords, limit = 5)
+                
+                if (searchResponse.code == 200 && !searchResponse.result?.songs.isNullOrEmpty()) {
+                    // Procesar las primeras 3 canciones encontradas
+                    searchResponse.result!!.songs!!.take(3).forEach { song ->
+                        try {
+                            val lyricsResponse = neteaseApi.getLyrics(songId = song.id)
+                            if (lyricsResponse.code == 200) {
+                                val songName = "${song.name} - ${song.artists?.firstOrNull()?.name ?: "Unknown"}"
+                                
+                                // Preferir LRC
+                                val lrc = lyricsResponse.lrc?.lyric
+                                if (!lrc.isNullOrBlank()) {
+                                    results.add(LyricsResult(
+                                        id = "netease_${song.id}_lrc",
+                                        source = "Netease ($songName)",
+                                        isSynced = true,
+                                        lyric = lrc
+                                    ))
+                                }
+                                
+                                // KLyric (Karaoke) a veces es mejor o diferente
+                                val klyric = lyricsResponse.klyric?.lyric
+                                if (!klyric.isNullOrBlank() && klyric != lrc) {
+                                     results.add(LyricsResult(
+                                        id = "netease_${song.id}_klyric",
+                                        source = "Netease Karaoke ($songName)",
+                                        isSynced = true,
+                                        lyric = klyric
+                                    ))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("LyricsRepository", "Netease lyric fetch error for ${song.id}: ${e.message}")
+                        }
+                    }
+                    
+                    // Si encontramos algo con esta variante, terminamos (para no spammear)
+                    if (results.isNotEmpty()) break
+                }
+            } catch (e: Exception) {
+                Log.e("LyricsRepository", "Netease search error: ${e.message}")
+            }
+        }
+        
+        return results
+    }
+    
+    private fun normalizeText(text: String): String {
+        return text.trim()
+            .replace(Regex("\\s+"), " ")
+            .replace("'", "'")
+            .replace("'", "'")
+            .replace(""", "\"")
+            .replace(""", "\"")
+    }
+
     private fun generateArtistVariants(artist: String): List<String> {
         val variants = mutableListOf<String>()
-        
-        // 1. Artista original completo (normalizado)
         val normalizedArtist = normalizeText(artist)
         variants.add(normalizedArtist)
         
-        // Lista de separadores comunes
         val separators = listOf(",", "&", "•", "/", ";", " x ", " X ", " - ")
-        
-        // 2. Detectar y separar por cualquier separador común
         for (separator in separators) {
             if (normalizedArtist.contains(separator)) {
                 val splitArtists = normalizedArtist.split(separator)
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
-                
-                // Agregar cada artista individual (el primero suele ser el principal)
                 variants.addAll(splitArtists)
             }
         }
         
-        // 3. Si tiene "feat." o "ft.", extraer artista principal
         val featPattern = Regex("""(.+?)\s+(?:feat\.|ft\.|featuring)\s+.+""", RegexOption.IGNORE_CASE)
         featPattern.find(artist)?.let { match ->
             val mainArtist = match.groupValues[1].trim()
@@ -199,86 +233,6 @@ class LyricsRepository @Inject constructor(
             }
         }
         
-        // Eliminar duplicados manteniendo el orden
         return variants.distinct()
-    }
-    
-    /**
-     * Obtener letras de Netease Cloud Music con estrategia de búsqueda múltiple
-     */
-    private suspend fun getLyricsFromNetease(
-        artist: String,
-        title: String
-    ): String? {
-        val artistVariants = generateArtistVariants(artist)
-        
-        // Intentar con cada variante del artista
-        for (artistVariant in artistVariants) {
-            try {
-                val keywords = "$artistVariant $title"
-                Log.d("LyricsRepository", "Searching Netease with keywords: $keywords")
-                
-                val searchResponse = neteaseApi.searchSong(keywords = keywords, limit = 5)
-                
-                if (searchResponse.code != 200 || searchResponse.result?.songs.isNullOrEmpty()) {
-                    Log.d("LyricsRepository", "Netease: No results with artist '$artistVariant'")
-                    continue
-                }
-                
-                // Tomar la primera canción que mejor coincida
-                val song = searchResponse.result!!.songs!!.firstOrNull() ?: continue
-                Log.d("LyricsRepository", "Found Netease song: ${song.name} by ${song.artists?.firstOrNull()?.name}")
-                
-                // Obtener letras
-                val lyricsResponse = neteaseApi.getLyrics(songId = song.id)
-                
-                if (lyricsResponse.code != 200) {
-                    Log.d("LyricsRepository", "Netease lyrics fetch failed with code: ${lyricsResponse.code}")
-                    continue
-                }
-                
-                // Priorizar letras en formato LRC (sincronizadas)
-                val lyrics = lyricsResponse.klyric?.lyric 
-                    ?: lyricsResponse.lrc?.lyric 
-                    ?: lyricsResponse.tlyric?.lyric
-                
-                if (lyrics != null) {
-                    Log.d("LyricsRepository", "Netease success with artist: '$artistVariant'")
-                    return lyrics
-                }
-            } catch (e: Exception) {
-                Log.d("LyricsRepository", "Netease failed with artist '$artistVariant': ${e.message}")
-                // Continuar con la siguiente variante
-            }
-        }
-        
-        Log.d("LyricsRepository", "Netease: No results with any artist variant")
-        return null
-    }
-    
-    // TODO: Agregar método para Musixmatch cuando se implemente configuración de API key
-    /*
-    private suspend fun getLyricsFromMusixmatch(
-        artist: String,
-        title: String,
-        apiKey: String
-    ): String? {
-        // Implementar cuando se agregue soporte para API key del usuario
-        return null
-    }
-    */
-    
-    /**
-     * Normaliza texto para mejorar coincidencias en búsquedas
-     * - Quita espacios extras
-     * - Normaliza caracteres especiales comunes
-     */
-    private fun normalizeText(text: String): String {
-        return text.trim()
-            .replace(Regex("\\s+"), " ") // Múltiples espacios a uno solo
-            .replace("'", "'") // Apóstrofe curly a recto
-            .replace("'", "'")
-            .replace(""", "\"") // Comillas curly a rectas
-            .replace(""", "\"")
     }
 }

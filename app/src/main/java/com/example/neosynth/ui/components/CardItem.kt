@@ -29,7 +29,12 @@ fun CardItem(
     onPlay: () -> Unit = {},
     onShuffle: () -> Unit = {},
     onDownload: () -> Unit = {},
-    onGoToArtist: () -> Unit = {}
+    onGoToArtist: () -> Unit = {},
+    // Home Context Menu Actions (Optional)
+    onPlayNext: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
+    onGoToAlbum: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -39,7 +44,13 @@ fun CardItem(
             .clip(RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = { showMenu = true }
+                onLongClick = {
+                    if (onLongClick != null) {
+                        onLongClick()
+                    } else {
+                        showMenu = true
+                    }
+                }
             )
     ) {
         AsyncImage(
@@ -86,14 +97,26 @@ fun CardItem(
         }
 
         // Menú contextual
-        AlbumContextMenu(
-            expanded = showMenu,
-            onDismiss = { showMenu = false },
-            onPlay = onPlay,
-            onShuffle = onShuffle,
-            onDownload = onDownload,
-            onGoToArtist = onGoToArtist,
-            offset = DpOffset(0.dp, 0.dp)
-        )
+        if (onPlayNext != null && onAddToQueue != null && onGoToAlbum != null) {
+            com.example.neosynth.ui.home.components.HomePopupMenu(
+                expanded = showMenu,
+                onDismiss = { showMenu = false },
+                onPlayNext = onPlayNext,
+                onAddToQueue = onAddToQueue,
+                onGoToArtist = onGoToArtist,
+                onGoToAlbum = onGoToAlbum,
+                offset = DpOffset(0.dp, 0.dp)
+            )
+        } else {
+            AlbumContextMenu(
+                expanded = showMenu,
+                onDismiss = { showMenu = false },
+                onPlay = onPlay,
+                onShuffle = onShuffle,
+                onDownload = onDownload,
+                onGoToArtist = onGoToArtist,
+                offset = DpOffset(0.dp, 0.dp)
+            )
+        }
     }
 }

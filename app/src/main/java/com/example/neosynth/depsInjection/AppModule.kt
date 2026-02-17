@@ -37,7 +37,8 @@ object AppModule {
             .addMigrations(
                 com.example.neosynth.data.local.MIGRATION_2_3,
                 com.example.neosynth.data.local.MIGRATION_3_4,
-                com.example.neosynth.data.local.MIGRATION_4_5
+                com.example.neosynth.data.local.MIGRATION_4_5,
+                com.example.neosynth.data.local.MIGRATION_5_6
             )
             .fallbackToDestructiveMigration()
             .build()

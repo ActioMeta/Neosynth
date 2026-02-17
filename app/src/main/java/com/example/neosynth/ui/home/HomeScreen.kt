@@ -42,6 +42,8 @@ import coil.compose.AsyncImage
 import com.example.neosynth.ui.components.CardItem
 import com.example.neosynth.ui.components.ServerErrorScreen
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.collectAsState
+import com.example.neosynth.domain.model.Album
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
@@ -55,7 +57,8 @@ fun HomeScreen(
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToStats: () -> Unit = {},
-    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> }
+    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> },
+    onNavigateToAlbum: (albumId: String) -> Unit = {}
 ) {
     val recentlyAdded = viewModel.recentlyAdded
     val isLoading = viewModel.isLoading
@@ -63,6 +66,8 @@ fun HomeScreen(
     val context = LocalContext.current
     val errorMsg = viewModel.error
     val snackbarHostState = remember { SnackbarHostState() }
+    
+
 
     // Escuchar eventos de UI (Snackbar)
     LaunchedEffect(Unit) {
@@ -105,7 +110,10 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = 165.dp) // Avoid overlap with NavBar/MiniPlayer
+            ) { data ->
                 Snackbar(
                     snackbarData = data,
                     containerColor = MaterialTheme.colorScheme.inverseSurface,
@@ -116,7 +124,11 @@ fun HomeScreen(
         }
     ) { padding ->
 
-        Crossfade(targetState = isLoading, label = "home_state") { loading ->
+        Crossfade(
+            targetState = isLoading,
+            modifier = Modifier.fillMaxSize(),
+            label = "home_state"
+        ) { loading ->
             if (loading) {
                 Box(
                     modifier = Modifier
@@ -127,9 +139,12 @@ fun HomeScreen(
                 }
             } else if (errorMsg != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val isOfflineEmpty = errorMsg == "Sin canciones descargadas"
                     ServerErrorScreen(
                         onRetry = { viewModel.loadHomeData() },
-                        onSettings = onNavigateToSettings
+                        onSettings = onNavigateToSettings,
+                        title = if (isOfflineEmpty) "Sin Canciones" else "Error de Conexión",
+                        message = errorMsg ?: "No se pudo conectar al servidor."
                     )
                 }
             } else {
@@ -273,25 +288,32 @@ fun HomeScreen(
                         )
                     }
 
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(recentlyAdded) { album ->
-                                CardItem(
-                                    album = album,
-                                    onClick = { viewModel.playAlbum(album.id) },
-                                    onPlay = { viewModel.playAlbum(album.id) },
-                                    onShuffle = { viewModel.playAlbum(album.id, shuffle = true) },
-                                    onDownload = { viewModel.downloadAlbum(album.id) },
-                                    onGoToArtist = { onNavigateToArtist(album.artistId, album.artistName) }
-                                )
+
+
+                            item {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(recentlyAdded) { album ->
+                                        CardItem(
+                                            album = album,
+                                            onClick = { viewModel.playAlbum(album.id) },
+                                            onPlay = { viewModel.playAlbum(album.id) },
+                                            onShuffle = { viewModel.playAlbum(album.id, shuffle = true) },
+                                            onDownload = { viewModel.downloadAlbum(album.id) },
+                                            onGoToArtist = { onNavigateToArtist(album.artistId, album.artistName) },
+                                            onPlayNext = { viewModel.onContextPlayNext(album) },
+                                            onAddToQueue = { viewModel.onContextAddToQueue(album) },
+                                            onGoToAlbum = { onNavigateToAlbum(album.id) }
+                                        )
+                                    }
+                                }
                             }
-                        }
-                    }
-                } // LazyColumn
-                } // PullToRefreshBox
+                        } // LazyColumn
+                    } // PullToRefreshBox
+
+
             }
         }
     }

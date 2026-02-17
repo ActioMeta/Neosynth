@@ -29,7 +29,7 @@ android {
       applicationIdSuffix = ".debug"
       versionNameSuffix = "-DEBUG"
       // Nombre de app diferente en el launcher
-      resValue("string", "app_name", "NeoSynth DEBUG")
+      resValue("string", "app_name", "NeoSynth dev")
     }
     release {
       isMinifyEnabled = true
@@ -37,6 +37,20 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       // Nombre de app para producción
       resValue("string", "app_name", "NeoSynth")
+
+      val envKeystorePath = System.getenv("KEYSTORE_FILE") ?: "release-keystore.jks"
+      val envKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+      val envKeyAlias = System.getenv("KEY_ALIAS")
+      val envKeyPassword = System.getenv("KEY_PASSWORD")
+
+      if (envKeystorePassword != null && envKeyAlias != null && envKeyPassword != null) {
+          signingConfig = signingConfigs.create("release") {
+              storeFile = file(envKeystorePath)
+              storePassword = envKeystorePassword
+              keyAlias = envKeyAlias
+              keyPassword = envKeyPassword
+          }
+      }
     }
   }
   compileOptions {

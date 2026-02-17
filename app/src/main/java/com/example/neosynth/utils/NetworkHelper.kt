@@ -25,6 +25,7 @@ class NetworkHelper @Inject constructor(
         
         return when {
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> ConnectionType.WIFI
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> ConnectionType.WIFI
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> ConnectionType.MOBILE
             else -> ConnectionType.NONE
         }
@@ -33,4 +34,7 @@ class NetworkHelper @Inject constructor(
     fun isConnected(): Boolean {
         return getConnectionType() != ConnectionType.NONE
     }
+
+    val isCurrentConnectionOffline: Boolean
+        get() = !isConnected()
 }

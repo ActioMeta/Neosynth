@@ -3,8 +3,6 @@ package com.example.neosynth.ui.playlist
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
 import com.example.neosynth.data.local.entities.ServerEntity
@@ -17,13 +15,9 @@ import com.example.neosynth.player.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.core.net.toUri
 
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
@@ -32,6 +26,10 @@ class PlaylistDetailViewModel @Inject constructor(
     private val urlInterceptor: DynamicUrlInterceptor,
     private val musicRepository: MusicRepository,
     val musicController: MusicController,
+    private val playerHandler: com.example.neosynth.ui.playlist.logic.PlaylistPlayerHandler,
+    private val downloadHandler: com.example.neosynth.ui.playlist.logic.PlaylistDownloadHandler,
+    private val favoritesHandler: com.example.neosynth.ui.playlist.logic.PlaylistFavoritesHandler,
+    private val managementHandler: com.example.neosynth.ui.playlist.logic.PlaylistManagementHandler,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -40,9 +38,6 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private val _songs = MutableStateFlow<List<SongDto>>(emptyList())
     val songs: StateFlow<List<SongDto>> = _songs
-
-    private val _allPlaylists = MutableStateFlow<List<PlaylistDto>>(emptyList())
-    val allPlaylists: StateFlow<List<PlaylistDto>> = _allPlaylists
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -53,9 +48,8 @@ class PlaylistDetailViewModel @Inject constructor(
     private var cachedServer: ServerEntity? = null
     private var currentPlaylistId: String? = null
 
-    val downloadedSongIds = musicRepository.getDownloadedSongs()
-        .map { songs -> songs.map { it.id }.toSet() }
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
+    val downloadedSongIds = downloadHandler.downloadedSongIds
+    val allPlaylists = managementHandler.availablePlaylists
 
     fun loadPlaylist(playlistId: String) {
         currentPlaylistId = playlistId
@@ -94,294 +88,69 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 
     fun playPlaylist() {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val currentSongs = _songs.value
-            if (currentSongs.isEmpty()) return@launch
-
-            val mediaItems = currentSongs.map { song ->
-                val streamUrl = "${server.url.removeSuffix("/")}/rest/stream?id=${song.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-                val coverUrl = buildCoverArtUrl(server, song.coverArt)
-
-                MediaItem.Builder()
-                    .setMediaId(song.id)
-                    .setUri(streamUrl)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(song.title)
-                            .setArtist(song.artist)
-                            .setAlbumTitle(song.album)
-                            .setArtworkUri(coverUrl?.toUri())
-                            .build()
-                    )
-                    .build()
-            }
-
-            musicController.playQueue(mediaItems, 0)
-        }
+        playerHandler.playPlaylist(
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 
-    // Sync playlist (register playlist + songs without downloading audio)
     fun syncPlaylist() {
-        viewModelScope.launch {
-            _isSyncing.value = true
-            try {
-                val server = cachedServer ?: serverDao.getActiveServer()
-                val playlistId = currentPlaylistId
-                
-                if (server == null || playlistId == null) {
-                    android.util.Log.e("PlaylistDetailVM", "Cannot sync: missing server or playlist ID")
-                    return@launch
-                }
-                
-                musicRepository.syncPlaylist(
-                    playlistId = playlistId,
-                    username = server.username,
-                    token = server.token,
-                    salt = server.salt,
-                    serverId = server.id
-                )
-                
-                android.util.Log.d("PlaylistDetailVM", "Playlist synced successfully")
-            } catch (e: Exception) {
-                android.util.Log.e("PlaylistDetailVM", "Failed to sync playlist", e)
-            } finally {
+        _isSyncing.value = true
+        val playlistId = currentPlaylistId ?: run {
+            _isSyncing.value = false
+            return
+        }
+        managementHandler.syncPlaylist(
+            playlistId = playlistId,
+            cachedServer = cachedServer,
+            scope = viewModelScope,
+            onComplete = { songs ->
+                _songs.value = songs
                 _isSyncing.value = false
             }
-        }
+        )
     }
 
     fun shufflePlay() {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val currentSongs = _songs.value.shuffled()
-            if (currentSongs.isEmpty()) return@launch
-
-            val mediaItems = currentSongs.map { song ->
-                val streamUrl = "${server.url.removeSuffix("/")}/rest/stream?id=${song.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-                val coverUrl = buildCoverArtUrl(server, song.coverArt)
-
-                MediaItem.Builder()
-                    .setMediaId(song.id)
-                    .setUri(streamUrl)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(song.title)
-                            .setArtist(song.artist)
-                            .setAlbumTitle(song.album)
-                            .setArtworkUri(coverUrl?.toUri())
-                            .build()
-                    )
-                    .build()
-            }
-
-            musicController.playQueue(mediaItems, 0)
-        }
+        playerHandler.shufflePlay(
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 
     fun playSong(song: SongDto) {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val currentSongs = _songs.value
-
-            val mediaItems = currentSongs.map { s ->
-                val streamUrl = "${server.url.removeSuffix("/")}/rest/stream?id=${s.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-                val coverUrl = buildCoverArtUrl(server, s.coverArt)
-
-                MediaItem.Builder()
-                    .setMediaId(s.id)
-                    .setUri(streamUrl)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(s.title)
-                            .setArtist(s.artist)
-                            .setAlbumTitle(s.album)
-                            .setArtworkUri(coverUrl?.toUri())
-                            .build()
-                    )
-                    .build()
-            }
-
-            val startIndex = currentSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-            musicController.playQueue(mediaItems, startIndex)
-        }
+        playerHandler.playSong(
+            song = song,
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 
     fun removeSongFromPlaylist(songIndex: Int) {
-        viewModelScope.launch {
-            try {
-                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-                val playlistId = currentPlaylistId ?: return@launch
-
-                api.updatePlaylist(
-                    playlistId = playlistId,
-                    songIndexToRemove = songIndex,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
-
-                // Reload playlist
-                loadPlaylist(playlistId)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        val playlistId = currentPlaylistId ?: return
+        managementHandler.removeSongFromPlaylist(
+            songIndex = songIndex,
+            playlistId = playlistId,
+            cachedServer = cachedServer,
+            scope = viewModelScope,
+            onComplete = { loadPlaylist(playlistId) }
+        )
     }
 
     fun downloadPlaylist() {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val currentPlaylist = _playlist.value ?: return@launch
-            val currentSongs = _songs.value
-            val songsToDownload = currentSongs.filter { song -> song.id !in downloadedSongIds.value }
-            
-            // Logs detallados para debugging
-            android.util.Log.d("PlaylistDownload", "═══════════════════════════════════════")
-            android.util.Log.d("PlaylistDownload", "Iniciando descarga de playlist: ${currentPlaylist.name}")
-            android.util.Log.d("PlaylistDownload", "Total canciones en playlist: ${currentSongs.size}")
-            android.util.Log.d("PlaylistDownload", "Ya descargadas: ${currentSongs.size - songsToDownload.size}")
-            android.util.Log.d("PlaylistDownload", "A descargar: ${songsToDownload.size}")
-            android.util.Log.d("PlaylistDownload", "═══════════════════════════════════════")
-            
-            if (songsToDownload.isEmpty()) {
-                android.util.Log.d("PlaylistDownload", "⚠️ Todas las canciones ya están descargadas")
-                return@launch
-            }
-
-            // 1. Guardar la playlist en Room
-            try {
-                val playlistEntity = com.example.neosynth.data.local.entities.PlaylistEntity(
-                    id = currentPlaylist.id,
-                    name = currentPlaylist.name,
-                    serverId = server.id,
-                    coverArt = currentPlaylist.coverArt,
-                    songCount = currentSongs.size
-                )
-                musicRepository.insertPlaylist(playlistEntity)
-                
-                // 2. Insertar SOLO canciones nuevas (preservar canciones ya descargadas)
-                // Verificar cada canción antes de insertar
-                var newSongsCount = 0
-                var preservedSongsCount = 0
-                
-                currentSongs.forEach { song ->
-                    val existingSong = musicRepository.getSongById(song.id)
-                    if (existingSong == null) {
-                        // Canción nueva - insertar con isDownloaded = false
-                        val songEntity = com.example.neosynth.data.local.entities.SongEntity(
-                            id = song.id,
-                            title = song.title,
-                            serverID = 0L, // DEPRECATED
-                            sourceType = "SUBSONIC",
-                            sourceId = server.id.toString(),
-                            artistID = song.artistId ?: "",
-                            artist = song.artist ?: "Unknown Artist",
-                            albumID = song.albumId ?: "",
-                            album = song.album ?: "Unknown Album",
-                            duration = song.duration.toLong(),
-                            imageUrl = song.coverArt,
-                            path = "", // Se actualizará cuando el DownloadWorker termine
-                            isDownloaded = false // Se marcará como true cuando se descargue
-                        )
-                        musicRepository.insertSong(songEntity)
-                        newSongsCount++
-                    } else {
-                        // Canción ya existe - preservar su estado actual
-                        preservedSongsCount++
-                        android.util.Log.d("PlaylistDownload", "  ✓ Preservada: ${song.title} (downloaded: ${existingSong.isDownloaded})")
-                    }
-                }
-                
-                android.util.Log.d("PlaylistDownload", "Canciones nuevas insertadas: $newSongsCount")
-                android.util.Log.d("PlaylistDownload", "Canciones preservadas: $preservedSongsCount")
-                
-                // 3. Crear las referencias playlist-canción con posiciones
-                val crossRefs = currentSongs.mapIndexed { index, song ->
-                    com.example.neosynth.data.local.entities.PlaylistSongCrossRef(
-                        playlistId = currentPlaylist.id,
-                        songId = song.id,
-                        position = index
-                    )
-                }
-                musicRepository.insertPlaylistSongCrossRefs(crossRefs)
-                
-                android.util.Log.d("PlaylistDownload", "Playlist guardada en Room")
-            } catch (e: Exception) {
-                android.util.Log.e("PlaylistDownload", "❌ Error guardando playlist: ${e.message}", e)
-                e.printStackTrace()
-            }
-
-            // 4. ESTRATEGIA HÍBRIDA: Lotes pequeños en paralelo, batches secuenciales
-            // Optimizado para playlists grandes (1000+ canciones) sin colapsar el sistema
-            // Adaptación dinámica según capacidades del dispositivo (Galaxy A7 2018, etc.)
-            val parallelSize = com.example.neosynth.utils.DownloadOptimizer.getOptimalBatchSize(appContext)
-            val workManager = androidx.work.WorkManager.getInstance(appContext)
-            
-            // Configurar constraints para descargas
-            val constraints = androidx.work.Constraints.Builder()
-                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(false) // Permitir con batería baja
-                .build()
-
-            // Crear batches de workers
-            val batches = songsToDownload.chunked(parallelSize)
-            var workContinuation: androidx.work.WorkContinuation? = null
-            
-            batches.forEachIndexed { batchIndex, batch ->
-                // Crear workers para este batch (se ejecutarán en paralelo)
-                val parallelWorkers = batch.mapIndexed { indexInBatch, song ->
-                    val globalIndex = batchIndex * parallelSize + indexInBatch + 1
-                    
-                    val inputData = androidx.work.Data.Builder()
-                        .putString("songId", song.id)
-                        .putString("title", song.title)
-                        .putString("artist", song.artist ?: "Unknown Artist")
-                        .putString("artistId", song.artistId ?: "")
-                        .putString("album", song.album ?: "Unknown Album")
-                        .putString("albumId", song.albumId ?: "")
-                        .putInt("duration", song.duration)
-                        .putString("coverArt", song.coverArt)
-                        .putLong("serverId", server.id)
-                        .putString("serverUrl", server.url)
-                        .putString("username", server.username)
-                        .putString("token", server.token)
-                        .putString("salt", server.salt)
-                        // Metadata para notificación consolidada
-                        .putString("playlist_id", currentPlaylist.id)
-                        .putString("playlist_name", currentPlaylist.name)
-                        .putInt("total_songs", songsToDownload.size)
-                        .putInt("current_index", globalIndex)
-                        .build()
-
-                    androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
-                        .setInputData(inputData)
-                        .setConstraints(constraints)
-                        .addTag("playlist_${currentPlaylist.id}")
-                        .addTag("download_worker")
-                        .setBackoffCriteria(
-                            androidx.work.BackoffPolicy.EXPONENTIAL,
-                            10000L, // 10 segundos de backoff inicial
-                            java.util.concurrent.TimeUnit.MILLISECONDS
-                        )
-                        .build()
-                }
-                
-                // Encadenar batches: cada batch espera a que el anterior termine
-                // Dentro de cada batch, los workers se ejecutan en paralelo
-                workContinuation = if (workContinuation == null) {
-                    workManager.beginWith(parallelWorkers)
-                } else {
-                    workContinuation!!.then(parallelWorkers)
-                }
-            }
-            
-            // Encolar toda la cadena de trabajo
-            workContinuation?.enqueue()
-            
-            android.util.Log.d("PlaylistDownload", "✅ ${songsToDownload.size} canciones encoladas en ${batches.size} batches de $parallelSize")
-            android.util.Log.d("PlaylistDownload", "⏱️ Tiempo estimado: ~${(songsToDownload.size * 8) / 60} minutos (${parallelSize} workers paralelos)")
-        }
+        val playlist = _playlist.value ?: return
+        val songs = _songs.value
+        val server = cachedServer ?: return
+        downloadHandler.downloadPlaylist(
+            allSongs = songs,
+            server = server,
+            playlistId = playlist.id,
+            playlistName = playlist.name,
+            scope = viewModelScope
+        )
     }
 
     fun getCoverUrl(coverArt: String?): String? {
@@ -389,132 +158,49 @@ class PlaylistDetailViewModel @Inject constructor(
         return buildCoverArtUrl(server, coverArt)
     }
 
-    // Multi-selection methods
     fun playSongs(songIds: Set<String>) {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val baseUrl = server.url.removeSuffix("/")
-            
-            val selectedSongs = _songs.value.filter { it.id in songIds }
-            if (selectedSongs.isEmpty()) return@launch
-
-            val mediaItems = selectedSongs.map { s ->
-                val streamUrl = "$baseUrl/rest/stream?id=${s.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth"
-                val coverUrl = buildCoverArtUrl(server, s.coverArt)
-
-                MediaItem.Builder()
-                    .setMediaId(s.id)
-                    .setUri(streamUrl)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(s.title)
-                            .setArtist(s.artist)
-                            .setAlbumTitle(s.album)
-                            .setArtworkUri(coverUrl?.toUri())
-                            .build()
-                    )
-                    .build()
-            }
-
-            musicController.playQueue(mediaItems, 0)
-        }
+        playerHandler.playSongs(
+            songIds = songIds,
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 
     fun downloadSongs(songIds: Set<String>) {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val downloadedIds = downloadedSongIds.value
-            val selectedSongs = _songs.value.filter { it.id in songIds }
-
-            selectedSongs.forEach { song ->
-                if (song.id !in downloadedIds) {
-                    val inputData = androidx.work.Data.Builder()
-                        .putString("songId", song.id)
-                        .putString("title", song.title)
-                        .putString("artist", song.artist)
-                        .putString("album", song.album)
-                        .putInt("duration", song.duration)
-                        .putString("coverArt", song.coverArt)
-                        .putLong("serverId", server.id)
-                        .putString("serverUrl", server.url)
-                        .putString("username", server.username)
-                        .putString("token", server.token)
-                        .putString("salt", server.salt)
-                        .build()
-
-                    val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
-                        .setInputData(inputData)
-                        .build()
-
-                    androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)
-                }
-            }
-        }
+        val server = cachedServer ?: return
+        downloadHandler.downloadSongs(
+            songIds = songIds,
+            allSongs = _songs.value,
+            server = server,
+            scope = viewModelScope
+        )
     }
 
     fun addToFavorites(songIds: Set<String>) {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            
-            // Add to local database
-            songIds.forEach { songId ->
-                try {
-                    musicRepository.addToFavorites(songId)
-                } catch (e: Exception) {
-                    android.util.Log.e("PlaylistDetailViewModel", "Failed to add to favorites: $songId", e)
-                    e.printStackTrace()
-                }
-            }
-            
-            // Sync with Navidrome server en batch
-            if (songIds.isNotEmpty()) {
-                try {
-                    api.star(
-                        id = songIds.toList(), // ← Batch operation
-                        u = server.username,
-                        t = server.token,
-                        s = server.salt
-                    )
-                    android.util.Log.d("PlaylistDetailViewModel", "Starred ${songIds.size} songs on server")
-                } catch (e: Exception) {
-                    android.util.Log.e("PlaylistDetailViewModel", "Failed to star songs on server", e)
-                }
-            }
-        }
+        val playlistId = currentPlaylistId ?: return
+        favoritesHandler.addToFavorites(
+            songIds = songIds,
+            playlistId = playlistId,
+            cachedServer = cachedServer,
+            scope = viewModelScope,
+            onComplete = { loadPlaylist(playlistId) }
+        )
     }
 
     fun loadAllPlaylists() {
-        viewModelScope.launch {
-            try {
-                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-                val response = api.getPlaylists(
-                    user = server.username,
-                    token = server.token,
-                    salt = server.salt
-                )
-                _allPlaylists.value = response.response.playlistsContainer?.playlist ?: emptyList()
-            } catch (e: Exception) {
-                android.util.Log.e("PlaylistDetailViewModel", "Failed to load playlists", e)
-                e.printStackTrace()
-            }
-        }
+        managementHandler.loadAvailablePlaylists(
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 
     fun addToPlaylist(songIds: Set<String>, playlistId: String) {
-        viewModelScope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            
-            try {
-                api.addToPlaylist(
-                    playlistId = playlistId,
-                    songIds = songIds.toList(),
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        favoritesHandler.addToPlaylist(
+            songIds = songIds,
+            targetPlaylistId = playlistId,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
     }
 }

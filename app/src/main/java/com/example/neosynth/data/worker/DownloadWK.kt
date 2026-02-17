@@ -356,7 +356,8 @@ class DownloadWorker @AssistedInject constructor(
                 songId = songId,
                 path = outputFile.absolutePath,
                 imageUrl = localCoverPath ?: imageUrl,
-                isDownloaded = true
+                isDownloaded = true,
+                downloadedAt = System.currentTimeMillis()
             )
             Log.d(TAG, "Canción actualizada en Room: $title")
 

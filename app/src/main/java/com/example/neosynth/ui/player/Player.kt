@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CornerSize
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -74,12 +76,15 @@ import androidx.media3.common.Player
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
-    musicController: MusicController,
+    viewModel: PlayerViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onDownload: () -> Unit = {},
     onLyricsClick: () -> Unit = {},
@@ -88,6 +93,8 @@ fun PlayerScreen(
     onToggleFavorite: () -> Unit = {},
     visualizerEnabled: Boolean = false
 ) {
+    val musicController = viewModel.musicController
+    
     val currentSong by musicController.currentMediaItem
     val isPlaying by musicController.isPlaying
     val currentPosition by musicController.currentPosition
@@ -95,10 +102,18 @@ fun PlayerScreen(
     val queue by musicController.currentQueue
     val currentIndex by musicController.currentIndex
 
+    val bitrateText by viewModel.bitrateText.collectAsState()
+    val hasAudioPermission by viewModel.hasAudioPermission.collectAsState()
+
     var showQueueSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val song = currentSong
+    
+    // Update bitrate when song changes
+    LaunchedEffect(song) {
+        viewModel.updateBitrate(song)
+    }
 
     // Queue Bottom Sheet
     if (showQueueSheet) {
@@ -255,6 +270,7 @@ fun PlayerScreen(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .clip(RoundedCornerShape(24.dp)) // Apply clip BEFORE sharedElement
                                 .sharedElement(
                                     sharedContentState = rememberSharedContentState(key = "artwork-${song?.mediaId ?: ""}"),
                                     animatedVisibilityScope = animatedVisibilityScope
@@ -360,47 +376,10 @@ fun PlayerScreen(
             }
         }
 
-
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Audio Quality Badge (Bitrate Real y Dinámico) - Moved closer to Cover Art
-        val bitrateText = remember(song) {
-            try {
-                val extras = song?.mediaMetadata?.extras
-                val json = extras?.getString("metadata")
-                
-                if (!json.isNullOrEmpty()) {
-                    val jsonObj = org.json.JSONObject(json)
-                    val bitrate = jsonObj.optInt("bitRate", 0)
-                    val format = jsonObj.optString("suffix", "").uppercase()
-                    
-                    if (bitrate > 0) {
-                        "$format • $bitrate kbps"
-                    } else {
-                        val path = extras?.getString("path") ?: ""
-                        val lowerPath = path.lowercase()
-                        when {
-                            lowerPath.endsWith(".flac") -> "FLAC"
-                            lowerPath.endsWith(".wav") -> "WAV"
-                            lowerPath.endsWith(".m4a") -> "AAC • 256 kbps" 
-                            else -> "MP3 • 320 kbps"
-                        }
-                    }
-                } else {
-                     val path = extras?.getString("path") ?: ""
-                     val lowerPath = path.lowercase()
-                     when {
-                         lowerPath.endsWith(".flac") -> "FLAC"
-                         lowerPath.endsWith(".wav") -> "WAV"
-                         else -> "MP3 • 320 kbps"
-                     }
-                }
-            } catch (e: Exception) {
-                "MP3 • 320 kbps"
-            }
-        }
-
+        // Audio Quality Badge (Bitrate Real y Dinámico)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -449,40 +428,24 @@ fun PlayerScreen(
         }
         Spacer(modifier = Modifier.height(30.dp))
         
-        val permissionState = remember { mutableStateOf(false) }
-        val context = androidx.compose.ui.platform.LocalContext.current
-        
         LaunchedEffect(visualizerEnabled) {
-            if (visualizerEnabled) {
-                if (androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.RECORD_AUDIO
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    permissionState.value = true
-                } else {
-                     // We rely on the user granting it via Settings or a dedicated prompt.
-                     // But for now, let's assume if enabled in settings, we try to show it.
-                     // A proper implementation would launch permission request here if this is the first time.
-                     // However, requesting permission inside a Composable LaunchedEffect might loop if checking result isn't reactive.
-                }
-            }
+            viewModel.checkAudioPermission()
         }
         
         // Permission request launcher
         val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
             androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
         ) { isGranted ->
-            permissionState.value = isGranted
+            viewModel.onPermissionResult(isGranted)
         }
         
-        LaunchedEffect(visualizerEnabled) {
-             if (visualizerEnabled && !permissionState.value) {
+        LaunchedEffect(visualizerEnabled, hasAudioPermission) {
+             if (visualizerEnabled && !hasAudioPermission) {
                  launcher.launch(android.Manifest.permission.RECORD_AUDIO)
              }
         }
         
-        if (visualizerEnabled && permissionState.value) {
+        if (visualizerEnabled && hasAudioPermission) {
             val audioSessionId by musicController.audioSessionId
             com.example.neosynth.ui.components.AudioVisualizerSlider(
                 modifier = Modifier
@@ -511,7 +474,8 @@ fun PlayerScreen(
         ) {
             // Botón anterior con animación
             val hasPrevious by musicController.hasPrevious
-            val prevAlpha by animateFloatAsState(targetValue = if (hasPrevious) 1f else 0.3f, label = "prev_alpha")
+            // Dimmed if !hasPrevious, but still visible and clickable for restart
+            val prevAlpha by animateFloatAsState(targetValue = if (hasPrevious) 1f else 0.5f, label = "prev_alpha")
             
             val interactionSourcePrev = remember { MutableInteractionSource() }
             val isPressedPrev by interactionSourcePrev.collectIsPressedAsState()
@@ -525,19 +489,20 @@ fun PlayerScreen(
             )
             
             IconButton(
-                onClick = { if (hasPrevious) musicController.skipPrevious() },
-                enabled = hasPrevious,
+                onClick = { musicController.skipPreviousOrRestart() },
+                enabled = true, // Always enabled to allow restart
                 interactionSource = interactionSourcePrev,
                 modifier = Modifier.graphicsLayer {
                     scaleX = scalePrev
                     scaleY = scalePrev
-                    // Alpha removed as requested
+                    alpha = prevAlpha
                 }
             ) {
                 Icon(
                     Icons.Rounded.SkipPrevious, 
                     null, 
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(50.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -553,6 +518,12 @@ fun PlayerScreen(
                 label = "play_scale"
             )
             
+            val cornerRadiusPercent by animateIntAsState(
+                targetValue = if (isPlaying) 20 else 50, // 20% for rounded square, 50% for circle
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "shape_radius"
+            )
+            
             Surface(
                 onClick = { musicController.togglePlayPause() },
                 interactionSource = interactionSourcePlay,
@@ -562,7 +533,7 @@ fun PlayerScreen(
                         scaleX = scalePlay
                         scaleY = scalePlay
                     },
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(percent = cornerRadiusPercent.coerceIn(0, 100)), // Using percent for smooth square->circle
                 color = MaterialTheme.colorScheme.primary,
                 shadowElevation = if (isPressedPlay) 4.dp else 12.dp
             ) {
@@ -577,6 +548,9 @@ fun PlayerScreen(
             }
 
             // Botón siguiente con animación
+            val hasNext by musicController.hasNext
+            val nextAlpha by animateFloatAsState(targetValue = if (hasNext) 1f else 0.5f, label = "next_alpha")
+
             val interactionSourceNext = remember { MutableInteractionSource() }
             val isPressedNext by interactionSourceNext.collectIsPressedAsState()
             val scaleNext by animateFloatAsState(
@@ -589,17 +563,20 @@ fun PlayerScreen(
             )
 
             IconButton(
-                onClick = { musicController.skipNext() },
+                onClick = { if (hasNext) musicController.skipNext() },
+                enabled = hasNext,
                 interactionSource = interactionSourceNext,
                 modifier = Modifier.graphicsLayer {
                     scaleX = scaleNext
                     scaleY = scaleNext
+                    alpha = nextAlpha
                 }
             ) {
                 Icon(
                     Icons.Rounded.SkipNext, 
                     null, 
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(50.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

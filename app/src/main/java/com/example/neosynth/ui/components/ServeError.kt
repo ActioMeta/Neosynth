@@ -18,7 +18,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ServerErrorScreen(
     onRetry: () -> Unit,
-    onSettings: (() -> Unit)? = null
+    onSettings: (() -> Unit)? = null,
+    title: String = "Servidor inalcanzable",
+    message: String = "No pudimos conectar con tu biblioteca. Verifica tu conexión o los ajustes del servidor."
 ) {
     Column(
         modifier = Modifier
@@ -35,13 +37,13 @@ fun ServerErrorScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Servidor inalcanzable",
+            text = title,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = "No pudimos conectar con tu biblioteca. Verifica tu conexión o los ajustes del servidor.",
+            text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

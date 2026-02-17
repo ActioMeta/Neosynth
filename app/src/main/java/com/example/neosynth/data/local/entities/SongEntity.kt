@@ -32,5 +32,6 @@ data class SongEntity(
     val year: Int? = null,
     val genre: String? = null,
     val trackNumber: Int? = null,
-    val metadata: String? = null // JSON for source-specific data
+    val metadata: String? = null, // JSON for source-specific data
+    val downloadedAt: Long? = null
 )

@@ -93,6 +93,16 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/**
+ * Migration from version 5 to 6: Add downloadedAt timestamp
+ * Adds downloadedAt column to songs table
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE songs ADD COLUMN downloadedAt INTEGER")
+    }
+}
+
 @Database(
     entities = [
         SongEntity::class,
@@ -102,7 +112,7 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         PlaylistEntity::class,
         PlaylistSongCrossRef::class,
         PlaybackHistoryEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {

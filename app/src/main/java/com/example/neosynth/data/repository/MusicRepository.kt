@@ -21,6 +21,8 @@ class MusicRepository @Inject constructor(
 
     fun getDownloadedSongs(): Flow<List<SongEntity>> = musicDao.getDownloadedSongs()
 
+    fun getRecentlyDownloadedSongs(limit: Int): Flow<List<SongEntity>> = musicDao.getRecentlyDownloadedSongs(limit)
+
     suspend fun getSongById(songId: String): SongEntity? {
         return musicDao.getSongById(songId)
     }
@@ -186,7 +188,7 @@ class MusicRepository @Inject constructor(
         return musicDao.isFavorite(songId) ?: false
     }
 
-    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean) {
-        musicDao.updateSongDownloadState(songId, path, imageUrl, isDownloaded)
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?) {
+        musicDao.updateSongDownloadState(songId, path, imageUrl, isDownloaded, downloadedAt)
     }
 }

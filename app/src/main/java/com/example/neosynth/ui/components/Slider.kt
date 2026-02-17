@@ -9,7 +9,13 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
@@ -34,10 +40,33 @@ fun AnimatedPlayerSlider(musicController: MusicController) {
         label = "thumb_scale"
     )
 
+    // Local state for dragging to prevent jumping
+    var sliderPosition by remember { mutableFloatStateOf(0f) }
+    var isUserSeeking by remember { mutableStateOf(false) }
+
+    // Sync sliderPosition with currentPosition when NOT interacting
+    LaunchedEffect(currentPosition, isDragging, isUserSeeking) {
+        if (!isDragging && !isUserSeeking) {
+            sliderPosition = currentPosition.toFloat()
+        }
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
-            value = currentPosition.toFloat(),
-            onValueChange = { musicController.seekTo(it.toLong()) },
+            value = sliderPosition,
+            onValueChange = { 
+                isUserSeeking = true
+                sliderPosition = it
+            },
+            onValueChangeFinished = {
+                // Execute seek
+                musicController.seekTo(sliderPosition.toLong())
+                
+                // Reset user seeking flag after a delay to allow seek to complete
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    isUserSeeking = false
+                }, 500)
+            },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             interactionSource = interactionSource,
             colors = SliderDefaults.colors(

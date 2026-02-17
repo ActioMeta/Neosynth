@@ -1,0 +1,163 @@
+package com.example.neosynth.ui.album.logic
+
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import com.example.neosynth.data.local.ServerDao
+import com.example.neosynth.data.local.buildCoverArtUrl
+import com.example.neosynth.data.local.entities.ServerEntity
+import com.example.neosynth.data.preferences.SettingsPreferences
+import com.example.neosynth.data.preferences.StreamQuality
+import com.example.neosynth.data.remote.responses.SongDto
+import com.example.neosynth.player.MusicController
+import com.example.neosynth.utils.ConnectionType
+import com.example.neosynth.utils.NetworkHelper
+import com.example.neosynth.utils.StreamUrlBuilder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+import androidx.core.net.toUri
+
+@Singleton
+class AlbumPlayerHandler @Inject constructor(
+    private val serverDao: ServerDao,
+    private val musicController: MusicController,
+    private val settingsPreferences: SettingsPreferences,
+    private val networkHelper: NetworkHelper
+) {
+
+    private suspend fun getStreamQuality(): StreamQuality {
+        val settings = settingsPreferences.audioSettings.first()
+        return when (networkHelper.getConnectionType()) {
+            ConnectionType.WIFI -> settings.streamWifiQuality
+            ConnectionType.MOBILE -> settings.streamMobileQuality
+            else -> settings.streamMobileQuality
+        }
+    }
+
+    private suspend fun buildMediaItem(
+        song: SongDto,
+        server: ServerEntity,
+        albumName: String?,
+        albumCoverArt: String?
+    ): MediaItem {
+        val streamQuality = getStreamQuality()
+        
+        val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) {
+            streamQuality.bitrate
+        } else {
+            song.bitRate ?: 0
+        }
+        
+        val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) {
+            streamQuality.format.uppercase()
+        } else {
+            song.suffix?.uppercase() ?: "MP3"
+        }
+
+        val streamUrl = StreamUrlBuilder.buildStreamUrl(server, song.id, streamQuality)
+        val coverUrl = buildCoverArtUrl(server, song.coverArt ?: albumCoverArt)
+
+        return MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(streamUrl)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .setAlbumTitle(albumName ?: song.album)
+                    .setArtworkUri(coverUrl?.toUri())
+                    .setExtras(
+                        android.os.Bundle().apply {
+                            putInt("bitRate", effectiveBitrate)
+                            putString("suffix", effectiveFormat)
+                            putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
+                            putLong("duration", song.duration * 1000L)
+                        }
+                    )
+                    .build()
+            )
+            .build()
+    }
+
+    fun playSong(
+        song: SongDto,
+        allSongs: List<SongDto>,
+        albumName: String?,
+        albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+
+            val mediaItems = allSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            val startIndex = allSongs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+            musicController.playQueue(mediaItems, startIndex)
+        }
+    }
+
+    fun playAlbum(
+        allSongs: List<SongDto>,
+        albumName: String?,
+        albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            if (allSongs.isEmpty()) return@launch
+
+            val mediaItems = allSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            musicController.playQueue(mediaItems, 0)
+        }
+    }
+
+    fun shufflePlay(
+        allSongs: List<SongDto>,
+        albumName: String?,
+       albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val shuffledSongs = allSongs.shuffled()
+            if (shuffledSongs.isEmpty()) return@launch
+
+            val mediaItems = shuffledSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            musicController.playQueue(mediaItems, 0)
+        }
+    }
+
+    fun playSongs(
+        songIds: Set<String>,
+        allSongs: List<SongDto>,
+        albumName: String?,
+        albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val selectedSongs = allSongs.filter { it.id in songIds }
+            if (selectedSongs.isEmpty()) return@launch
+
+            val mediaItems = selectedSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            musicController.playQueue(mediaItems, 0)
+        }
+    }
+}

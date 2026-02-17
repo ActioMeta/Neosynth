@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -23,6 +24,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -87,6 +89,9 @@ fun NeosynthNavGraph(
                     onNavigateToArtist = { artistId, artistName ->
                         val encodedName = java.net.URLEncoder.encode(artistName, "UTF-8")
                         navController.navigate("artist/$artistId/$encodedName")
+                    },
+                    onNavigateToAlbum = { albumId ->
+                        navController.navigate("album/$albumId")
                     }
                 )
             }
@@ -214,23 +219,71 @@ fun NeosynthNavGraph(
                 val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
                 val visualizerEnabled by homeViewModel.visualizerEnabled.collectAsState()
                 
+                // Estados para letras
+                val showLyricsSelection by homeViewModel.showLyricsSelection.collectAsState()
+                val lyricsOptions by homeViewModel.lyricsOptions.collectAsState()
+                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
+                val lyricsError by homeViewModel.lyricsError.collectAsState()
+                
                 // Actualizar estado de favorito cuando cambia la canción
                 LaunchedEffect(currentSongId) {
                     homeViewModel.updateCurrentSongFavoriteStatus()
                 }
                 
-                PlayerScreen(
-                    sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedVisibilityScope = this,
-                    musicController = musicController,
-                    onBack = { navController.popBackStack() },
-                    onDownload = { homeViewModel.downloadCurrentSong() },
-                    onLyricsClick = { navController.navigate("lyrics") },
-                    isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
-                    isFavorite = isFavorite,
-                    onToggleFavorite = { homeViewModel.toggleFavorite() },
-                    visualizerEnabled = visualizerEnabled
-                )
+                // Mostrar error de letras si ocurre
+                LaunchedEffect(lyricsError) {
+                    if (lyricsError != null) {
+                        // Podríamos mostrar un snackbar o toast aquí si tuviéramos acceso a un host
+                        // Por ahora solo log
+                        android.util.Log.e("NavGraph", "Lyrics error: $lyricsError")
+                    }
+                }
+                
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Fix: AnimatedVisibilityScope is required by PlayerScreen
+                    // Since we are already inside a SharedTransitionLayout but not an AnimatedVisibility,
+                    // we need to provide one or remove the requirement from PlayerScreen if not needed.
+                    // However, looking at the previous code, PlayerScreen was called directly.
+                    // The error says "actual type is BoxScope, but AnimatedVisibilityScope was expected".
+                    // This means PlayerScreen's second argument `animatedVisibilityScope` is receiving `this` (BoxScope) instead of a valid scope.
+                    // The `composable` block gives us `AnimatedContentScope` which implements `AnimatedVisibilityScope`.
+                    // So `this` should work IF we are directly in the content lambda of `composable`.
+                     
+                    PlayerScreen(
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@composable, // Use this@composable to get AnimatedVisibilityScope from AnimatedContentScope
+                        onBack = { navController.popBackStack() },
+                        onDownload = { homeViewModel.downloadCurrentSong() },
+                        onLyricsClick = { homeViewModel.loadLyrics() },
+                        isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
+                        isFavorite = isFavorite,
+                        onToggleFavorite = { homeViewModel.toggleFavorite() },
+                        visualizerEnabled = visualizerEnabled
+                    )
+                    
+                    // Loading Overlay
+                    if (isLoadingLyrics) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator()
+                        }
+                    }
+                }
+
+                if (showLyricsSelection) {
+                    com.example.neosynth.ui.lyrics.LyricsSelectionSheet(
+                        options = lyricsOptions,
+                        onSelect = { result ->
+                            homeViewModel.selectLyric(result)
+                            navController.navigate("lyrics")
+                        },
+                        onDismiss = { homeViewModel.dismissLyricsSelection() }
+                    )
+                }
             }
 
             composable(
@@ -302,6 +355,9 @@ fun NeosynthNavGraph(
                 .padding(bottom = 100.dp) // Espacio para la NavBar flotante
         ) {
             val miniPlayerSongId = song?.mediaId
+            val hasPrevious by musicController.hasPrevious
+            val hasNext by musicController.hasNext
+            
             MiniPlayer(
                 sharedTransitionScope = this@SharedTransitionLayout,
                 animatedVisibilityScope = this,
@@ -310,7 +366,11 @@ fun NeosynthNavGraph(
                 artist = song?.mediaMetadata?.artist?.toString() ?: "Desconocido",
                 artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
                 isPlaying = isPlaying,
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
                 onPlayPause = { musicController.togglePlayPause() },
+                onSkipPrevious = { musicController.skipPreviousOrRestart() },
+                onSkipNext = { musicController.skipNext() },
                 onClick = { navController.navigate("player_full") }
             )
         }

@@ -1,5 +1,7 @@
 package com.example.neosynth.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,6 +31,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val serverInfo by viewModel.serverInfo.collectAsState()
     val allServers by viewModel.allServers.collectAsState()
     val cacheSize by viewModel.cacheSize.collectAsState()
@@ -219,14 +223,6 @@ fun SettingsScreen(
                             subtitle = getThemeLabel(appSettings.themeMode),
                             onClick = { showThemeDialog = true }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsSwitchItem(
-                            icon = Icons.Rounded.GraphicEq,
-                            title = "Visualizador de Audio",
-                            subtitle = "Mostrar ondas de sonido en el reproductor (Requiere permiso de micrófono)",
-                            checked = appSettings.visualizerEnabled,
-                            onCheckedChange = { viewModel.updateVisualizerEnabled(it) }
-                        )
                         // Dynamic Colors removed
                     }
                 }
@@ -239,14 +235,20 @@ fun SettingsScreen(
                         SettingsItem(
                             icon = Icons.Rounded.Info,
                             title = "NeoSynth",
-                            subtitle = "Versión 1.0.0"
+                            subtitle = "Versión 2.2.0"
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.Code,
                             title = "Código fuente",
                             subtitle = "github.com/ActioMeta/NeoSynth",
-                            onClick = { /* TODO: Open browser */ }
+                            onClick = {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/ActioMeta/NeoSynth")
+                                )
+                                context.startActivity(intent)
+                            }
                         )
                     }
                 }

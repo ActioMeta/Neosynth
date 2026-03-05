@@ -7,6 +7,7 @@ import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.local.entities.PlaylistEntity
 import com.example.neosynth.data.local.entities.PlaylistSongCrossRef
 import com.example.neosynth.data.local.entities.PlaylistWithSongs
+import com.example.neosynth.data.local.entities.PendingSyncActionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -63,6 +64,9 @@ interface MusicDao {
     @Query("SELECT * FROM playlists WHERE id = :playlistId LIMIT 1")
     suspend fun getPlaylistById(playlistId: String): PlaylistEntity?
     
+    @Query("SELECT * FROM playlists WHERE id = :playlistId LIMIT 1")
+    fun getPlaylistByIdFlow(playlistId: String): Flow<PlaylistEntity?>
+    
     @Transaction
     @Query("SELECT * FROM playlists WHERE id = :playlistId")
     suspend fun getPlaylistWithSongs(playlistId: String): PlaylistWithSongs?
@@ -102,6 +106,19 @@ interface MusicDao {
     @Query("SELECT isFavorite FROM songs WHERE id = :songId")
     suspend fun isFavorite(songId: String): Boolean?
 
-    @Query("UPDATE songs SET path = :path, imageUrl = :imageUrl, isDownloaded = :isDownloaded, downloadedAt = :downloadedAt WHERE id = :songId")
-    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?)
+    @Query("UPDATE songs SET path = :path, imageUrl = :imageUrl, isDownloaded = :isDownloaded, downloadedAt = :downloadedAt, metadata = :metadata WHERE id = :songId")
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?, metadata: String?)
+
+    // Sync Actions
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPendingSyncAction(action: PendingSyncActionEntity)
+
+    @Query("SELECT * FROM pending_sync_actions WHERE isProcessing = 0 ORDER BY createdAt ASC")
+    suspend fun getPendingSyncActions(): List<PendingSyncActionEntity>
+
+    @Query("UPDATE pending_sync_actions SET isProcessing = :isProcessing WHERE id = :actionId")
+    suspend fun updatePendingSyncActionState(actionId: Int, isProcessing: Boolean)
+
+    @Query("DELETE FROM pending_sync_actions WHERE id = :actionId")
+    suspend fun deletePendingSyncAction(actionId: Int)
 }

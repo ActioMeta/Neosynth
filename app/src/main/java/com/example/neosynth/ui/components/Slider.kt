@@ -44,16 +44,11 @@ fun AnimatedPlayerSlider(musicController: MusicController) {
     var sliderPosition by remember { mutableFloatStateOf(0f) }
     var isUserSeeking by remember { mutableStateOf(false) }
 
-    // Sync sliderPosition with currentPosition when NOT interacting
-    LaunchedEffect(currentPosition, isDragging, isUserSeeking) {
-        if (!isDragging && !isUserSeeking) {
-            sliderPosition = currentPosition.toFloat()
-        }
-    }
+    val displayPosition = if (isDragging || isUserSeeking) sliderPosition else currentPosition.toFloat()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
-            value = sliderPosition,
+            value = displayPosition.coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
             onValueChange = { 
                 isUserSeeking = true
                 sliderPosition = it
@@ -62,10 +57,8 @@ fun AnimatedPlayerSlider(musicController: MusicController) {
                 // Execute seek
                 musicController.seekTo(sliderPosition.toLong())
                 
-                // Reset user seeking flag after a delay to allow seek to complete
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    isUserSeeking = false
-                }, 500)
+                // Reset user seeking flag
+                isUserSeeking = false
             },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             interactionSource = interactionSource,

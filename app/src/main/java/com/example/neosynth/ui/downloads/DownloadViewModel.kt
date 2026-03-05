@@ -6,11 +6,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.core.net.toUri
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.neosynth.data.local.ServerDao
+import com.example.neosynth.data.local.entities.PendingSyncActionEntity
+import com.example.neosynth.data.local.entities.PlaylistSongCrossRef
 import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.local.entities.PlaylistWithSongs
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.repository.MusicRepository
+import com.example.neosynth.data.worker.PlaylistSyncWorker
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.domain.model.Song
 import com.example.neosynth.domain.model.MusicSourceType
@@ -18,6 +25,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import javax.inject.Inject
 
@@ -101,6 +110,19 @@ class DownloadsViewModel @Inject constructor(
 
     // 4. Mapeador interno de Entity a MediaItem (Media3)
     private fun SongEntity.toMediaItem(): MediaItem {
+        var bitRate = 0
+        var format = "MP3"
+        
+        try {
+            this.metadata?.let { metadataStr ->
+                val json = org.json.JSONObject(metadataStr)
+                if (json.has("bitRate")) bitRate = json.getInt("bitRate")
+                if (json.has("format")) format = json.getString("format")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DownloadViewModel", "Error parsing metadata for offline song", e)
+        }
+
         return MediaItem.Builder()
             .setMediaId(this.id)
             .setUri(this.path.toUri()) // Usamos el path local porque es "Downloads"
@@ -110,6 +132,16 @@ class DownloadsViewModel @Inject constructor(
                     .setArtist(this.artist)
                     .setAlbumTitle(this.album)
                     .setArtworkUri(this.imageUrl?.toUri())
+                    .setExtras(
+                        android.os.Bundle().apply {
+                            putString("path", this@toMediaItem.path)
+                            putString("coverArtId", this@toMediaItem.imageUrl)
+                            putLong("duration", this@toMediaItem.duration)
+                            putBoolean("isDownloaded", true)
+                            putInt("bitRate", bitRate)
+                            putString("suffix", format)
+                        }
+                    )
                     .build()
             )
             .build()
@@ -223,6 +255,69 @@ class DownloadsViewModel @Inject constructor(
     // 12. Limpiar filtro de playlist
     fun clearPlaylistFilter() {
         _selectedPlaylistId.value = null
+    }
+    
+    // 13. Agregar canciones seleccionadas a una playlist (local-first, syncs when online)
+    fun addSongsToPlaylist(songIds: Set<String>, playlistId: String) {
+        viewModelScope.launch {
+            try {
+                val server = serverDao.getActiveServer() ?: return@launch
+                
+                // Get current max position in playlist to append at end
+                val currentPlaylist = allPlaylists.value.find { it.playlist.id == playlistId }
+                val currentSongCount = currentPlaylist?.songs?.size ?: 0
+                
+                // 1. Insert cross-refs locally
+                val crossRefs = songIds.mapIndexed { index, songId ->
+                    PlaylistSongCrossRef(
+                        playlistId = playlistId,
+                        songId = songId,
+                        position = currentSongCount + index
+                    )
+                }
+                musicRepository.insertPlaylistSongCrossRefs(crossRefs)
+                
+                // 2. Queue sync action
+                val payloadObj = JSONObject().apply {
+                    put("playlistId", playlistId)
+                    val songArray = JSONArray()
+                    songIds.forEach { songArray.put(it) }
+                    put("songIds", songArray)
+                }
+                val pendingAction = PendingSyncActionEntity(
+                    serverId = server.id,
+                    actionType = "ADD_SONG",
+                    payload = payloadObj.toString()
+                )
+                musicRepository.insertPendingSyncAction(pendingAction)
+                
+                // 3. Best-effort immediate sync with server
+                try {
+                    api.addToPlaylist(
+                        playlistId = playlistId,
+                        songIds = songIds.toList(),
+                        u = server.username,
+                        t = server.token,
+                        s = server.salt
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.d("DownloadsViewModel", "Offline, ADD_SONG queued for sync")
+                }
+                
+                // 4. Trigger WorkManager for background sync
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+                val syncRequest = OneTimeWorkRequestBuilder<PlaylistSyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
+                WorkManager.getInstance(appContext).enqueue(syncRequest)
+                
+                android.util.Log.d("DownloadsViewModel", "Added ${songIds.size} songs to playlist $playlistId")
+            } catch (e: Exception) {
+                android.util.Log.e("DownloadsViewModel", "Failed to add songs to playlist", e)
+            }
+        }
     }
 }
 

@@ -21,35 +21,37 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          # Decode keystore to app/release.jks so build.gradle.kts can find it easily
-          echo "${{ secrets.KEYSTORE_BASE64 }}" > release.keystore.b64
-          base64 -d release.keystore.b64 > app/release.jks
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > app/release.jks
+          # Verify the file is a valid JKS/PKCS12
+          file app/release.jks
 
       - name: Build Release APK
         env:
-          # Path relative to the app module (since we used file() in build.gradle.kts)
+          # Path relative to the app module directory (used in build.gradle.kts with file())
           KEYSTORE_FILE: release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease
+        run: ./gradlew :app:assembleRelease --no-daemon
 
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neosynth-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: app/build/outputs/apk/release/*.apk

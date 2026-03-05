@@ -12,10 +12,12 @@ import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.player.MusicController
+import com.example.neosynth.utils.NetworkHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,6 +28,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val urlInterceptor: DynamicUrlInterceptor,
     private val musicRepository: MusicRepository,
     val musicController: MusicController,
+    private val networkHelper: NetworkHelper,
     private val playerHandler: com.example.neosynth.ui.playlist.logic.PlaylistPlayerHandler,
     private val downloadHandler: com.example.neosynth.ui.playlist.logic.PlaylistDownloadHandler,
     private val favoritesHandler: com.example.neosynth.ui.playlist.logic.PlaylistFavoritesHandler,
@@ -60,23 +63,32 @@ class PlaylistDetailViewModel @Inject constructor(
                 cachedServer = server
                 urlInterceptor.setBaseUrl(server.url)
 
-                val response = api.getPlaylist(
-                    playlistId = playlistId,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
+                if (networkHelper.isCurrentConnectionOffline) {
+                    loadPlaylistFromLocal(playlistId)
+                    return@launch
+                }
 
-                val playlistDetails = response.response.playlistDetails
-                if (playlistDetails != null) {
-                    _playlist.value = PlaylistDto(
-                        id = playlistDetails.id,
-                        name = playlistDetails.name,
-                        songCount = playlistDetails.entry?.size ?: 0,
-                        duration = playlistDetails.entry?.sumOf { it.duration } ?: 0,
-                        coverArt = playlistDetails.entry?.firstOrNull()?.coverArt
+                try {
+                    val response = api.getPlaylist(
+                        playlistId = playlistId,
+                        u = server.username,
+                        t = server.token,
+                        s = server.salt
                     )
-                    _songs.value = playlistDetails.entry ?: emptyList()
+                    val playlistDetails = response.response.playlistDetails
+                    if (playlistDetails != null) {
+                        _playlist.value = PlaylistDto(
+                            id = playlistDetails.id,
+                            name = playlistDetails.name,
+                            songCount = playlistDetails.entry?.size ?: 0,
+                            duration = playlistDetails.entry?.sumOf { it.duration } ?: 0,
+                            coverArt = playlistDetails.entry?.firstOrNull()?.coverArt
+                        )
+                        _songs.value = playlistDetails.entry ?: emptyList()
+                    }
+                } catch (e: Exception) {
+                    // API failed, fallback to local DB
+                    loadPlaylistFromLocal(playlistId)
                 }
 
             } catch (e: Exception) {
@@ -84,6 +96,36 @@ class PlaylistDetailViewModel @Inject constructor(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    private suspend fun loadPlaylistFromLocal(playlistId: String) {
+        try {
+            val localData = musicRepository.getPlaylistWithSongs(playlistId)
+            if (localData != null) {
+                val entity = localData.playlist
+                _playlist.value = PlaylistDto(
+                    id = entity.id,
+                    name = entity.name,
+                    songCount = entity.songCount,
+                    duration = 0,
+                    coverArt = entity.coverArt
+                )
+                _songs.value = localData.songs.map { song ->
+                    SongDto(
+                        id = song.id,
+                        title = song.title,
+                        artist = song.artist,
+                        artistId = song.artistID,
+                        album = song.album,
+                        albumId = song.albumID,
+                        duration = song.duration.toInt(),
+                        coverArt = song.imageUrl
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistDetailViewModel", "Failed to load playlist from local DB", e)
         }
     }
 

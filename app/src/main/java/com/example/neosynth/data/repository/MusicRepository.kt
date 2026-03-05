@@ -138,6 +138,10 @@ class MusicRepository @Inject constructor(
     suspend fun insertPlaylist(playlist: com.example.neosynth.data.local.entities.PlaylistEntity) {
         musicDao.insertPlaylist(playlist)
     }
+
+    fun getPlaylistByIdFlow(playlistId: String): Flow<com.example.neosynth.data.local.entities.PlaylistEntity?> {
+        return musicDao.getPlaylistByIdFlow(playlistId)
+    }
     
     suspend fun insertPlaylists(playlists: List<com.example.neosynth.data.local.entities.PlaylistEntity>) {
         musicDao.insertPlaylists(playlists)
@@ -188,7 +192,24 @@ class MusicRepository @Inject constructor(
         return musicDao.isFavorite(songId) ?: false
     }
 
-    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?) {
-        musicDao.updateSongDownloadState(songId, path, imageUrl, isDownloaded, downloadedAt)
+    suspend fun updateSongDownloadState(songId: String, path: String, imageUrl: String?, isDownloaded: Boolean, downloadedAt: Long?, metadata: String? = null) {
+        musicDao.updateSongDownloadState(songId, path, imageUrl, isDownloaded, downloadedAt, metadata)
+    }
+
+    // Sync Actions
+    suspend fun insertPendingSyncAction(action: com.example.neosynth.data.local.entities.PendingSyncActionEntity) {
+        musicDao.insertPendingSyncAction(action)
+    }
+
+    suspend fun getPendingSyncActions(): List<com.example.neosynth.data.local.entities.PendingSyncActionEntity> {
+        return musicDao.getPendingSyncActions()
+    }
+
+    suspend fun updatePendingSyncActionState(actionId: Int, isProcessing: Boolean) {
+        musicDao.updatePendingSyncActionState(actionId, isProcessing)
+    }
+
+    suspend fun deletePendingSyncAction(actionId: Int) {
+        musicDao.deletePendingSyncAction(actionId)
     }
 }

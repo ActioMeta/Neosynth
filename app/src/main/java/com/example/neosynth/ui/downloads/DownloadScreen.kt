@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -70,6 +72,9 @@ fun DownloadsScreen(
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     var currentFilter by rememberSaveable { mutableStateOf(FilterType.ALL) }
     var fabExpanded by remember { mutableStateOf(false) }
+    // Estado para el diálogo de agregar a playlist
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var pendingAddSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val isSelectionMode = selectedSongIds.isNotEmpty()
     val focusRequester = remember { FocusRequester() }
@@ -702,6 +707,15 @@ fun DownloadsScreen(
                     }
                 ),
                 MultiSelectAction(
+                    icon = Icons.Rounded.PlaylistAdd,
+                    label = "Playlist",
+                    onClick = {
+                        pendingAddSongIds = selectedSongIds
+                        showAddToPlaylistDialog = true
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
                     icon = Icons.Rounded.Delete,
                     label = "Del",
                     onClick = {
@@ -760,7 +774,87 @@ fun DownloadsScreen(
                     .padding(end = 16.dp, bottom = 200.dp)
             )
         }
+
+        // Diálogo selector de playlist (Agregar canciones a una playlist)
+        if (showAddToPlaylistDialog) {
+            AddToPlaylistDialog(
+                playlists = allPlaylists,
+                onDismiss = { showAddToPlaylistDialog = false },
+                onPlaylistSelected = { playlistId ->
+                    viewModel.addSongsToPlaylist(pendingAddSongIds, playlistId)
+                    showAddToPlaylistDialog = false
+                    pendingAddSongIds = emptySet()
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    playlists: List<com.example.neosynth.data.local.entities.PlaylistWithSongs>,
+    onDismiss: () -> Unit,
+    onPlaylistSelected: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Agregar a playlist") },
+        text = {
+            if (playlists.isEmpty()) {
+                Text("No tienes playlists disponibles.")
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    playlists.forEach { playlistWithSongs ->
+                        Surface(
+                            onClick = { onPlaylistSelected(playlistWithSongs.playlist.id) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = androidx.compose.ui.graphics.Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.QueueMusic,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = playlistWithSongs.playlist.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "${playlistWithSongs.playlist.songCount} canciones",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable

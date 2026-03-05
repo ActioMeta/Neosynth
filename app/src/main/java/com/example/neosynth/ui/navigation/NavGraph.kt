@@ -159,6 +159,9 @@ fun NeosynthNavGraph(
                     },
                     onNavigateToPlaylist = { playlistId ->
                         navController.navigate("playlist/$playlistId")
+                    },
+                    onNavigateToAlbum = { albumId ->
+                        navController.navigate("album/$albumId")
                     }
                 )
             }
@@ -225,6 +228,13 @@ fun NeosynthNavGraph(
                 val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
                 val lyricsError by homeViewModel.lyricsError.collectAsState()
                 
+                // Si no hay canción activa al abrir el player completo, volver atrás
+                LaunchedEffect(currentSong) {
+                    if (currentSong == null) {
+                        navController.popBackStack()
+                    }
+                }
+
                 // Actualizar estado de favorito cuando cambia la canción
                 LaunchedEffect(currentSongId) {
                     homeViewModel.updateCurrentSongFavoriteStatus()
@@ -338,6 +348,7 @@ fun NeosynthNavGraph(
         }
 
         val song = currentSong
+        // Show mini player if there's an active or restored song (not on login/player/lyrics screens)
         val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && song != null
         AnimatedVisibility(
             visible = showMiniPlayer,

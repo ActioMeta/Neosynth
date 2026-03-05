@@ -178,13 +178,7 @@ fun HomeScreen(
                                     tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
-                            IconButton(onClick = onNavigateToStats) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Assessment,
-                                    contentDescription = "Estadísticas",
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
+
                             IconButton(onClick = onNavigateToSettings) {
                                 Icon(
                                     imageVector = Icons.Rounded.Settings,

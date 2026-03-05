@@ -42,8 +42,9 @@ class DownloadWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "DownloadWorker"
-        private const val CHANNEL_ID = "download_channel"
+        const val CHANNEL_ID = "download_channel"
         private const val CHANNEL_NAME = "Descargas"
+        private const val FOREGROUND_NOTIFICATION_ID = 1001
     }
 
     private val notificationManager = NotificationManagerCompat.from(applicationContext)
@@ -51,6 +52,21 @@ class DownloadWorker @AssistedInject constructor(
 
     init {
         createNotificationChannel()
+    }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        createNotificationChannel()
+        val title = inputData.getString("title") ?: "Descargando..."
+        val artist = inputData.getString("artist") ?: ""
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle("Descargando")
+            .setContentText("$title - $artist")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setProgress(0, 0, true)
+            .build()
+        return ForegroundInfo(FOREGROUND_NOTIFICATION_ID, notification)
     }
 
     private fun createNotificationChannel() {
@@ -198,6 +214,9 @@ class DownloadWorker @AssistedInject constructor(
         if (isPartOfBatch && playlistId != null) {
             notificationId = playlistId.hashCode()
         }
+
+        // Promover este worker a foreground para que la notificación persista
+        setForeground(getForegroundInfo())
         
         // Parámetros del servidor para construir la URL
         val serverUrl = inputData.getString("serverUrl") ?: return@withContext Result.failure()
@@ -348,17 +367,57 @@ class DownloadWorker @AssistedInject constructor(
                 }
             }
 
+            val originalBitRate = inputData.getInt("originalBitRate", 0)
+            val originalSuffix = inputData.getString("originalSuffix") ?: "MP3"
+            
+            val effectiveBitrate = if (downloadQuality != com.example.neosynth.data.preferences.DownloadQuality.LOSSLESS) {
+                downloadQuality.bitrate
+            } else {
+                originalBitRate
+            }
+            
+            val effectiveFormat = if (downloadQuality != com.example.neosynth.data.preferences.DownloadQuality.LOSSLESS) {
+                downloadQuality.format.uppercase()
+            } else {
+                originalSuffix.uppercase()
+            }
+            
+            val metadataJson = """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}"""
+
             // Registrar en Room una vez descargado
-            // IMPORTANTE: Usamos UPDATE para no romper relaciones (PlaylistSongCrossRef)
-            // Si usamos insertSong (REPLACE), se borra la fila y se vuelve a crear,
-            // lo que dispara el CASCADE DELETE en la tabla de playlist_song_cross_ref.
-            musicRepository.updateSongDownloadState(
-                songId = songId,
-                path = outputFile.absolutePath,
-                imageUrl = localCoverPath ?: imageUrl,
-                isDownloaded = true,
-                downloadedAt = System.currentTimeMillis()
-            )
+            // IMPORTANTE: Si la canción ya existe, usamos UPDATE para no romper relaciones (PlaylistSongCrossRef).
+            // Si no existe, la creamos (ej: desde descarga de álbum).
+            val existingSong = musicRepository.getSongById(songId)
+            if (existingSong == null) {
+                val newSong = com.example.neosynth.data.local.entities.SongEntity(
+                    id = songId,
+                    title = title,
+                    serverID = serverId,
+                    sourceType = "SUBSONIC",
+                    sourceId = serverId.toString(),
+                    artistID = artistId,
+                    artist = artist,
+                    albumID = albumId,
+                    album = album,
+                    duration = duration,
+                    imageUrl = localCoverPath ?: imageUrl,
+                    path = outputFile.absolutePath,
+                    isDownloaded = true,
+                    isFavorite = false,
+                    downloadedAt = System.currentTimeMillis(),
+                    metadata = metadataJson
+                )
+                musicRepository.insertSong(newSong)
+            } else {
+                musicRepository.updateSongDownloadState(
+                    songId = songId,
+                    path = outputFile.absolutePath,
+                    imageUrl = localCoverPath ?: imageUrl,
+                    isDownloaded = true,
+                    downloadedAt = System.currentTimeMillis(),
+                    metadata = metadataJson
+                )
+            }
             Log.d(TAG, "Canción actualizada en Room: $title")
 
             // Notifiación final

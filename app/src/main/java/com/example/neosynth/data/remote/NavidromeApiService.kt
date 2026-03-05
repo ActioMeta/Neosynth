@@ -21,6 +21,7 @@ interface NavidromeApiService {
     @GET("rest/getAlbumList2.view")
     suspend fun getAlbumList(
         @Query("type") type: String,
+        @Query("size") size: Int = 500,
         @Query("u") user: String, @Query("t") token: String, @Query("s") salt: String,
         @Query("v") v: String = "1.16.1", @Query("c") c: String = "Neosynth", @Query("f") f: String = "json"
     ): SubsonicResponse

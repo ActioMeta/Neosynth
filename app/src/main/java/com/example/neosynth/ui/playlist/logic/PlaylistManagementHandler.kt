@@ -1,5 +1,8 @@
 package com.example.neosynth.ui.playlist.logic
 
+import android.content.Context
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.entities.PlaylistEntity
 import com.example.neosynth.data.local.entities.PlaylistSongCrossRef
@@ -8,18 +11,24 @@ import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.repository.MusicRepository
+import com.example.neosynth.data.local.entities.PendingSyncActionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.neosynth.data.worker.PlaylistSyncWorker
 
 @Singleton
 class PlaylistManagementHandler @Inject constructor(
     private val api: NavidromeApiService,
     private val serverDao: ServerDao,
-    private val musicRepository: MusicRepository
+    private val musicRepository: MusicRepository,
+    @ApplicationContext private val context: Context
 ) {
 
     private val _availablePlaylists = MutableStateFlow<List<PlaylistDto>>(emptyList())
@@ -53,9 +62,49 @@ class PlaylistManagementHandler @Inject constructor(
         onComplete: suspend () -> Unit
     ) {
         scope.launch {
-            try {
-                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            
+            // Local-First Execution:
+            // 1. Fetch current songs to know which song to remove
+            val crossRefsFlow = musicRepository.getSongsInPlaylist(playlistId)
+            val songsToModify = crossRefsFlow.firstOrNull()
+            
+            if (songsToModify != null && songIndex >= 0 && songIndex < songsToModify.size) {
+                // Delete all cross refs logic to rethink index positions
+                musicRepository.deletePlaylistSongs(playlistId)
+                
+                // Construct new list omitting the removed index
+                val newSongsList = songsToModify.toMutableList()
+                newSongsList.removeAt(songIndex)
+                
+                // Insert the repaired cross refs back
+                val newCrossRefs = newSongsList.mapIndexed { idx, song ->
+                    PlaylistSongCrossRef(
+                        playlistId = playlistId,
+                        songId = song.id,
+                        position = idx
+                    )
+                }
+                musicRepository.insertPlaylistSongCrossRefs(newCrossRefs)
+            }
+            
+            // Queue Action payload for Background Sync
+            val payloadObj = JSONObject().apply {
+                put("playlistId", playlistId)
+                put("songIndexToRemove", songIndex)
+            }
+            
+            val pendingAction = PendingSyncActionEntity(
+                serverId = server.id,
+                actionType = "REMOVE_SONG",
+                payload = payloadObj.toString()
+            )
+            musicRepository.insertPendingSyncAction(pendingAction)
 
+            android.util.Log.d("PlaylistManagementHandler", "Removed song at index $songIndex from playlist $playlistId (offline-capable). Queued for sync.")
+
+            try {
+                // Attempt Immediate Push if online (Best-effort, if fails, the Worker will pick it up later)
                 api.updatePlaylist(
                     playlistId = playlistId,
                     songIndexToRemove = songIndex,
@@ -63,15 +112,16 @@ class PlaylistManagementHandler @Inject constructor(
                     t = server.token,
                     s = server.salt
                 )
-
-                android.util.Log.d("PlaylistManagementHandler", "Removed song at index $songIndex from playlist $playlistId")
-
-                // Callback to reload playlist
-                onComplete()
             } catch (e: Exception) {
-                android.util.Log.e("PlaylistManagementHandler", "Failed to remove song from playlist", e)
-                e.printStackTrace()
+                android.util.Log.e("PlaylistManagementHandler", "Direct sync failed, offline queued instead: ${e.message}")
             }
+
+            // Trigger SyncWorker
+            val syncRequest = OneTimeWorkRequestBuilder<PlaylistSyncWorker>().build()
+            WorkManager.getInstance(context).enqueue(syncRequest)
+
+            // Callback to reload UI from Local DB
+            onComplete()
         }
     }
 
@@ -136,17 +186,18 @@ class PlaylistManagementHandler @Inject constructor(
                             newSongsCount++
                             android.util.Log.d("PlaylistManagementHandler", "  + Inserted new song: ${song.title}")
                         } else {
-                            // Existing song: update metadata (preserves download state!)
+                            // Existing song: update metadata (preserves download state AND local cover art!)
                             val updatedSong = existingSong.copy(
                                 title = song.title,
                                 artist = song.artist ?: "Unknown Artist",
                                 album = song.album ?: "Unknown Album",
                                 duration = song.duration.toLong(),
-                                imageUrl = song.coverArt
+                                // Preserve local imageUrl if already downloaded; otherwise update with server coverArt
+                                imageUrl = if (existingSong.isDownloaded) existingSong.imageUrl else song.coverArt
                             )
                             musicRepository.insertSong(updatedSong)
                             updatedSongsCount++
-                            android.util.Log.d("PlaylistManagementHandler", "  ~ Updated existing song: ${song.title} (downloaded: ${existingSong.isDownloaded})")
+                            android.util.Log.d("PlaylistManagementHandler", "  ~ Updated existing song: ${song.title} (downloaded: ${existingSong.isDownloaded}, preserved local cover: ${existingSong.isDownloaded})")
                         }
                     }
 

@@ -153,6 +153,8 @@ class ArtistDetailViewModel @Inject constructor(
                                     putString("suffix", effectiveFormat)
                                     putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
                                     putLong("duration", s.duration * 1000L)
+                                    putInt("originalBitRate", s.bitRate ?: 0)
+                                    putString("originalSuffix", s.suffix ?: "MP3")
                                 }
                             )
                             .build()
@@ -213,6 +215,8 @@ class ArtistDetailViewModel @Inject constructor(
                                     putString("suffix", effectiveFormat)
                                     putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
                                     putLong("duration", s.duration * 1000L)
+                                    putInt("originalBitRate", s.bitRate ?: 0)
+                                    putString("originalSuffix", s.suffix ?: "MP3")
                                 }
                             )
                             .build()

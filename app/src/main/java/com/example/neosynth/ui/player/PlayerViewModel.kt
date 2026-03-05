@@ -31,33 +31,32 @@ class PlayerViewModel @Inject constructor(
     fun updateBitrate(song: MediaItem?) {
         try {
             val extras = song?.mediaMetadata?.extras
+            var bitrate = extras?.getInt("bitRate") ?: 0
+            var format = extras?.getString("suffix")?.uppercase() ?: extras?.getString("format")?.uppercase() ?: ""
+
             val json = extras?.getString("metadata")
-            
             if (!json.isNullOrEmpty()) {
                 val jsonObj = JSONObject(json)
-                val bitrate = jsonObj.optInt("bitRate", 0)
-                val format = jsonObj.optString("suffix", "").uppercase()
-                
-                if (bitrate > 0) {
-                    _bitrateText.value = "$format • $bitrate kbps"
-                } else {
-                    val path = extras?.getString("path") ?: ""
-                    val lowerPath = path.lowercase()
-                    _bitrateText.value = when {
-                        lowerPath.endsWith(".flac") -> "FLAC"
-                        lowerPath.endsWith(".wav") -> "WAV"
-                        lowerPath.endsWith(".m4a") -> "AAC • 256 kbps" 
-                        else -> "MP3 • 320 kbps"
-                    }
-                }
+                if (bitrate == 0) bitrate = jsonObj.optInt("bitRate", 0)
+                if (format.isEmpty()) format = jsonObj.optString("suffix", jsonObj.optString("format", "")).uppercase()
+            }
+            
+            if (bitrate > 0 && format.isNotEmpty()) {
+                _bitrateText.value = "$format • $bitrate kbps"
+            } else if (bitrate > 0) {
+                _bitrateText.value = "MP3 • $bitrate kbps"
+            } else if (format.isNotEmpty() && format != "MP3") {
+                // Para FLAC o WAV que usualmente reportan 0 kbps desde el servidor
+                _bitrateText.value = format
             } else {
-                 val path = extras?.getString("path") ?: ""
-                 val lowerPath = path.lowercase()
-                 _bitrateText.value = when {
-                     lowerPath.endsWith(".flac") -> "FLAC"
-                     lowerPath.endsWith(".wav") -> "WAV"
-                     else -> "MP3 • 320 kbps"
-                 }
+                val path = extras?.getString("path") ?: ""
+                val lowerPath = path.lowercase()
+                _bitrateText.value = when {
+                    lowerPath.endsWith(".flac") -> "FLAC"
+                    lowerPath.endsWith(".wav") -> "WAV"
+                    lowerPath.endsWith(".m4a") -> "AAC • 256 kbps" 
+                    else -> "MP3 • 320 kbps"
+                }
             }
         } catch (e: Exception) {
             _bitrateText.value = "MP3 • 320 kbps"

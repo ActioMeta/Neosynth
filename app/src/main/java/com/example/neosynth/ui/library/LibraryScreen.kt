@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.neosynth.data.remote.responses.AlbumDto
 import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.ui.components.AlphabetScrollbar
@@ -38,14 +39,16 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> },
-    onNavigateToPlaylist: (playlistId: String) -> Unit = {}
+    onNavigateToPlaylist: (playlistId: String) -> Unit = {},
+    onNavigateToAlbum: (albumId: String) -> Unit = {}
 ) {
     val playlists by viewModel.playlists.collectAsState()
+    val albums by viewModel.albums.collectAsState()
     val artists by viewModel.artists.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Artistas")
+    val tabs = listOf("Playlists", "Álbumes", "Artistas")
     
     // Dialogs
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -95,60 +98,23 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tabs with spring animation indicator
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                indicator = { tabPositions ->
-                    if (selectedTab < tabPositions.size) {
-                        val currentTabPosition = tabPositions[selectedTab]
-                        
-                        val indicatorOffset by androidx.compose.animation.core.animateDpAsState(
-                            targetValue = currentTabPosition.left,
-                            animationSpec = androidx.compose.animation.core.spring(
-                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                            ),
-                            label = "tab_indicator_offset"
-                        )
-                        
-                        val indicatorWidth by androidx.compose.animation.core.animateDpAsState(
-                            targetValue = currentTabPosition.width,
-                            animationSpec = androidx.compose.animation.core.spring(
-                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-                                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                            ),
-                            label = "tab_indicator_width"
-                        )
-                        
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .wrapContentSize(Alignment.BottomStart)
-                                .offset(x = indicatorOffset)
-                                .width(indicatorWidth)
-                                .height(3.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                                )
-                        )
-                    }
-                }
+            // Tabs with Segmented Buttons
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
             ) {
                 tabs.forEachIndexed { index, title ->
-                    Tab(
+                    SegmentedButton(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { 
-                            Text(
-                                text = title,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    )
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size)
+                    ) {
+                        Text(
+                            text = title,
+                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
             }
 
@@ -163,7 +129,12 @@ fun LibraryScreen(
                         onEditPlaylist = { showEditPlaylistDialog = it },
                         onDeletePlaylist = { showDeletePlaylistDialog = it }
                     )
-                    1 -> ArtistsTab(
+                    1 -> AlbumsTab(
+                        albums = albums,
+                        getCoverUrl = { viewModel.getCoverUrl(it) },
+                        onAlbumClick = onNavigateToAlbum
+                    )
+                    2 -> ArtistsTab(
                         artists = artists,
                         onArtistClick = onNavigateToArtist
                     )
@@ -308,6 +279,166 @@ private fun PlaylistsTab(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+private fun AlbumsTab(
+    albums: List<AlbumDto>,
+    getCoverUrl: (String?) -> String?,
+    onAlbumClick: (String) -> Unit
+) {
+    if (albums.isEmpty()) {
+        EmptyState(
+            icon = Icons.Rounded.Album,
+            title = "No hay álbumes",
+            subtitle = "Los álbumes aparecerán aquí"
+        )
+    } else {
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+        
+        // Agrupar álbumes por primera letra
+        val groupedAlbums = remember(albums) {
+            albums.sortedBy { it.title.lowercase() }
+                .groupBy { album ->
+                    val firstChar = album.title.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (firstChar.isLetter()) firstChar else '#'
+                }
+        }
+        
+        val availableLetters = remember(groupedAlbums) {
+            groupedAlbums.keys.toSet()
+        }
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                groupedAlbums.forEach { (initial, albumsInGroup) ->
+                    stickyHeader(key = "header_$initial") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
+                                .padding(vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = initial.toString(),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    
+                    items(
+                        items = albumsInGroup,
+                        key = { it.id }
+                    ) { album ->
+                        AlbumRow(
+                            album = album,
+                            coverUrl = getCoverUrl(album.coverArt),
+                            onClick = { onAlbumClick(album.id) }
+                        )
+                    }
+                }
+            }
+            
+            // Alphabet Scrollbar
+            if (albums.size > 10) {
+                AlphabetScrollbar(
+                    availableLetters = availableLetters,
+                    currentLetter = null,
+                    onLetterSelected = { letter ->
+                        val keys = groupedAlbums.keys.toList()
+                        val targetKeyIndex = keys.indexOf(letter)
+                        if (targetKeyIndex >= 0) {
+                            var itemIndex = 0
+                            for (i in 0 until targetKeyIndex) {
+                                itemIndex += 1 + (groupedAlbums[keys[i]]?.size ?: 0)
+                            }
+                            scope.launch {
+                                listState.animateScrollToItem(itemIndex)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(end = 4.dp, top = 8.dp, bottom = 180.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumRow(
+    album: AlbumDto,
+    coverUrl: String?,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = androidx.compose.ui.graphics.Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Cover
+            if (coverUrl != null) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = album.title,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Album,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = album.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun ArtistsTab(
     artists: List<ArtistDto>,
     onArtistClick: (String, String) -> Unit
@@ -339,7 +470,8 @@ private fun ArtistsTab(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 groupedArtists.forEach { (initial, artistsInGroup) ->
                     stickyHeader(key = "header_$initial") {
@@ -358,31 +490,14 @@ private fun ArtistsTab(
                         }
                     }
                     
-                    // Mostrar artistas en fila de 3
-                    val chunkedArtists = artistsInGroup.chunked(3)
                     items(
-                        items = chunkedArtists,
-                        key = { row -> row.map { it.id }.joinToString() }
-                    ) { row ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            row.forEach { artist ->
-                                Box(modifier = Modifier.weight(1f)) {
-                                    ArtistGridItem(
-                                        artist = artist,
-                                        onClick = { onArtistClick(artist.id, artist.name) }
-                                    )
-                                }
-                            }
-                            // Espacios vacíos para mantener el grid
-                            repeat(3 - row.size) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
+                        items = artistsInGroup,
+                        key = { it.id }
+                    ) { artist ->
+                        ArtistRowItem(
+                            artist = artist,
+                            onClick = { onArtistClick(artist.id, artist.name) }
+                        )
                     }
                 }
             }
@@ -398,9 +513,7 @@ private fun ArtistsTab(
                         if (targetKeyIndex >= 0) {
                             var itemIndex = 0
                             for (i in 0 until targetKeyIndex) {
-                                val artistsCount = groupedArtists[keys[i]]?.size ?: 0
-                                val rowsCount = (artistsCount + 2) / 3 // Ceiling division
-                                itemIndex += 1 + rowsCount
+                                itemIndex += 1 + (groupedArtists[keys[i]]?.size ?: 0)
                             }
                             scope.launch {
                                 listState.animateScrollToItem(itemIndex)
@@ -429,7 +542,7 @@ private fun PlaylistRow(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = androidx.compose.ui.graphics.Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -520,32 +633,35 @@ private fun PlaylistRow(
 }
 
 @Composable
-private fun ArtistGridItem(
+private fun ArtistRowItem(
     artist: ArtistDto,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        color = androidx.compose.ui.graphics.Color.Transparent
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (artist.artistImageUrl != null) {
+            val imageUrl = artist.artistImageUrl ?: artist.coverArt
+            if (imageUrl != null) {
                 AsyncImage(
-                    model = artist.artistImageUrl,
+                    model = imageUrl,
                     contentDescription = artist.name,
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(56.dp)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
@@ -553,29 +669,30 @@ private fun ArtistGridItem(
                     Icon(
                         imageVector = Icons.Rounded.Person,
                         contentDescription = null,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(28.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-            Text(
-                text = artist.name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-
-            artist.albumCount?.let { count ->
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "$count álbumes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = artist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+
+                artist.albumCount?.let { count ->
+                    Text(
+                        text = "$count álbumes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

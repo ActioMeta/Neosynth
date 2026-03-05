@@ -12,6 +12,7 @@ import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -61,6 +62,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -110,6 +113,50 @@ fun PlayerScreen(
 
     val song = currentSong
     
+    // Pager State synchronized with queue
+    // Pager State synchronized with queue
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = currentIndex,
+        pageCount = { queue.size.coerceAtLeast(1) }
+    )
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
+    var pendingSwipeIndex by remember { mutableIntStateOf(-1) }
+
+    // Sync from Controller -> Pager (Button skips, auto-skips)
+    LaunchedEffect(currentIndex, queue.size) {
+        if (currentIndex in 0 until queue.size) {
+            if (currentIndex == pendingSwipeIndex) {
+                // El reproductor ya completó el cambio que propusimos al hacer el swipe
+                pendingSwipeIndex = -1
+            } else if (pagerState.currentPage != currentIndex && pendingSwipeIndex == -1 && !isDragged) {
+                // Un cambio desde el MusicController (botón, final de canción)
+                // Cambio instantáneo sin animación, la animación es solo para gestos manuales
+                pagerState.scrollToPage(currentIndex)
+            }
+        }
+    }
+
+    // Sync from Pager -> Controller (User swipes)
+    LaunchedEffect(pagerState, isDragged) {
+        androidx.compose.runtime.snapshotFlow { pagerState.settledPage }
+            .collect { settledPage ->
+                // Play song only when Pager is settled AND user is not dragging
+                // This guarantees the swipe gesture has fully finished cleanly
+                if (!isDragged && settledPage != currentIndex && settledPage != pendingSwipeIndex) {
+                    pendingSwipeIndex = settledPage
+                    musicController.playFromQueue(settledPage)
+                }
+            }
+    }
+    
+    // Si el usuario vuelve a arrastrar mientras había un cambio pendiente, lo limpiamos
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            pendingSwipeIndex = -1
+        }
+    }
+    
     // Update bitrate when song changes
     LaunchedEffect(song) {
         viewModel.updateBitrate(song)
@@ -136,8 +183,9 @@ fun PlayerScreen(
         )
     }
 
-    // Color dominante extraído del cover
-    var dominantColor by remember { mutableStateOf(Color.DarkGray) }
+    // Color dominante unificado directo del MusicController
+    val dominantColorInt by musicController.dominantColorInt
+    val dominantColor = Color(dominantColorInt)
     
     // Animación suave del color de fondo
     val animatedColor by animateColorAsState(
@@ -196,237 +244,190 @@ fun PlayerScreen(
         // Artwork con overlay de controles (click para mostrar/ocultar)
         var showControls by remember { mutableStateOf(false) }
         
-        // Reset color when song changes
-        LaunchedEffect(song) {
-            dominantColor = Color.DarkGray // Reset to default while loading
-        }
+        // Reset color when song changes is removed smoothly
         
-        Box(
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            key = { index -> queue.getOrNull(index)?.mediaId ?: index },
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .aspectRatio(1f)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(24.dp))
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { showControls = !showControls }
-                        )
-                    }
-                    .pointerInput(Unit) {
-                        var totalDrag = Offset.Zero
-                        detectDragGestures(
-                            onDragStart = { totalDrag = Offset.Zero },
-                            onDragEnd = {
-                                val x = totalDrag.x
-                                val y = totalDrag.y
-                                val threshold = 100f // Threshold for swipe action
-
-                                when {
-                                    // Vertical Swipes
-                                    abs(y) > abs(x) -> {
-                                        if (y < -threshold) { // Up -> Queue
-                                            showQueueSheet = true
-                                        } else if (y > threshold) { // Down -> Minimize/Back
-                                            onBack()
-                                        }
-                                    }
-                                    // Horizontal Swipes
-                                    abs(x) > abs(y) -> {
-                                        if (x < -threshold) { // Left -> Next
-                                            if (musicController.hasNext.value) musicController.skipNext()
-                                        } else if (x > threshold) { // Right -> Prev
-                                            if (musicController.hasPrevious.value) musicController.skipPrevious()
-                                        }
-                                    }
-                                }
-                            },
-                             onDrag = { change, dragAmount ->
-                                change.consume()
-                                totalDrag += dragAmount
-                            }
-                        )
-                    },
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(15.dp)
-            ) {
-                Crossfade(
-                    targetState = song?.mediaMetadata?.artworkUri,
-                    animationSpec = tween(durationMillis = 300),
-                    label = "cover_crossfade"
-                ) { artworkUri ->
-                    with(sharedTransitionScope) {
-                        AsyncImage(
-                            model = androidx.compose.ui.platform.LocalContext.current.let { context ->
-                                coil.request.ImageRequest.Builder(context)
-                                    .data(artworkUri)
-                                    .allowHardware(false) // CRITICAL for Palette access
-                                    .crossfade(true)
-                                    .build()
-                            },
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(24.dp)) // Apply clip BEFORE sharedElement
-                                .sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "artwork-${song?.mediaId ?: ""}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                ),
-                            onSuccess = { state ->
-                            val bitmap = (state.result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                            if (bitmap != null) {
-                                androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
-                                    // Prioritize Vibrant colors for a "premium" feel
-                                    val swatch = palette?.vibrantSwatch 
-                                        ?: palette?.darkVibrantSwatch 
-                                        ?: palette?.lightVibrantSwatch 
-                                        ?: palette?.mutedSwatch 
-                                        ?: palette?.dominantSwatch
-                                    
-                                    swatch?.rgb?.let { colorValue ->
-                                        val originalColor = Color(colorValue)
-                                        
-                                        // Boost Saturation and Brightness logic
-                                        val hsv = FloatArray(3)
-                                        android.graphics.Color.colorToHSV(originalColor.toArgb(), hsv)
-                                        
-                                        // Boost Saturation if too dull
-                                        if (hsv[1] < 0.5f) {
-                                            hsv[1] = (hsv[1] + 0.4f).coerceAtMost(0.9f)
-                                        }
-                                        
-                                        // Boost Brightness (Value) if too dark (ensure glow is visible)
-                                        if (hsv[2] < 0.3f) {
-                                            hsv[2] = 0.4f
-                                        }
-                                        
-                                        dominantColor = Color(android.graphics.Color.HSVToColor(hsv))
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-            }
+                .fillMaxWidth()
+                .weight(1f) // Takes the space between top spacer and the slider
+        ) { page ->
+            val pageSong = queue.getOrNull(page)
             
-            // Overlay con blur y botones
-            androidx.compose.animation.AnimatedVisibility(
-                visible = showControls,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut()
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .clickable { showControls = false },
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth(0.85f)
+                        .aspectRatio(1f)
                 ) {
-                    // Grid de botones 2x3
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp))
+                            .pointerInput(Unit) {
+                                var totalDrag = Offset.Zero
+                                detectDragGestures(
+                                    onDragStart = { totalDrag = Offset.Zero },
+                                    onDragEnd = {
+                                        val y = totalDrag.y
+                                        val x = totalDrag.x
+                                        val threshold = 100f
+    
+                                        // Only handle vertical swipes (Pager handles horizontal)
+                                        if (abs(y) > abs(x) && abs(y) > threshold) {
+                                            if (y < -threshold) { // Up -> Queue
+                                                showQueueSheet = true
+                                            } else if (y > threshold) { // Down -> Minimize/Back
+                                                onBack()
+                                            }
+                                        }
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        val y = dragAmount.y
+                                        val x = dragAmount.x
+                                        // Only consume if moving more vertically than horizontally
+                                        if (abs(y) > abs(x)) {
+                                            change.consume()
+                                            totalDrag += dragAmount
+                                        }
+                                    }
+                                )
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = { showControls = !showControls }
+                                )
+                            },
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = CardDefaults.cardElevation(15.dp)
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            CoverArtButton(
-                                icon = Icons.Rounded.Shuffle,
-                                isActive = musicController.shuffleModeEnabled.value,
-                                onClick = { musicController.toggleShuffle() }
-                            )
-                            CoverArtButton(
-                                icon = if (musicController.repeatMode.value == Player.REPEAT_MODE_ONE) 
-                                    Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                                isActive = musicController.repeatMode.value != Player.REPEAT_MODE_OFF,
-                                onClick = { musicController.toggleRepeat() }
-                            )
-                            CoverArtButton(
-                                icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                isActive = isFavorite,
-                                onClick = onToggleFavorite
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            CoverArtButton(
-                                icon = if (isCurrentSongDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
-                                isActive = isCurrentSongDownloaded,
-                                onClick = onDownload
-                            )
-                            CoverArtButton(
-                                icon = Icons.Rounded.QueueMusic,
-                                isActive = false,
-                                onClick = { showQueueSheet = true }
-                            )
-                            CoverArtButton(
-                                icon = Icons.Rounded.Lyrics,
-                                isActive = false,
-                                onClick = onLyricsClick
-                            )
+                        Crossfade(
+                            targetState = pageSong?.mediaMetadata?.artworkUri,
+                            animationSpec = tween(durationMillis = 300),
+                            label = "cover_crossfade"
+                        ) { artworkUri ->
+                            with(sharedTransitionScope) {
+                                AsyncImage(
+                                    model = androidx.compose.ui.platform.LocalContext.current.let { context ->
+                                        coil.request.ImageRequest.Builder(context)
+                                            .data(artworkUri)
+                                            .allowHardware(false)
+                                            .crossfade(true)
+                                            .build()
+                                    },
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .then(
+                                            if (pageSong != null) {
+                                                Modifier.sharedElement(
+                                                    sharedContentState = rememberSharedContentState(key = "artwork-${pageSong.mediaId}"),
+                                                    animatedVisibilityScope = animatedVisibilityScope
+                                                )
+                                            } else Modifier
+                                        )
+                                )
+                            }
                         }
                     }
+                    
+                    // Overlay de Controles (sólo visible si showControls y es la página actual)
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showControls && page == currentIndex,
+                        enter = androidx.compose.animation.fadeIn(),
+                        exit = androidx.compose.animation.fadeOut()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .clickable { showControls = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    CoverArtButton(icon = Icons.Rounded.Shuffle, isActive = musicController.shuffleModeEnabled.value, onClick = { musicController.toggleShuffle() })
+                                    CoverArtButton(icon = if (musicController.repeatMode.value == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, isActive = musicController.repeatMode.value != Player.REPEAT_MODE_OFF, onClick = { musicController.toggleRepeat() })
+                                    CoverArtButton(icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, isActive = isFavorite, onClick = onToggleFavorite)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    CoverArtButton(icon = if (isCurrentSongDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download, isActive = isCurrentSongDownloaded, onClick = onDownload)
+                                    CoverArtButton(icon = Icons.Rounded.QueueMusic, isActive = false, onClick = { showQueueSheet = true })
+                                    CoverArtButton(icon = Icons.Rounded.Lyrics, isActive = false, onClick = onLyricsClick)
+                                }
+                            }
+                        }
+                    }
+                } // Fin Box del CoverArt
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Audio Quality Badge (Bitrate Real y Dinámico)
+                // Se muestra el bitrate sólo en la página actual o un texto por defecto
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = if (page == currentIndex) bitrateText else "HQ",
+                        label = "bitrate_anim"
+                    ) { targetText ->
+                        Text(
+                            text = targetText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
                 }
+        
+                Spacer(modifier = Modifier.weight(0.1f))
+                
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = pageSong?.mediaMetadata?.title?.toString() ?: "Sin título",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+        
+                    Text(
+                        text = pageSong?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                spacing = MarqueeSpacing(24.dp),
+                                initialDelayMillis = 2000,
+                                repeatDelayMillis = 2000
+                            )
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
-
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Audio Quality Badge (Bitrate Real y Dinámico)
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clip(RoundedCornerShape(4.dp))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-        ) {
-            Text(
-                text = bitrateText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(0.1f))
-        
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            // Title and Artist Column (Empty)
-
-            Text(
-                text = song?.mediaMetadata?.title?.toString() ?: "Sin título",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = song?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .basicMarquee(
-                        iterations = Int.MAX_VALUE, // Infinito
-                        spacing = MarqueeSpacing(24.dp),
-                        initialDelayMillis = 2000,
-                        repeatDelayMillis = 2000
-                    )
-            )
-        }
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         
         LaunchedEffect(visualizerEnabled) {
             viewModel.checkAudioPermission()

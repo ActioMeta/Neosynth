@@ -15,6 +15,10 @@ import com.google.common.util.concurrent.MoreExecutors
 import androidx.media3.common.Player
 import androidx.media3.common.C
 import kotlin.math.abs
+import android.graphics.drawable.BitmapDrawable
+import androidx.palette.graphics.Palette
+import coil.ImageLoader
+import coil.request.ImageRequest
 
 @Singleton
 class MusicController @Inject constructor(
@@ -28,6 +32,10 @@ class MusicController @Inject constructor(
 
     private val _currentMediaItem = mutableStateOf<MediaItem?>(null)
     val currentMediaItem: State<MediaItem?> = _currentMediaItem
+    
+    private val _dominantColorInt = mutableStateOf(android.graphics.Color.DKGRAY)
+    val dominantColorInt: State<Int> = _dominantColorInt
+    
     private val _currentPosition = mutableStateOf(0L)
     val currentPosition: State<Long> = _currentPosition
 
@@ -79,8 +87,10 @@ class MusicController @Inject constructor(
                     _currentMediaItem.value = mediaItem
                     _currentIndex.value = player.currentMediaItemIndex
                     _duration.value = getDuration(player)
+                    _currentPosition.value = player.currentPosition
                     updateQueue()
                     updateNavStates()
+                    updateDominantColor(mediaItem)
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -133,6 +143,42 @@ class MusicController @Inject constructor(
         }
     }
 
+    private fun updateDominantColor(mediaItem: MediaItem?) {
+        val uri = mediaItem?.mediaMetadata?.artworkUri
+        if (uri == null) {
+            _dominantColorInt.value = android.graphics.Color.DKGRAY
+            return
+        }
+        
+        val loader = ImageLoader(context)
+        val request = ImageRequest.Builder(context)
+            .data(uri)
+            .allowHardware(false)
+            .target { result ->
+                val bitmap = (result as? BitmapDrawable)?.bitmap
+                if (bitmap != null) {
+                    Palette.from(bitmap).generate { palette ->
+                        val swatch = palette?.vibrantSwatch 
+                            ?: palette?.darkVibrantSwatch 
+                            ?: palette?.lightVibrantSwatch 
+                            ?: palette?.mutedSwatch 
+                            ?: palette?.dominantSwatch
+                        
+                        swatch?.rgb?.let { colorValue ->
+                            val hsv = FloatArray(3)
+                            android.graphics.Color.colorToHSV(colorValue, hsv)
+                            if (hsv[1] < 0.5f) hsv[1] = (hsv[1] + 0.4f).coerceAtMost(0.9f)
+                            if (hsv[2] < 0.3f) hsv[2] = 0.4f
+                            _dominantColorInt.value = android.graphics.Color.HSVToColor(hsv)
+                        } ?: run {
+                            _dominantColorInt.value = android.graphics.Color.DKGRAY
+                        }
+                    }
+                }
+            }
+            .build()
+        loader.enqueue(request)
+    }
 
     fun togglePlayPause() {
         browser?.let {
@@ -140,8 +186,20 @@ class MusicController @Inject constructor(
         }
     }
 
-    fun skipNext() { browser?.seekToNext() }
-    fun skipPrevious() { browser?.seekToPrevious() }
+    fun skipNext() { 
+        isSeeking.value = true
+        pendingSeekPosition = 0L
+        _currentPosition.value = 0L
+        browser?.seekToNext()
+        resetSeekingStateDelayed()
+    }
+    fun skipPrevious() { 
+        isSeeking.value = true
+        pendingSeekPosition = 0L
+        _currentPosition.value = 0L
+        browser?.seekToPrevious() 
+        resetSeekingStateDelayed()
+    }
     
     fun skipPreviousOrRestart() {
         browser?.let { player ->
@@ -181,10 +239,23 @@ class MusicController @Inject constructor(
     fun playFromQueue(index: Int) {
         browser?.let { player ->
             if (index in 0 until player.mediaItemCount) {
+                isSeeking.value = true
+                pendingSeekPosition = 0L
+                _currentPosition.value = 0L
                 player.seekTo(index, 0L)
                 player.play()
+                resetSeekingStateDelayed()
             }
         }
+    }
+
+    private fun resetSeekingStateDelayed() {
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (isSeeking.value) {
+                isSeeking.value = false
+                pendingSeekPosition = null
+            }
+        }, 10000)
     }
     
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {

@@ -13,6 +13,7 @@ import com.example.neosynth.data.local.entities.ServerEntity
 import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.local.dao.PlaybackHistoryDao
 import com.example.neosynth.data.local.entities.PlaybackHistoryEntity
+import com.example.neosynth.data.local.entities.PendingSyncActionEntity
 
 /**
  * Migration from version 2 to 3: Add multi-source support
@@ -103,6 +104,25 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * Migration from version 6 to 7: Add PendingSyncAction table
+ * Adds pending_sync_actions table for bidirectional offline playlist sync
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `pending_sync_actions` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                `serverId` INTEGER NOT NULL,
+                `actionType` TEXT NOT NULL, 
+                `payload` TEXT NOT NULL, 
+                `createdAt` INTEGER NOT NULL, 
+                `isProcessing` INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
 @Database(
     entities = [
         SongEntity::class,
@@ -111,8 +131,9 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         ServerEntity::class,
         PlaylistEntity::class,
         PlaylistSongCrossRef::class,
-        PlaybackHistoryEntity::class],
-    version = 6,
+        PlaybackHistoryEntity::class,
+        PendingSyncActionEntity::class],
+    version = 7,
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {

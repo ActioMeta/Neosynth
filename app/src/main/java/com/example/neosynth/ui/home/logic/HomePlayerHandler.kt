@@ -96,8 +96,12 @@ class HomePlayerHandler @Inject constructor(
     suspend fun getAlbumSongs(albumId: String): List<MediaItem> {
          if (networkHelper.isCurrentConnectionOffline) {
              val downloadedSongs = musicRepository.getDownloadedSongs().first()
-             val albumSongs = downloadedSongs.filter { it.albumID == albumId || it.album == albumId }
-             
+             // First, try to filter by albumID (normal album playback)
+             var albumSongs = downloadedSongs.filter { it.albumID == albumId }
+             // Fallback: if no album match, treat albumId as a songId (offline carousel uses song.id)
+             if (albumSongs.isEmpty()) {
+                 albumSongs = downloadedSongs.filter { it.id == albumId }
+             }
              if (albumSongs.isNotEmpty()) {
                   return albumSongs.map { songEntityToMediaItem(it) }
              }
@@ -148,7 +152,21 @@ class HomePlayerHandler @Inject constructor(
     }
 
     private fun songEntityToMediaItem(song: SongEntity): MediaItem {
-         return MediaItem.Builder()
+        // Extraer metadatos si existen
+        var bitRate = 0
+        var format = "MP3"
+        
+        try {
+            song.metadata?.let { metadataStr ->
+                val json = org.json.JSONObject(metadataStr)
+                if (json.has("bitRate")) bitRate = json.getInt("bitRate")
+                if (json.has("format")) format = json.getString("format")
+            }
+        } catch (e: Exception) {
+            Log.e("HomePlayerHandler", "Error parsing metadata for offline song", e)
+        }
+
+        return MediaItem.Builder()
             .setMediaId(song.id)
             .setUri(song.path)
             .setMediaMetadata(
@@ -163,6 +181,8 @@ class HomePlayerHandler @Inject constructor(
                             putString("coverArtId", song.imageUrl)
                             putLong("duration", song.duration)
                             putBoolean("isDownloaded", true)
+                            putInt("bitRate", bitRate)
+                            putString("suffix", format)
                         }
                     )
                     .build()
@@ -171,17 +191,20 @@ class HomePlayerHandler @Inject constructor(
     }
 
     private fun songDtoToMediaItem(songDto: SongDto, server: ServerEntity, quality: StreamQuality): MediaItem {
-        val baseUrl = server.url.removeSuffix("/")
+        val streamUrl = com.example.neosynth.utils.StreamUrlBuilder.buildStreamUrl(server, songDto.id, quality)
+        val coverUrl = buildCoverArtUrl(server, songDto.coverArt)
         
-        // Build stream URL with quality parameters
-        val qualityParams = if (quality == StreamQuality.LOSSLESS) {
-            "" // No params, returns original
+        val effectiveBitrate = if (quality != StreamQuality.LOSSLESS) {
+            quality.bitrate
         } else {
-            "&maxBitRate=${quality.bitrate}&format=${quality.format}"
+            songDto.bitRate ?: 0
         }
         
-        val streamUrl = "$baseUrl/rest/stream?id=${songDto.id}&u=${server.username}&t=${server.token}&s=${server.salt}&v=1.16.1&c=NeoSynth$qualityParams"
-        val coverUrl = buildCoverArtUrl(server, songDto.coverArt)
+        val effectiveFormat = if (quality != StreamQuality.LOSSLESS) {
+            quality.format.uppercase()
+        } else {
+            songDto.suffix?.uppercase() ?: "MP3"
+        }
         
         return MediaItem.Builder()
             .setMediaId(songDto.id)
@@ -198,6 +221,11 @@ class HomePlayerHandler @Inject constructor(
                             putString("artistId", songDto.artistId)
                             putLong("duration", songDto.duration.toLong())
                             putBoolean("isDownloaded", false)
+                            putInt("bitRate", effectiveBitrate)
+                            putString("suffix", effectiveFormat)
+                            putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
+                            putInt("originalBitRate", songDto.bitRate ?: 0)
+                            putString("originalSuffix", songDto.suffix ?: "MP3")
                         }
                     )
                     .build()

@@ -57,7 +57,7 @@ class AlbumPlayerHandler @Inject constructor(
         }
 
         val streamUrl = StreamUrlBuilder.buildStreamUrl(server, song.id, streamQuality)
-        val coverUrl = buildCoverArtUrl(server, song.coverArt ?: albumCoverArt)
+        val coverUrl = buildCoverArtUrl(server, song.coverArt?.takeIf { it.isNotBlank() } ?: albumCoverArt)
 
         return MediaItem.Builder()
             .setMediaId(song.id)
@@ -74,6 +74,8 @@ class AlbumPlayerHandler @Inject constructor(
                             putString("suffix", effectiveFormat)
                             putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
                             putLong("duration", song.duration * 1000L)
+                            putInt("originalBitRate", song.bitRate ?: 0)
+                            putString("originalSuffix", song.suffix ?: "MP3")
                         }
                     )
                     .build()

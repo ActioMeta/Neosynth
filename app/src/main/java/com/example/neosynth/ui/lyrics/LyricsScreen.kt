@@ -47,27 +47,9 @@ fun LyricsScreen(
     val currentPosition by musicController.currentPosition
     
     // Extract dominant color for Fade effect
-    var dominantColor by remember { mutableStateOf<Color>(Color.DarkGray) }
+    val dominantColorInt by musicController.dominantColorInt
+    val dominantColor = Color(dominantColorInt)
     val context = LocalContext.current
-    LaunchedEffect(currentSong) {
-        currentSong?.mediaMetadata?.artworkUri?.let { uri ->
-            val loader = coil.ImageLoader(context)
-            val request = coil.request.ImageRequest.Builder(context)
-                .data(uri)
-                .allowHardware(false)
-                .target { result ->
-                    val bitmap = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                    androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
-                         val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.mutedSwatch
-                         swatch?.rgb?.let { colorValue ->
-                            dominantColor = Color(colorValue)
-                         }
-                    }
-                }
-                .build()
-            loader.enqueue(request)
-        }
-    }
 
     // Parsear letras
     val parsedLyrics = remember(lyrics) {

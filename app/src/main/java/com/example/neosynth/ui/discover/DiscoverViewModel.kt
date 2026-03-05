@@ -447,6 +447,8 @@ class DiscoverViewModel @Inject constructor(
                                     putString("suffix", effectiveFormat)
                                     putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
                                     putLong("duration", s.duration * 1000L)
+                                    putInt("originalBitRate", s.bitRate ?: 0)
+                                    putString("originalSuffix", s.suffix ?: "MP3")
                                 }
                             )
                             .build()
@@ -477,6 +479,8 @@ class DiscoverViewModel @Inject constructor(
                 .putString("artist", song.artist)
                 .putString("album", song.album)
                 .putInt("duration", song.duration)
+                .putInt("originalBitRate", song.bitRate ?: 0)
+                .putString("originalSuffix", song.suffix ?: "MP3")
                 .putString("coverArt", song.coverArt)
                 .putLong("serverId", server.id)
                 .putString("serverUrl", server.url)

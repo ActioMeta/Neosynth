@@ -1,134 +1,134 @@
 # NeoSynth
 
-Cliente de música moderno para Android que se conecta a servidores Navidrome y Subsonic.
+Modern music client for Android that connects to Navidrome and Subsonic servers.
 
-## Descripción
+## Description
 
-NeoSynth es una aplicación nativa de Android desarrollada con Jetpack Compose y Material Design 3, que permite reproducir tu biblioteca musical personal desde cualquier servidor compatible con Navidrome o la API de Subsonic.
+NeoSynth is a native Android application built with Jetpack Compose and Material Design 3, allowing you to play your personal music library from any server compatible with Navidrome or the Subsonic API.
 
-## Características Principales
+## Main Features
 
-### Novedades v2.2.0 (Marzo 2026)
-- Sistema avanzado de letras con editor integrado, sincronización interactiva y soporte LRC
-- Generación de letras faltantes con IA (Gemini 2.0)
-- Publicación de letras en LRCLib con Proof of Work (PoW)
-- Fallback automático entre LRCLIB y Netease Cloud Music
-- HomeScreen adaptativa en modo offline (Mix aleatorio y agregados recientes desde contenido local)
-- Reordenamiento avanzado de cola con drag-and-drop y auto-scroll
-- Persistencia del orden original de la cola al alternar shuffle
-- Visualizador de audio opcional desde ajustes
-- Modo inmersivo en reproductor y pantalla de letras
+### What's New in v2.2.0 (March 2026)
+- Advanced lyrics system with integrated editor, interactive synchronization, and LRC support
+- Missing lyrics generation with AI (Gemini 2.0)
+- Lyrics publishing to LRCLib with Proof of Work (PoW)
+- Automatic fallback between LRCLIB and Netease Cloud Music
+- Adaptive HomeScreen in offline mode (Random Mix and recent additions from local content)
+- Advanced queue reordering with drag-and-drop and auto-scroll
+- Preservation of original queue order when toggling shuffle
+- Optional audio visualizer from settings
+- Immersive mode on player and lyrics screen
 
-### Reproducción de Audio
-- Streaming en tiempo real desde el servidor
-- Reproducción en segundo plano con notificaciones de control
-- Cola de reproducción con soporte para shuffle y repeat
-- Mini reproductor persistente durante la navegación
-- Reproductor de pantalla completa con controles gestuales
+### Audio Playback
+- Real-time streaming from server
+- Background playback with control notifications
+- Playback queue with support for shuffle and repeat
+- Persistent mini player during navigation
+- Full-screen player with gesture controls
 
-### Gestión de Contenido
-- Descarga de canciones individuales, álbumes completos y playlists
-- Descargas en segundo plano con WorkManager
-- Reproducción offline de contenido descargado
-- Organización alfabética con sticky headers
-- Modo de selección múltiple
-- Sistema de favoritos sincronizado con el servidor
+### Content Management
+- Download individual songs, complete albums, and playlists
+- Background downloads with WorkManager
+- Offline playback of downloaded content
+- Alphabetical organization with sticky headers
+- Multi-select mode
+- Favorites system synchronized with server
 
-### Letras (Lyrics Engine)
-- Editor de letras integrado en la app
-- Sincronización interactiva de líneas con la reproducción
-- Generación asistida de letras con Gemini 2.0
-- Publicación a LRCLib con validación PoW
-- Resolución multi-proveedor con fallback automático (LRCLIB/Netease)
+### Lyrics (Lyrics Engine)
+- Integrated lyrics editor in the app
+- Interactive line synchronization during playback
+- Assisted lyrics generation with Gemini 2.0
+- Publishing to LRCLib with PoW validation
+- Multi-provider resolution with automatic fallback (LRCLIB/Netease)
 
-### Interfaz de Usuario
-- Carrusel de álbumes recién agregados
-- Mix aleatorio
-- Menú contextual en álbumes (reproducir, shuffle, descargar, ir al artista)
-- Theming dinámico basado en Material You
-- Soporte para tema claro y oscuro
+### User Interface
+- Carousel of recently added albums
+- Random Mix
+- Context menu on albums (play, shuffle, download, go to artist)
+- Dynamic theming based on Material You
+- Support for light and dark themes
 
-### Multi-servidor
-- Soporte para múltiples servidores Navidrome/Subsonic
-- Autenticación segura con tokens MD5
-- Cambio rápido entre servidores
+### Multi-server
+- Support for multiple Navidrome/Subsonic servers
+- Secure authentication with MD5 tokens
+- Quick switching between servers
 
-## Requisitos del Sistema
+## System Requirements
 
-**Versiones de Android Compatibles:**
-- Mínimo: Android 9.0 Pie (API 28)
-- Objetivo: Android 15 (API 35)
+**Compatible Android Versions:**
+- Minimum: Android 9.0 Pie (API 28)
+- Target: Android 15 (API 35)
 
-**Servidor:**
-- Navidrome o cualquier servidor compatible con Subsonic API
+**Server:**
+- Navidrome or any server compatible with Subsonic API
 
-## Capturas de Pantalla
+## Screenshots
 
 <p align="center">
-  <img src="docs/images/Screenshot_20260101-170147.jpg" width="250" alt="Pantalla Principal"/>
-  <img src="docs/images/Screenshot_20260101-170152.jpg" width="250" alt="Reproductor"/>
-  <img src="docs/images/Screenshot_20260101-170212.jpg" width="250" alt="Descargas"/>
+  <img src="docs/images/Screenshot_20260101-170147.jpg" width="250" alt="Home Screen"/>
+  <img src="docs/images/Screenshot_20260101-170152.jpg" width="250" alt="Player"/>
+  <img src="docs/images/Screenshot_20260101-170212.jpg" width="250" alt="Downloads"/>
 </p>
 
-## Tecnologías
+## Technologies
 
 - Kotlin 2.0
 - Jetpack Compose
 - Material Design 3
-- Hilt (Inyección de dependencias)
-- Room (Base de datos local)
-- Retrofit (Cliente HTTP)
-- Media3/ExoPlayer (Reproducción de audio)
-- WorkManager (Tareas en background)
-- Coroutines y Flow
+- Hilt (Dependency Injection)
+- Room (Local Database)
+- Retrofit (HTTP Client)
+- Media3/ExoPlayer (Audio Playback)
+- WorkManager (Background Tasks)
+- Coroutines and Flow
 
-## Documentación
+## Documentation
 
-Para información detallada sobre el proyecto, consulta la carpeta `docs/`:
+For detailed information about the project, check the `docs/` folder:
 
-- [Arquitectura del Proyecto](docs/ARCHITECTURE.md) - Patrones de diseño, capas, flujo de datos
-- [Funciones y Componentes](docs/FUNCTIONS.md) - Documentación detallada de ViewModels, Repositories, Workers, Services y utilidades
-- [Configuración y Uso](docs/CONFIGURATION.md) - Instalación y configuración
-- [Stack Tecnológico](docs/TECH_STACK.md) - Tecnologías utilizadas
-- [Material Design 3](docs/MATERIAL_DESIGN.md) - Guía de estilos y componentes
-- [API de Navidrome](docs/NAVIDROME_API.md) - Documentación de endpoints
+- [Project Architecture](docs/ARCHITECTURE.md) - Design patterns, layers, data flow
+- [Functions and Components](docs/FUNCTIONS.md) - Detailed documentation of ViewModels, Repositories, Workers, Services, and utilities
+- [Configuration and Usage](docs/CONFIGURATION.md) - Installation and setup
+- [Tech Stack](docs/TECH_STACK.md) - Technologies used
+- [Material Design 3](docs/MATERIAL_DESIGN.md) - Style guide and components
+- [Navidrome API](docs/NAVIDROME_API.md) - Endpoints documentation
 
-## Características Técnicas
+## Technical Features
 
-### Sistema de Descargas
-- Estrategia híbrida con batches de 10 canciones en paralelo
-- WorkManager para persistencia y reintentos automáticos
-- Contador atómico para progreso en tiempo real
-- Soporte offline completo con indicadores visuales
+### Download System
+- Hybrid strategy with batches of 10 songs in parallel
+- WorkManager for persistence and automatic retries
+- Atomic counter for real-time progress
+- Complete offline support with visual indicators
 
-### Reproducción
-- Media3 (ExoPlayer) para reproducción de alta calidad
-- MediaSessionService para controles de sistema
-- Notificaciones con controles de reproducción
-- Cola de reproducción con reordenamiento drag & drop y auto-scroll
-- Persistencia del orden original al alternar shuffle
+### Playback
+- Media3 (ExoPlayer) for high-quality playback
+- MediaSessionService for system controls
+- Notifications with playback controls
+- Playback queue with drag & drop reordering and auto-scroll
+- Preservation of original order when toggling shuffle
 
-### Sincronización
-- Repository pattern como single source of truth
-- Sincronización bidireccional (local ↔ servidor)
-- Batch operations para optimizar llamadas API
-- Caché inteligente con Room Database
+### Synchronization
+- Repository pattern as single source of truth
+- Bidirectional synchronization (local ↔ server)
+- Batch operations to optimize API calls
+- Smart caching with Room Database
 
-### Interfaz de Usuario
-- Material Design 3 con Dynamic Color
-- Jetpack Compose 100%
-- Skeletons que coinciden exactamente con el contenido real
-- Animaciones fluidas y transiciones
-- Modo inmersivo en pantallas de reproducción y letras
+### User Interface
+- Material Design 3 with Dynamic Color
+- 100% Jetpack Compose
+- Skeletons that match actual content exactly
+- Smooth animations and transitions
+- Immersive mode on playback and lyrics screens
 
 ## Changelog v2.2.0
 
-### Fixes y mejoras recientes
-- Corrección de navegación de letras: se resolvió el conflicto de gestos al pulsar líneas
-- Descargas más estables: mejoras en DownloadWorker para notificaciones persistentes y errores de red
-- Sincronización de UI del reproductor: evita mostrar brevemente metadata de la siguiente canción en swipes rápidos
-- Gestión de caché de letras: respuestas fallidas ya no se cachean, forzando reintentos limpios
+### Recent Fixes and Improvements
+- Lyrics navigation fix: resolved gesture conflict when tapping lines
+- More stable downloads: improvements in DownloadWorker for persistent notifications and network errors
+- Player UI synchronization: prevents briefly showing next song metadata on quick swipes
+- Lyrics cache management: failed responses are no longer cached, forcing clean retries
 
-## Licencia
+## License
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+This project is under the MIT License. See the `LICENSE` file for more details.

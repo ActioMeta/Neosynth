@@ -44,7 +44,7 @@ class HomePlayerHandler @Inject constructor(
     fun playShuffle(scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>, updateRandomCoverArts: (List<String>) -> Unit) {
         scope.launch {
             if (networkHelper.isCurrentConnectionOffline) {
-                playOfflineShuffle(uiEvent)
+                playOfflineShuffle(uiEvent, updateRandomCoverArts)
                 return@launch
             }
 
@@ -55,14 +55,16 @@ class HomePlayerHandler @Inject constructor(
             val quality = getStreamQuality()
             
             try {
-                val response = api.getRandomSongs(
-                    size = 20,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt,
-                    v = "1.16.1",
-                    c = "NeoSynth"
-                )
+                val response = kotlinx.coroutines.withTimeout(3000L) {
+                    api.getRandomSongs(
+                        size = 20,
+                        u = server.username,
+                        t = server.token,
+                        s = server.salt,
+                        v = "1.16.1",
+                        c = "NeoSynth"
+                    )
+                }
 
                 val songsDto = response.response.randomSongs?.song.orEmpty()
                 updateRandomCoverArts(
@@ -74,17 +76,22 @@ class HomePlayerHandler @Inject constructor(
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                playOfflineShuffle(uiEvent)
+                playOfflineShuffle(uiEvent, updateRandomCoverArts)
             }
         }
     }
 
-    private suspend fun playOfflineShuffle(uiEvent: MutableSharedFlow<UiEvent>) {
+    private suspend fun playOfflineShuffle(uiEvent: MutableSharedFlow<UiEvent>, updateRandomCoverArts: (List<String>) -> Unit) {
         try {
-            val downloadedSongs = musicRepository.getDownloadedSongs().first()
-            if (downloadedSongs.isNotEmpty()) {
-                val mediaItems = downloadedSongs.map { songEntityToMediaItem(it) }
-                musicController.playQueue(mediaItems.shuffled(), 0)
+            val randomSongs = musicRepository.getRandomDownloadedSongs(50)
+            if (randomSongs.isNotEmpty()) {
+                val mediaItems = kotlinx.coroutines.Dispatchers.IO.let {
+                    kotlinx.coroutines.withContext(it) {
+                        randomSongs.map { songEntityToMediaItem(it) }
+                    }
+                }
+                updateRandomCoverArts(randomSongs.take(3).mapNotNull { it.imageUrl })
+                musicController.playQueue(mediaItems, 0)
             } else {
                 uiEvent.emit(UiEvent.ShowSnackbar("No hay canciones descargadas"))
             }
@@ -95,17 +102,21 @@ class HomePlayerHandler @Inject constructor(
 
     suspend fun getAlbumSongs(albumId: String): List<MediaItem> {
          if (networkHelper.isCurrentConnectionOffline) {
-             val downloadedSongs = musicRepository.getDownloadedSongs().first()
-             // First, try to filter by albumID (normal album playback)
-             var albumSongs = downloadedSongs.filter { it.albumID == albumId }
+             var albumSongs = musicRepository.getDownloadedSongsByAlbum(albumId)
              // Fallback: if no album match, treat albumId as a songId (offline carousel uses song.id)
              if (albumSongs.isEmpty()) {
-                 albumSongs = downloadedSongs.filter { it.id == albumId }
+                 val song = musicRepository.getSongById(albumId)
+                 if (song != null && song.isDownloaded) {
+                     albumSongs = listOf(song)
+                 }
              }
-             if (albumSongs.isNotEmpty()) {
-                  return albumSongs.map { songEntityToMediaItem(it) }
+             return if (albumSongs.isNotEmpty()) {
+                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                     albumSongs.map { songEntityToMediaItem(it) }
+                 }
+             } else {
+                 emptyList()
              }
-             return emptyList()
         }
         
         val server = serverDao.getActiveServer() ?: return emptyList()
@@ -115,12 +126,14 @@ class HomePlayerHandler @Inject constructor(
         val quality = getStreamQuality()
 
         return try {
-            val response = api.getAlbum(
-                albumId = albumId,
-                u = server.username,
-                t = server.token,
-                s = server.salt
-            )
+            val response = kotlinx.coroutines.withTimeout(3000L) {
+                api.getAlbum(
+                    albumId = albumId,
+                    u = server.username,
+                    t = server.token,
+                    s = server.salt
+                )
+            }
 
             val songs = response.response.albumDetails?.song.orEmpty()
             songs.map { songDto ->
@@ -128,10 +141,17 @@ class HomePlayerHandler @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-             val downloadedSongs = musicRepository.getDownloadedSongs().first()
-             val albumSongs = downloadedSongs.filter { it.albumID == albumId }
-             if (albumSongs.isNotEmpty()) {
-                  albumSongs.map { songEntityToMediaItem(it) }
+             var albumSongs = musicRepository.getDownloadedSongsByAlbum(albumId)
+             if (albumSongs.isEmpty()) {
+                 val song = musicRepository.getSongById(albumId)
+                 if (song != null && song.isDownloaded) {
+                     albumSongs = listOf(song)
+                 }
+             }
+             return if (albumSongs.isNotEmpty()) {
+                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                     albumSongs.map { songEntityToMediaItem(it) }
+                 }
              } else {
                  emptyList()
              }

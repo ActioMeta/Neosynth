@@ -13,6 +13,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,11 +28,27 @@ import com.example.neosynth.data.model.LyricsResult
 @Composable
 fun LyricsSelectionSheet(
     options: List<LyricsResult>,
+    selectedOptionId: String? = null,
+    applyingOptionId: String? = null,
     onSelect: (LyricsResult) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
-    var selectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var selectedIndex by remember(selectedOptionId, options) {
+        mutableIntStateOf(
+            when (options.firstOrNull { it.id == selectedOptionId }?.isSynced) {
+                false -> 1
+                else -> 0
+            }
+        )
+    }
+
+    LaunchedEffect(selectedOptionId, options) {
+        selectedIndex = when (options.firstOrNull { it.id == selectedOptionId }?.isSynced) {
+            false -> 1
+            else -> 0
+        }
+    }
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -99,6 +116,8 @@ fun LyricsSelectionSheet(
                         LyricsOptionItem(
                             option = option,
                             icon = if (option.isSynced) Icons.Rounded.Lyrics else Icons.Rounded.TextSnippet,
+                            isSelected = option.id == selectedOptionId,
+                            isApplying = option.id == applyingOptionId,
                             onClick = { onSelect(option) }
                         )
                     }
@@ -112,12 +131,14 @@ fun LyricsSelectionSheet(
 fun LyricsOptionItem(
     option: LyricsResult,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    isApplying: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
@@ -137,17 +158,44 @@ fun LyricsOptionItem(
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                // Remove redundant info (Netease, parens)
-                val cleanTitle = option.source
-                    .replace("Netease", "", ignoreCase = true)
-                    .replace(Regex("\\(.*\\)"), "") // Remove anything in parentheses
-                    .trim()
-                    
                 Text(
-                    text = cleanTitle.ifEmpty { option.source }, // Fallback if empty
+                    text = option.source.ifBlank { "LRCLIB" },
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
+
+                val previewText = option.lyric
+                    .lineSequence()
+                    .map { it.trim() }
+                    .firstOrNull { it.isNotEmpty() && !it.startsWith("[") }
+                    ?: if (option.isSynced) "Letra sincronizada" else "Letra en texto plano"
+
+                Text(
+                    text = previewText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            when {
+                isApplying -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+                isSelected -> {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

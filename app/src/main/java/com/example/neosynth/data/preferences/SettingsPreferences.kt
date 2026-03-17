@@ -51,7 +51,8 @@ data class AudioSettings(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val visualizerEnabled: Boolean = false
+    val visualizerEnabled: Boolean = false,
+    val geminiApiKey: String = ""
     // Dynamic Colors removed by user request
 )
 
@@ -77,6 +78,9 @@ class SettingsPreferences @Inject constructor(
         // val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors") // Removed
         val CROSSFEED_ENABLED = booleanPreferencesKey("crossfeed_enabled")
         val CROSSFEED_STRENGTH = intPreferencesKey("crossfeed_strength")
+        
+        // External Services
+        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
     }
 
     // Audio Settings Flow
@@ -98,7 +102,8 @@ class SettingsPreferences @Inject constructor(
     val appSettings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
-            visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false
+            visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false,
+            geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: ""
             // dynamicColors removed
         )
     }
@@ -146,5 +151,9 @@ class SettingsPreferences @Inject constructor(
 
     suspend fun updateCrossfeedStrength(strength: Int) {
         dataStore.edit { it[Keys.CROSSFEED_STRENGTH] = strength }
+    }
+    
+    suspend fun updateGeminiApiKey(apiKey: String) {
+        dataStore.edit { it[Keys.GEMINI_API_KEY] = apiKey }
     }
 }

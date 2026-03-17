@@ -141,7 +141,7 @@ fun HomeScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     val isOfflineEmpty = errorMsg == "Sin canciones descargadas"
                     ServerErrorScreen(
-                        onRetry = { viewModel.loadHomeData() },
+                        onRetry = { viewModel.loadHomeData(forceRetry = true) },
                         onSettings = onNavigateToSettings,
                         title = if (isOfflineEmpty) "Sin Canciones" else "Error de Conexión",
                         message = errorMsg ?: "No se pudo conectar al servidor."

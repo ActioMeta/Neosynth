@@ -44,6 +44,9 @@ fun SettingsScreen(
     var showServerDialog by remember { mutableStateOf(false) }
     var showServersListDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var showEditServerDialog by remember { mutableStateOf(false) }
+    var showGeminiKeyDialog by remember { mutableStateOf(false) }
+    var serverToEdit by remember { mutableStateOf<com.example.neosynth.data.local.entities.ServerEntity?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadSettings()
@@ -228,6 +231,20 @@ fun SettingsScreen(
                 }
             }
 
+            // External Services Section
+            item {
+                SettingsSection(title = "Servicios Externos") {
+                    SettingsCard {
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.VpnKey,
+                            title = "API Key de Gemini",
+                            subtitle = if (appSettings.geminiApiKey.isNotBlank()) "Configurada (Toca para editar o eliminar)" else "No configurada",
+                            onClick = { showGeminiKeyDialog = true }
+                        )
+                    }
+                }
+            }
+
             // About Section
             item {
                 SettingsSection(title = "Acerca de") {
@@ -326,7 +343,11 @@ fun SettingsScreen(
                 showServersListDialog = false
                 showServerDialog = true 
             },
-            onEditServer = { /* TODO */ },
+            onEditServer = { server -> 
+                showServersListDialog = false
+                serverToEdit = server
+                showEditServerDialog = true
+            },
             onDeleteServer = { viewModel.deleteServer(it) },
             onDismiss = { showServersListDialog = false }
         )
@@ -376,6 +397,32 @@ fun SettingsScreen(
                 viewModel.addServer(server)
                 showServerDialog = false
             }
+        )
+    }
+    
+    if (showEditServerDialog && serverToEdit != null) {
+        EditServerDialog(
+            server = serverToEdit!!,
+            onDismiss = { 
+                showEditServerDialog = false
+                serverToEdit = null
+            },
+            onServerUpdated = { updatedServer ->
+                viewModel.updateServer(updatedServer)
+                showEditServerDialog = false
+                serverToEdit = null
+            }
+        )
+    }
+    
+    if (showGeminiKeyDialog) {
+        GeminiApiKeyDialog(
+            currentKey = appSettings.geminiApiKey,
+            onKeySaved = { 
+                viewModel.updateGeminiApiKey(it)
+                showGeminiKeyDialog = false 
+            },
+            onDismiss = { showGeminiKeyDialog = false }
         )
     }
 }
@@ -599,6 +646,47 @@ private fun SettingsSwitchItem(
             }
         )
     }
+}
+
+@Composable
+private fun GeminiApiKeyDialog(
+    currentKey: String,
+    onKeySaved: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf(currentKey) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("API Key de Gemini", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    text = "Ingresa tu API Key para generar letras de canciones sincronizadas automáticamente.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("API Key") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onKeySaved(text.trim()) }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 // Stream Quality Picker Dialog
@@ -942,27 +1030,45 @@ private fun ServersListDialog(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = server.url,
+                                        text = server.name,
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = if (server.id == activeServerId) FontWeight.Bold else FontWeight.Normal
+                                        fontWeight = if (server.id == activeServerId) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = server.username,
+                                        text = "${server.url} • ${server.username}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
-                                if (servers.size > 1) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(
-                                        onClick = { onDeleteServer(server.id) },
+                                        onClick = { onEditServer(server) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Delete,
-                                            contentDescription = "Eliminar",
-                                            tint = MaterialTheme.colorScheme.error,
+                                            imageVector = Icons.Rounded.Edit,
+                                            contentDescription = "Editar",
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
+                                    }
+                                    if (servers.size > 1) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(
+                                            onClick = { onDeleteServer(server.id) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }

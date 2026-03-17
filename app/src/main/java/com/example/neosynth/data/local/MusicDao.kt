@@ -22,6 +22,12 @@ interface MusicDao {
     @Query("SELECT * FROM songs WHERE isDownloaded = 1 ORDER BY downloadedAt DESC LIMIT :limit")
     fun getRecentlyDownloadedSongs(limit: Int): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM songs WHERE isDownloaded = 1 ORDER BY RANDOM() LIMIT :limit")
+    suspend fun getRandomDownloadedSongs(limit: Int): List<SongEntity>
+
+    @Query("SELECT * FROM songs WHERE albumID = :albumId AND isDownloaded = 1")
+    suspend fun getDownloadedSongsByAlbum(albumId: String): List<SongEntity>
+
     @Query("SELECT * FROM songs WHERE id = :songId LIMIT 1")
     suspend fun getSongById(songId: String): SongEntity?
 

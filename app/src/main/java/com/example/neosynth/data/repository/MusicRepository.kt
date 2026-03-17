@@ -21,6 +21,10 @@ class MusicRepository @Inject constructor(
 
     fun getDownloadedSongs(): Flow<List<SongEntity>> = musicDao.getDownloadedSongs()
 
+    suspend fun getRandomDownloadedSongs(limit: Int): List<SongEntity> = musicDao.getRandomDownloadedSongs(limit)
+
+    suspend fun getDownloadedSongsByAlbum(albumId: String): List<SongEntity> = musicDao.getDownloadedSongsByAlbum(albumId)
+
     fun getRecentlyDownloadedSongs(limit: Int): Flow<List<SongEntity>> = musicDao.getRecentlyDownloadedSongs(limit)
 
     suspend fun getSongById(songId: String): SongEntity? {

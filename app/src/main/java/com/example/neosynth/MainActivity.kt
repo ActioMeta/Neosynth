@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         // Controlar status bar según la ruta actual
                         LaunchedEffect(currentRoute) {
-                            val shouldHideStatusBar = currentRoute == "player_full" || currentRoute == "lyrics"
+                            val shouldHideStatusBar = currentRoute == "player_full" || currentRoute == "lyrics" || currentRoute == "lyrics_editor"
                             window?.let { win ->
                                 val insetsController = WindowCompat.getInsetsController(win, win.decorView)
                                 if (shouldHideStatusBar) {
@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
                             
                             // NavBar con animación sincronizada
                             androidx.compose.animation.AnimatedVisibility(
-                                visible = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics",
+                                visible = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && currentRoute != "lyrics_editor",
                                 enter = androidx.compose.animation.fadeIn(
                                     animationSpec = androidx.compose.animation.core.tween(200)
                                 ) + androidx.compose.animation.slideInVertically(

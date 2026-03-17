@@ -14,6 +14,9 @@ data class LyricLine(
  */
 object LrcParser {
     private val LRC_REGEX = """\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\](.*)""".toRegex()
+    private val METADATA_TAG_REGEX = """^\[(ar|ti|al|au|by|offset|length|re|ve):.*]$""".toRegex(RegexOption.IGNORE_CASE)
+    private val CREDIT_PREFIX_REGEX = """^(?:lyrics|lyricist|composer|arranger|producer|written by|music|artist|album|vocal)\s*[:：-].+""".toRegex(RegexOption.IGNORE_CASE)
+    private val CREDIT_PREFIX_CJK_REGEX = """^(?:作词|作曲|编曲|制作人|词|曲|演唱|歌手)\s*[:：].+""".toRegex()
     
     /**
      * Parsea contenido LRC a lista de líneas con timestamps
@@ -26,13 +29,17 @@ object LrcParser {
         lrcContent.lines().forEach { line ->
             val trimmedLine = line.trim()
             if (trimmedLine.isEmpty()) return@forEach
+            if (METADATA_TAG_REGEX.matches(trimmedLine)) return@forEach
             
             val match = LRC_REGEX.find(trimmedLine)
             if (match != null) {
                 val minutes = match.groupValues[1].toLongOrNull() ?: 0
                 val seconds = match.groupValues[2].toLongOrNull() ?: 0
                 val milliseconds = match.groupValues[3].takeIf { it.isNotEmpty() }?.toLongOrNull() ?: 0
-                val text = match.groupValues[4].trim()
+                val text = match.groupValues[4]
+                    .replace("\uFEFF", "")
+                    .replace(Regex("[\\u200B-\\u200D\\u2060]"), "")
+                    .trim()
                 
                 val timeMs = minutes * 60000 + 
                              seconds * 1000 + 
@@ -43,13 +50,31 @@ object LrcParser {
                                  else -> 0
                              }
                 
-                if (text.isNotBlank()) {
-                    lines.add(LyricLine(timeMs, text))
+                if (text.isNotBlank() && !isLikelyNonLyric(text, timeMs)) {
+                    val previous = lines.lastOrNull()
+                    val isNoisyDuplicate = previous != null &&
+                        previous.text.equals(text, ignoreCase = true) &&
+                        (timeMs - previous.timeMs) in 0..3000
+
+                    if (!isNoisyDuplicate) {
+                        lines.add(LyricLine(timeMs, text))
+                    }
                 }
             }
         }
         
         return lines.sortedBy { it.timeMs }
+    }
+
+    private fun isLikelyNonLyric(text: String, timeMs: Long): Boolean {
+        if (text.startsWith("[") && text.endsWith("]")) {
+            if (METADATA_TAG_REGEX.matches(text)) return true
+        }
+
+        val isIntro = timeMs <= 20_000
+        if (!isIntro) return false
+
+        return CREDIT_PREFIX_REGEX.matches(text) || CREDIT_PREFIX_CJK_REGEX.matches(text)
     }
     
     /**

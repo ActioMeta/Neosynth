@@ -20,12 +20,12 @@ interface LyricsApiService {
     ): Response<LrclibResponse>
     
     // LRCLIB Search API (búsqueda por palabras clave, más flexible)
+    // Nota: /api/search NO acepta duration; para búsqueda exacta usar /api/get.
     @GET("search")
     suspend fun searchLyrics(
         @Query("q") query: String? = null,
         @Query("track_name") trackName: String? = null,
-        @Query("artist_name") artistName: String? = null,
-        @Query("duration") duration: Int? = null
+        @Query("artist_name") artistName: String? = null
     ): Response<List<LrclibResponse>>
     
     // Musixmatch API (requiere API key)

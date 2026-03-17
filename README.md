@@ -8,13 +8,23 @@ NeoSynth es una aplicación nativa de Android desarrollada con Jetpack Compose y
 
 ## Características Principales
 
+### Novedades v2.2.0 (Marzo 2026)
+- Sistema avanzado de letras con editor integrado, sincronización interactiva y soporte LRC
+- Generación de letras faltantes con IA (Gemini 2.0)
+- Publicación de letras en LRCLib con Proof of Work (PoW)
+- Fallback automático entre LRCLIB y Netease Cloud Music
+- HomeScreen adaptativa en modo offline (Mix aleatorio y agregados recientes desde contenido local)
+- Reordenamiento avanzado de cola con drag-and-drop y auto-scroll
+- Persistencia del orden original de la cola al alternar shuffle
+- Visualizador de audio opcional desde ajustes
+- Modo inmersivo en reproductor y pantalla de letras
+
 ### Reproducción de Audio
 - Streaming en tiempo real desde el servidor
 - Reproducción en segundo plano con notificaciones de control
 - Cola de reproducción con soporte para shuffle y repeat
 - Mini reproductor persistente durante la navegación
 - Reproductor de pantalla completa con controles gestuales
-- Integración con Google Assistant para comandos de voz
 
 ### Gestión de Contenido
 - Descarga de canciones individuales, álbumes completos y playlists
@@ -23,6 +33,13 @@ NeoSynth es una aplicación nativa de Android desarrollada con Jetpack Compose y
 - Organización alfabética con sticky headers
 - Modo de selección múltiple
 - Sistema de favoritos sincronizado con el servidor
+
+### Letras (Lyrics Engine)
+- Editor de letras integrado en la app
+- Sincronización interactiva de líneas con la reproducción
+- Generación asistida de letras con Gemini 2.0
+- Publicación a LRCLib con validación PoW
+- Resolución multi-proveedor con fallback automático (LRCLIB/Netease)
 
 ### Interfaz de Usuario
 - Carrusel de álbumes recién agregados
@@ -88,8 +105,8 @@ Para información detallada sobre el proyecto, consulta la carpeta `docs/`:
 - Media3 (ExoPlayer) para reproducción de alta calidad
 - MediaSessionService para controles de sistema
 - Notificaciones con controles de reproducción
-- Cola de reproducción con reordenamiento drag & drop
-- Soporte para comandos de voz
+- Cola de reproducción con reordenamiento drag & drop y auto-scroll
+- Persistencia del orden original al alternar shuffle
 
 ### Sincronización
 - Repository pattern como single source of truth
@@ -102,6 +119,15 @@ Para información detallada sobre el proyecto, consulta la carpeta `docs/`:
 - Jetpack Compose 100%
 - Skeletons que coinciden exactamente con el contenido real
 - Animaciones fluidas y transiciones
+- Modo inmersivo en pantallas de reproducción y letras
+
+## Changelog v2.2.0
+
+### Fixes y mejoras recientes
+- Corrección de navegación de letras: se resolvió el conflicto de gestos al pulsar líneas
+- Descargas más estables: mejoras en DownloadWorker para notificaciones persistentes y errores de red
+- Sincronización de UI del reproductor: evita mostrar brevemente metadata de la siguiente canción en swipes rápidos
+- Gestión de caché de letras: respuestas fallidas ya no se cachean, forzando reintentos limpios
 
 ## Licencia
 

@@ -14,11 +14,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import com.example.neosynth.data.local.ServerDao
+import com.example.neosynth.data.remote.NavidromeApiService
+import com.example.neosynth.ui.playlist.logic.PlaylistDownloadHandler
+import com.example.neosynth.ui.playlist.logic.PlaylistManagementHandler
+import com.example.neosynth.data.remote.responses.SongDto
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     val musicController: MusicController,
+    private val serverDao: ServerDao,
+    private val api: NavidromeApiService,
+    private val downloadHandler: PlaylistDownloadHandler,
+    private val managementHandler: PlaylistManagementHandler,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -72,5 +81,80 @@ class PlayerViewModel @Inject constructor(
 
     fun onPermissionResult(isGranted: Boolean) {
         _hasAudioPermission.value = isGranted
+    }
+
+    private val _isProcessingQueueAction = MutableStateFlow(false)
+    val isProcessingQueueAction: StateFlow<Boolean> = _isProcessingQueueAction
+
+    fun saveQueueAsPlaylist(name: String, onComplete: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            _isProcessingQueueAction.value = true
+            try {
+                val server = serverDao.getActiveServer()
+                if (server == null) {
+                    onError("No hay un servidor activo")
+                    return@launch
+                }
+                
+                // Get current queue songs IDs
+                val currentQueue = musicController.currentQueue.value
+                val songIds = currentQueue.map { it.mediaId }
+                
+                if (songIds.isEmpty()) {
+                    onError("La cola está vacía")
+                    return@launch
+                }
+                
+                // Construct comma separated list
+                val songIdParams = songIds.take(100).joinToString(",") // Navidrome might have limits, truncate to 100 or send in batches (the API accepts them as params, we will use a comma joined string)
+                
+                val response = api.createPlaylist(
+                    name = name,
+                    songId = songIds, // The API accepts a List<String>. Retrofit will pass multiple ?songId= variables
+                    u = server.username,
+                    t = server.token,
+                    s = server.salt
+                )
+                
+                if (response.response.status == "ok") {
+                    onComplete()
+                } else {
+                    onError("Error al crear la playlist")
+                }
+            } catch (e: Exception) {
+                onError(e.message ?: "Error desconocido al crear playlist")
+            } finally {
+                _isProcessingQueueAction.value = false
+            }
+        }
+    }
+
+    fun downloadQueue() {
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val queue = musicController.currentQueue.value
+            if (queue.isEmpty()) return@launch
+            
+            // Map exoPlayer MediaItems back to SongDto mock structures for the download handler
+            val songsToDownload = queue.map { item ->
+                val extras = item.mediaMetadata.extras
+                SongDto(
+                    id = item.mediaId,
+                    title = item.mediaMetadata.title?.toString() ?: "Unknown",
+                    artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
+                    album = item.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                    duration = extras?.getLong("duration")?.toInt() ?: 0,
+                    coverArt = item.mediaMetadata.artworkUri?.toString()?.substringAfterLast("id=")?.substringBefore("&") ?: item.mediaId
+                )
+            }
+            
+            downloadHandler.downloadPlaylist(
+                allSongs = songsToDownload,
+                server = server,
+                playlistId = "queue_${System.currentTimeMillis()}", // Mock ID since it's an ad-hoc queue
+                playlistName = "Cola de reproducción",
+                scope = viewModelScope
+            )
+        }
     }
 }

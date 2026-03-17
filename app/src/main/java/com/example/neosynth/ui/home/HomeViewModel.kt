@@ -65,8 +65,10 @@ class HomeViewModel @Inject constructor(
     // Lyrics
     val currentLyrics = lyricsHandler.currentLyrics
     val lyricsOptions = lyricsHandler.lyricsOptions
+    val selectedLyricsOption = lyricsHandler.selectedLyricsOption
     val showLyricsSelection = lyricsHandler.showLyricsSelection
     val isLoadingLyrics = lyricsHandler.isLoadingLyrics
+    val isLoadingLyricsOptions = lyricsHandler.isLoadingLyricsOptions
     val lyricsError = lyricsHandler.lyricsError
     
     // Favorites
@@ -117,14 +119,14 @@ class HomeViewModel @Inject constructor(
 
     // --- Data Loading Logic (Kept in ViewModel as it orchestrates everything) ---
 
-    fun loadHomeData() {
-        if (recentlyAdded.isNotEmpty()) return
+    fun loadHomeData(forceRetry: Boolean = false) {
+        if (!forceRetry && recentlyAdded.isNotEmpty()) return
 
         viewModelScope.launch {
             isLoading = true
             error = null
             
-            if (networkHelper.isCurrentConnectionOffline) {
+            if (!forceRetry && networkHelper.isCurrentConnectionOffline) {
                 loadOfflineData()
                 isLoading = false
                 return@launch
@@ -140,7 +142,7 @@ class HomeViewModel @Inject constructor(
             urlInterceptor.setBaseUrl(server.url)
 
             try {
-                kotlinx.coroutines.withTimeout(1000L) {
+                kotlinx.coroutines.withTimeout(3000L) {
                     api.ping(
                         user = server.username,
                         token = server.token,
@@ -187,12 +189,12 @@ class HomeViewModel @Inject constructor(
                 }
             }
             
-            val allDownloaded = musicRepository.getDownloadedSongs().first()
-            if (allDownloaded.isNotEmpty()) {
-                randomCoverArts = allDownloaded.shuffled().take(3).mapNotNull { it.imageUrl }
+            val randomDownloaded = musicRepository.getRandomDownloadedSongs(3)
+            if (randomDownloaded.isNotEmpty()) {
+                randomCoverArts = randomDownloaded.mapNotNull { it.imageUrl }
             }
             
-            if (recentDownloads.isNotEmpty() || allDownloaded.isNotEmpty()) {
+            if (recentDownloads.isNotEmpty() || randomDownloaded.isNotEmpty()) {
                 error = null 
             } else {
                  error = "Sin conexión y sin canciones descargadas"
@@ -268,7 +270,7 @@ class HomeViewModel @Inject constructor(
             urlInterceptor.setBaseUrl(server.url)
                 
             try {
-                kotlinx.coroutines.withTimeout(1000L) {
+                kotlinx.coroutines.withTimeout(3000L) {
                     api.ping(
                          user = server.username,
                          token = server.token,
@@ -319,6 +321,10 @@ class HomeViewModel @Inject constructor(
 
     fun loadLyrics() {
         lyricsHandler.loadLyrics(viewModelScope)
+    }
+
+    fun loadLyricsOptions() {
+        lyricsHandler.loadLyricsOptions(viewModelScope)
     }
     
     fun selectLyric(result: com.example.neosynth.data.model.LyricsResult) {

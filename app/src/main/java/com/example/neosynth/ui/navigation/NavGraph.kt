@@ -192,31 +192,7 @@ fun NeosynthNavGraph(
             }
 
             composable(
-                route = "player_full",
-                enterTransition = {
-                    fadeIn(animationSpec = tween(300)) + scaleIn(
-                        initialScale = 0.92f,
-                        animationSpec = tween(300)
-                    )
-                },
-                exitTransition = {
-                    fadeOut(animationSpec = tween(250)) + scaleOut(
-                        targetScale = 0.92f,
-                        animationSpec = tween(250)
-                    )
-                },
-                popEnterTransition = {
-                    fadeIn(animationSpec = tween(300)) + scaleIn(
-                        initialScale = 0.92f,
-                        animationSpec = tween(300)
-                    )
-                },
-                popExitTransition = {
-                    fadeOut(animationSpec = tween(250)) + scaleOut(
-                        targetScale = 0.92f,
-                        animationSpec = tween(250)
-                    )
-                }
+                route = "player_full"
             ) {
                 val currentSongId = currentSong?.mediaId
                 val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
@@ -248,8 +224,14 @@ fun NeosynthNavGraph(
                         android.util.Log.e("NavGraph", "Lyrics error: $lyricsError")
                     }
                 }
-                
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = "player_bounds"),
+                            animatedVisibilityScope = this@composable
+                        )
+                ) {
                     // Fix: AnimatedVisibilityScope is required by PlayerScreen
                     // Since we are already inside a SharedTransitionLayout but not an AnimatedVisibility,
                     // we need to provide one or remove the requirement from PlayerScreen if not needed.
@@ -261,10 +243,10 @@ fun NeosynthNavGraph(
                      
                     PlayerScreen(
                         sharedTransitionScope = this@SharedTransitionLayout,
-                        animatedVisibilityScope = this@composable, // Use this@composable to get AnimatedVisibilityScope from AnimatedContentScope
+                        animatedVisibilityScope = this@composable,
                         onBack = { navController.popBackStack() },
                         onDownload = { homeViewModel.downloadCurrentSong() },
-                        onLyricsClick = { homeViewModel.loadLyrics() },
+                        onLyricsClick = { navController.navigate("lyrics") },
                         isCurrentSongDownloaded = currentSongId != null && currentSongId in downloadedIds,
                         isFavorite = isFavorite,
                         onToggleFavorite = { homeViewModel.toggleFavorite() },
@@ -282,17 +264,6 @@ fun NeosynthNavGraph(
                             androidx.compose.material3.CircularProgressIndicator()
                         }
                     }
-                }
-
-                if (showLyricsSelection) {
-                    com.example.neosynth.ui.lyrics.LyricsSelectionSheet(
-                        options = lyricsOptions,
-                        onSelect = { result ->
-                            homeViewModel.selectLyric(result)
-                            navController.navigate("lyrics")
-                        },
-                        onDismiss = { homeViewModel.dismissLyricsSelection() }
-                    )
                 }
             }
 
@@ -314,7 +285,10 @@ fun NeosynthNavGraph(
                 val currentSongId = currentSong?.mediaId
                 val currentLyrics by homeViewModel.currentLyrics.collectAsState()
                 val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
+                val isLoadingLyricsOptions by homeViewModel.isLoadingLyricsOptions.collectAsState()
                 val lyricsError by homeViewModel.lyricsError.collectAsState()
+                val lyricsOptions by homeViewModel.lyricsOptions.collectAsState()
+                val selectedLyricsOption by homeViewModel.selectedLyricsOption.collectAsState()
                 
                 // Cargar letras cuando cambia la canción
                 LaunchedEffect(currentSongId) {
@@ -327,8 +301,29 @@ fun NeosynthNavGraph(
                     musicController = musicController,
                     lyrics = currentLyrics,
                     isLoadingLyrics = isLoadingLyrics,
+                    isLoadingOptions = isLoadingLyricsOptions,
                     lyricsError = lyricsError,
+                    lyricsOptions = lyricsOptions,
+                    selectedLyricsOption = selectedLyricsOption,
+                    onSelectOption = { homeViewModel.selectLyric(it) },
+                    onOpenOptions = { homeViewModel.loadLyricsOptions() },
+                    onEditLyrics = { navController.navigate("lyrics_editor") },
                     onClose = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "lyrics_editor",
+                enterTransition = {
+                    androidx.compose.animation.slideInVertically(initialOffsetY = { it }, animationSpec = tween(300))
+                },
+                exitTransition = {
+                    androidx.compose.animation.slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300))
+                }
+            ) {
+                com.example.neosynth.ui.lyrics.LyricsEditorScreen(
+                    musicController = musicController,
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -349,7 +344,7 @@ fun NeosynthNavGraph(
 
         val song = currentSong
         // Show mini player if there's an active or restored song (not on login/player/lyrics screens)
-        val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && song != null
+        val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && currentRoute != "lyrics_editor" && song != null
         AnimatedVisibility(
             visible = showMiniPlayer,
             enter = fadeIn(animationSpec = tween(200)) + scaleIn(
@@ -369,21 +364,29 @@ fun NeosynthNavGraph(
             val hasPrevious by musicController.hasPrevious
             val hasNext by musicController.hasNext
             
-            MiniPlayer(
-                sharedTransitionScope = this@SharedTransitionLayout,
-                animatedVisibilityScope = this,
-                mediaId = miniPlayerSongId,
-                title = song?.mediaMetadata?.title?.toString() ?: "",
-                artist = song?.mediaMetadata?.artist?.toString() ?: "Desconocido",
-                artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
-                isPlaying = isPlaying,
-                hasPrevious = hasPrevious,
-                hasNext = hasNext,
-                onPlayPause = { musicController.togglePlayPause() },
-                onSkipPrevious = { musicController.skipPreviousOrRestart() },
-                onSkipNext = { musicController.skipNext() },
-                onClick = { navController.navigate("player_full") }
-            )
+            Box(
+                modifier = Modifier
+                    .sharedBounds(
+                        sharedContentState = rememberSharedContentState(key = "player_bounds"),
+                        animatedVisibilityScope = this@AnimatedVisibility
+                    )
+            ) {
+                MiniPlayer(
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@AnimatedVisibility,
+                    mediaId = miniPlayerSongId,
+                    title = song?.mediaMetadata?.title?.toString() ?: "",
+                    artist = song?.mediaMetadata?.artist?.toString() ?: "Desconocido",
+                    artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
+                    isPlaying = isPlaying,
+                    hasPrevious = hasPrevious,
+                    hasNext = hasNext,
+                    onPlayPause = { musicController.togglePlayPause() },
+                    onSkipPrevious = { musicController.skipPreviousOrRestart() },
+                    onSkipNext = { musicController.skipNext() },
+                    onClick = { navController.navigate("player_full") }
+                )
+            }
         }
     }
 }

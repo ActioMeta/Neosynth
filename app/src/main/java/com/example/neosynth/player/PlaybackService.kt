@@ -76,7 +76,7 @@ class PlaybackService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)
-            .setSeekParameters(SeekParameters.CLOSEST_SYNC)  // Mejor precisión en seeks
+            .setSeekParameters(SeekParameters.EXACT)
             .build()
         
         // Crear PendingIntent para abrir MainActivity al hacer click en la notificación

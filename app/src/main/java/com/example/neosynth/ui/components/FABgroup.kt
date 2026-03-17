@@ -16,13 +16,19 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+
+data class FabAction(
+    val icon: ImageVector,
+    val label: String,
+    val onClick: () -> Unit
+)
 
 @Composable
 fun FabGroup(
-    onShuffleAll: () -> Unit,
-    onPlayAll: () -> Unit,
-    onClearQueue: () -> Unit,
-    onToggleView: () -> Unit
+    actions: List<FabAction>,
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -37,6 +43,7 @@ fun FabGroup(
     )
 
     Column(
+        modifier = modifier,
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -50,69 +57,43 @@ fun FabGroup(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                FabMenuItem(
-                    icon = Icons.Rounded.GridView,
-                    label = "Cambiar vista",
-                    onClick = {
-                        onToggleView()
-                        expanded = false
-                    },
-                    delay = 0
-                )
-                FabMenuItem(
-                    icon = Icons.Rounded.DeleteSweep,
-                    label = "Limpiar cola",
-                    onClick = {
-                        onClearQueue()
-                        expanded = false
-                    },
-                    delay = 50
-                )
-                FabMenuItem(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = "Reproducir todo",
-                    onClick = {
-                        onPlayAll()
-                        expanded = false
-                    },
-                    delay = 100
-                )
-                FabMenuItem(
-                    icon = Icons.Rounded.Shuffle,
-                    label = "Aleatorio",
-                    onClick = {
-                        onShuffleAll()
-                        expanded = false
-                    },
-                    delay = 150
-                )
+                actions.forEachIndexed { index, action ->
+                    FabMenuItem(
+                        icon = action.icon,
+                        label = action.label,
+                        onClick = {
+                            action.onClick()
+                            expanded = false
+                        },
+                        delay = index * 50
+                    )
+                }
             }
         }
 
         // FAB Principal
-        LargeFloatingActionButton(
+        FloatingActionButton(
             onClick = { expanded = !expanded },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(28.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Add,
                 contentDescription = if (expanded) "Cerrar" else "Opciones",
-                modifier = Modifier
-                    .size(36.dp)
-                    .rotate(rotation)
+                modifier = Modifier.rotate(rotation)
             )
         }
     }
 }
 
 @Composable
-private fun FabMenuItem(
+fun FabMenuItem(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    delay: Int
+    delay: Int,
+    isSelected: Boolean = false
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -122,44 +103,78 @@ private fun FabMenuItem(
     }
 
     val scale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
+        targetValue = if (visible) 1f else 0.5f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
         ),
         label = "scale"
     )
-
-    Row(
-        modifier = Modifier.scale(scale),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Label con fondo
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.inverseSurface,
-            shadowElevation = 2.dp
-        ) {
-            Text(
-                text = label,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.inverseOnSurface
-            )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(150),
+        label = "alpha"
+    )
+    
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    
+    // Instead of collectIsPressedAsState which can sometimes be tricky to import without the right module extensions
+    var isPressed by remember { mutableStateOf(false) }
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is androidx.compose.foundation.interaction.PressInteraction.Press -> isPressed = true
+                is androidx.compose.foundation.interaction.PressInteraction.Release -> isPressed = false
+                is androidx.compose.foundation.interaction.PressInteraction.Cancel -> isPressed = false
+            }
         }
+    }
+    
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "press_scale"
+    )
 
-        // Mini FAB
-        SmallFloatingActionButton(
-            onClick = onClick,
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            shape = RoundedCornerShape(16.dp)
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(24.dp),
+        color = if (isSelected) 
+            MaterialTheme.colorScheme.primary 
+        else 
+            MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = if (isSelected)
+            MaterialTheme.colorScheme.onPrimary
+        else
+            MaterialTheme.colorScheme.onSecondaryContainer,
+        shadowElevation = 4.dp,
+        modifier = Modifier
+            .scale(scale)
+            .graphicsLayer(
+                alpha = alpha,
+                scaleX = pressScale,
+                scaleY = pressScale
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(24.dp)
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
             )
         }
     }

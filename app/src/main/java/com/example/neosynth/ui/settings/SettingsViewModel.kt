@@ -220,6 +220,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
+    fun updateGeminiApiKey(apiKey: String) {
+        viewModelScope.launch {
+            settingsPreferences.updateGeminiApiKey(apiKey)
+        }
+    }
+    
     // Dynamic Colors removed
     
     // Server Management

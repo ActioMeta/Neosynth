@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.togetherWith
 
 @Composable
 fun MiniPlayer(
@@ -169,12 +170,21 @@ fun MiniPlayer(
                         .padding(10.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = isPlaying,
+                        transitionSpec = {
+                            (androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f))
+                                .togetherWith(androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 0.8f))
+                        },
+                        label = "play_pause_anim"
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
 
                 // Next Button

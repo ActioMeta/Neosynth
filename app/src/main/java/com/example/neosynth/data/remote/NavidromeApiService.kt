@@ -132,6 +132,7 @@ interface NavidromeApiService {
     @GET("rest/createPlaylist")
     suspend fun createPlaylist(
         @Query("name") name: String,
+        @Query("songId") songId: List<String>? = null,
         @Query("u") u: String,
         @Query("t") t: String,
         @Query("s") s: String,

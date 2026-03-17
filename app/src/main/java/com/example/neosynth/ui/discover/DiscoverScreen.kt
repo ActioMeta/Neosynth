@@ -308,7 +308,7 @@ private fun SearchResultsContent(
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 100.dp else 16.dp)
+            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 200.dp else 180.dp)
         ) {
         // Artists
         if (results.artists.isNotEmpty()) {

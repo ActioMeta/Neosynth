@@ -63,7 +63,7 @@ class HomeLyricsHandler @Inject constructor(
                 val artist = mediaItem.mediaMetadata.artist?.toString() ?: ""
                 val title = mediaItem.mediaMetadata.title?.toString() ?: ""
                 val album = mediaItem.mediaMetadata.albumTitle?.toString()
-                val duration = mediaItem.mediaMetadata.extras?.getLong("duration")?.toInt()?.div(1000)
+                val duration = mediaItem.mediaMetadata.extras?.getLong("duration")?.toInt()
                 
                 Log.d("HomeLyricsHandler", "Fetching best lyrics match: $artist - $title")
                 
@@ -114,7 +114,7 @@ class HomeLyricsHandler @Inject constructor(
                 val artist = mediaItem.mediaMetadata.artist?.toString() ?: ""
                 val title = mediaItem.mediaMetadata.title?.toString() ?: ""
                 val album = mediaItem.mediaMetadata.albumTitle?.toString()
-                val duration = mediaItem.mediaMetadata.extras?.getLong("duration")?.toInt()?.div(1000)
+                val duration = mediaItem.mediaMetadata.extras?.getLong("duration")?.toInt()
 
                 Log.d("HomeLyricsHandler", "Fetching additional lyrics options: $artist - $title")
 

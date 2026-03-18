@@ -565,7 +565,7 @@ class DiscoverViewModel @Inject constructor(
                             artist = song.artist ?: "Unknown",
                             albumID = song.albumId ?: "",
                             album = song.album ?: "Unknown",
-                            duration = song.duration.toLong(),
+                            duration = song.duration.toLong() * 1000L,
                             imageUrl = song.coverArt,
                             path = "",
                             isDownloaded = false,

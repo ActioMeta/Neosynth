@@ -89,7 +89,7 @@ class MusicRepository @Inject constructor(
                             artist = song.artist,
                             albumID = song.albumId ?: "",
                             album = song.album,
-                            duration = song.duration.toLong(),
+                            duration = song.duration.toLong() * 1000L,
                             imageUrl = song.coverArt,
                             path = "",
                             isDownloaded = false

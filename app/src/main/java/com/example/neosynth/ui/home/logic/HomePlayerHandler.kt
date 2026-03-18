@@ -239,7 +239,7 @@ class HomePlayerHandler @Inject constructor(
                         android.os.Bundle().apply {
                             putString("coverArtId", songDto.coverArt)
                             putString("artistId", songDto.artistId)
-                            putLong("duration", songDto.duration.toLong())
+                            putLong("duration", songDto.duration.toLong() * 1000L)
                             putBoolean("isDownloaded", false)
                             putInt("bitRate", effectiveBitrate)
                             putString("suffix", effectiveFormat)

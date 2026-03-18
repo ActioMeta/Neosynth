@@ -143,7 +143,7 @@ class PlayerViewModel @Inject constructor(
                     title = item.mediaMetadata.title?.toString() ?: "Unknown",
                     artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
                     album = item.mediaMetadata.albumTitle?.toString() ?: "Unknown",
-                    duration = extras?.getLong("duration")?.toInt() ?: 0,
+                    duration = (extras?.getLong("duration") ?: 0L).toInt() / 1000,
                     coverArt = item.mediaMetadata.artworkUri?.toString()?.substringAfterLast("id=")?.substringBefore("&") ?: item.mediaId
                 )
             }

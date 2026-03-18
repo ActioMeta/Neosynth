@@ -1,10 +1,16 @@
 package com.example.neosynth.ui.lyrics
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -168,6 +174,22 @@ fun LyricsScreen(
     }
 
     var showOptionsSheet by remember { mutableStateOf(false) }
+    
+    // Animation for layout smoothing
+    val headerSpacerHeight by animateDpAsState(
+        targetValue = if (showUi) 8.dp else 48.dp,
+        animationSpec = tween(durationMillis = 600),
+        label = "header_spacer"
+    )
+
+    val fadeBrush = remember {
+        Brush.verticalGradient(
+            0f to Color.Transparent,
+            0.15f to Color.Black,
+            0.85f to Color.Black,
+            1f to Color.Transparent
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Dynamic Background (Color sólido animado)
@@ -187,7 +209,9 @@ fun LyricsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
+                .animateContentSize(animationSpec = tween(durationMillis = 600))
                 // Child clickable handlers win over this in Compose's gesture arena
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -201,7 +225,7 @@ fun LyricsScreen(
                 exit = fadeOut()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -243,11 +267,7 @@ fun LyricsScreen(
                 }
             }
             
-            if (!showUi) {
-                Spacer(modifier = Modifier.height(32.dp).statusBarsPadding())
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            Spacer(modifier = Modifier.height(headerSpacerHeight))
             
         // Información de la canción
             Column(
@@ -278,6 +298,11 @@ fun LyricsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(brush = fadeBrush, blendMode = BlendMode.DstIn)
+                    }
             ) {
                 when {
                     isLoadingLyrics -> {

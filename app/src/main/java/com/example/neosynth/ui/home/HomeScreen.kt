@@ -43,6 +43,8 @@ import com.example.neosynth.ui.components.CardItem
 import com.example.neosynth.ui.components.ServerErrorScreen
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import com.example.neosynth.domain.model.Album
 
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -139,12 +141,12 @@ fun HomeScreen(
                 }
             } else if (errorMsg != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val isOfflineEmpty = errorMsg == "Sin canciones descargadas"
+                    val isOfflineEmpty = errorMsg == "Sin canciones descargadas" || errorMsg == "No downloaded songs"
                     ServerErrorScreen(
                         onRetry = { viewModel.loadHomeData(forceRetry = true) },
                         onSettings = onNavigateToSettings,
-                        title = if (isOfflineEmpty) "Sin Canciones" else "Error de Conexión",
-                        message = errorMsg ?: "No se pudo conectar al servidor."
+                        title = if (isOfflineEmpty) stringResource(R.string.error_no_songs_title) else stringResource(R.string.error_connection_title),
+                        message = if (errorMsg == "Sin canciones descargadas") stringResource(R.string.error_no_downloaded_songs) else (errorMsg ?: stringResource(R.string.error_connection_message))
                     )
                 }
             } else {
@@ -174,7 +176,7 @@ fun HomeScreen(
                             IconButton(onClick = onNavigateToLibrary) {
                                 Icon(
                                     imageVector = Icons.Rounded.LibraryMusic,
-                                    contentDescription = "Biblioteca",
+                                    contentDescription = stringResource(R.string.nav_library),
                                     tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
@@ -182,7 +184,7 @@ fun HomeScreen(
                             IconButton(onClick = onNavigateToSettings) {
                                 Icon(
                                     imageVector = Icons.Rounded.Settings,
-                                    contentDescription = "Configuración",
+                                    contentDescription = stringResource(R.string.nav_settings),
                                     tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
@@ -274,7 +276,7 @@ fun HomeScreen(
 
                     item {
                         Text(
-                            text = "Recién agregados",
+                            text = stringResource(R.string.home_recently_added),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier.padding(start = 24.dp, bottom = 16.dp),

@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @Composable
 fun HomeFabMenu(
@@ -79,25 +81,25 @@ fun HomeFabMenu(
             ) {
                 HomeFabMenuPill(
                     icon = Icons.Rounded.QueueMusic,
-                    label = "Reproducir Siguiente",
+                    label = stringResource(R.string.action_play_next),
                     onClick = onPlayNext,
                     delay = 0
                 )
                 HomeFabMenuPill(
                     icon = Icons.Rounded.PlaylistAdd,
-                    label = "Agregar a la Cola",
+                    label = stringResource(R.string.action_add_to_queue),
                     onClick = onAddToQueue,
                     delay = 40
                 )
                 HomeFabMenuPill(
                     icon = Icons.Rounded.Person,
-                    label = "Ir al Artista",
+                    label = stringResource(R.string.action_go_to_artist),
                     onClick = onGoToArtist,
                     delay = 80
                 )
                  HomeFabMenuPill(
                     icon = Icons.Rounded.Album,
-                    label = "Ir al Álbum",
+                    label = stringResource(R.string.action_go_to_album),
                     onClick = onGoToAlbum,
                     delay = 120
                 )
@@ -113,7 +115,7 @@ fun HomeFabMenu(
         ) {
             Icon(
                 imageVector = if (expanded) Icons.Rounded.Close else Icons.Rounded.MoreVert,
-                contentDescription = if (expanded) "Cerrar" else "Opciones",
+                contentDescription = if (expanded) stringResource(R.string.action_close) else stringResource(R.string.action_options),
                 modifier = Modifier.rotate(rotation)
             )
         }

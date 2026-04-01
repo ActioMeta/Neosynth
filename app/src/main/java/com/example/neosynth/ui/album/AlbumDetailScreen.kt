@@ -35,6 +35,8 @@ import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -185,7 +187,7 @@ fun AlbumDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.playAlbum() },
                                     icon = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Reproducir",
+                                    contentDescription = stringResource(R.string.action_play),
                                     isPrimary = true,
                                     size = 64.dp,
                                     iconSize = 36.dp
@@ -197,7 +199,7 @@ fun AlbumDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.shufflePlay() },
                                     icon = Icons.Rounded.Shuffle,
-                                    contentDescription = "Aleatorio",
+                                    contentDescription = stringResource(R.string.action_shuffle),
                                     size = 48.dp,
                                     iconSize = 24.dp
                                 )
@@ -205,7 +207,7 @@ fun AlbumDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.downloadAlbum() },
                                     icon = Icons.Rounded.Download,
-                                    contentDescription = "Descargar álbum",
+                                    contentDescription = stringResource(R.string.action_download),
                                     size = 48.dp,
                                     iconSize = 24.dp
                                 )
@@ -227,7 +229,7 @@ fun AlbumDetailScreen(
                 // Lista de canciones
                 item {
                     Text(
-                        text = "Canciones",
+                        text = stringResource(R.string.discover_songs),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp)
@@ -271,7 +273,7 @@ fun AlbumDetailScreen(
             actions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.PlayArrow,
-                    label = "Play",
+                    label = stringResource(R.string.action_play),
                     onClick = {
                         viewModel.playSongs(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -279,7 +281,7 @@ fun AlbumDetailScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Favorite,
-                    label = "Favoritos",
+                    label = stringResource(R.string.action_fav),
                     onClick = {
                         viewModel.addToFavorites(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -287,7 +289,7 @@ fun AlbumDetailScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
-                    label = "Descargar",
+                    label = stringResource(R.string.action_download),
                     onClick = {
                         viewModel.downloadSongs(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -295,7 +297,7 @@ fun AlbumDetailScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.PlaylistAdd,
-                    label = "Playlist",
+                    label = stringResource(R.string.action_playlist),
                     onClick = {
                         showPlaylistPicker = true
                     }
@@ -319,7 +321,7 @@ fun AlbumDetailScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Volver"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -373,7 +375,7 @@ private fun AlbumInfoRow(
             Spacer(modifier = Modifier.width(8.dp))
         }
         
-        InfoChip(text = "$songCount canciones")
+        InfoChip(text = stringResource(R.string.library_songs_count, songCount))
         Spacer(modifier = Modifier.width(8.dp))
         
         InfoChip(text = formatTotalDuration(totalDuration))
@@ -506,7 +508,7 @@ private fun AlbumSongRow(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Download,
-                        contentDescription = "Descargar",
+                        contentDescription = stringResource(R.string.action_download),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -584,12 +586,13 @@ private fun formatDuration(seconds: Int): String {
     return "$mins:${secs.toString().padStart(2, '0')}"
 }
 
+@Composable
 private fun formatTotalDuration(seconds: Int): String {
     val hours = seconds / 3600
     val mins = (seconds % 3600) / 60
     return if (hours > 0) {
-        "$hours h $mins min"
+        stringResource(R.string.duration_hours_mins, hours, mins)
     } else {
-        "$mins min"
+        stringResource(R.string.duration_mins, mins)
     }
 }

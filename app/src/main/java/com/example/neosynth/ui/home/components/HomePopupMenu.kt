@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @Composable
 fun HomePopupMenu(
@@ -33,7 +35,7 @@ fun HomePopupMenu(
             .width(220.dp)
     ) {
         DropdownMenuItem(
-            text = { Text("Reproducir siguiente") },
+            text = { Text(stringResource(R.string.action_play_next)) },
             onClick = {
                 onPlayNext()
                 onDismiss()
@@ -43,7 +45,7 @@ fun HomePopupMenu(
             }
         )
         DropdownMenuItem(
-            text = { Text("Agregar a la cola") },
+            text = { Text(stringResource(R.string.action_add_to_queue)) },
             onClick = {
                 onAddToQueue()
                 onDismiss()
@@ -54,7 +56,7 @@ fun HomePopupMenu(
         )
         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
         DropdownMenuItem(
-            text = { Text("Ir al artista") },
+            text = { Text(stringResource(R.string.action_go_to_artist)) },
             onClick = {
                 onGoToArtist()
                 onDismiss()
@@ -64,7 +66,7 @@ fun HomePopupMenu(
             }
         )
         DropdownMenuItem(
-            text = { Text("Ir al álbum") },
+            text = { Text(stringResource(R.string.action_go_to_album)) },
             onClick = {
                 onGoToAlbum()
                 onDismiss()

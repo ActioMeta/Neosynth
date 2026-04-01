@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.neosynth.R
 import com.example.neosynth.data.preferences.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,8 +41,31 @@ fun SettingsScreen(
     val audioSettings by viewModel.audioSettings.collectAsState()
     val appSettings by viewModel.appSettings.collectAsState()
     
+    val currentConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
+    val currentLocaleTag = remember(currentConfiguration) {
+        val appLocales = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(android.app.LocaleManager::class.java)?.applicationLocales?.toLanguageTags()
+        } else {
+            androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        }
+        
+        if (!appLocales.isNullOrEmpty()) {
+            appLocales
+        } else {
+            currentConfiguration.locales.get(0).language
+        }
+    }
+    val currentLanguageStr = remember(currentLocaleTag) {
+        when {
+            currentLocaleTag.startsWith("es") -> "Español"
+            currentLocaleTag.startsWith("en") -> "English"
+            else -> "Sistema (" + java.util.Locale.getDefault().displayLanguage.replaceFirstChar { it.uppercase() } + ")"
+        }
+    }
+    
     var showQualityDialog by remember { mutableStateOf<QualityDialogType?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
     var showServersListDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -57,7 +82,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "Configuración",
+                        stringResource(R.string.settings_title),
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -85,24 +110,24 @@ fun SettingsScreen(
         ) {
             // Server Section
             item {
-                SettingsSection(title = "Servidor") {
+                SettingsSection(title = stringResource(R.string.server_title)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.Dns,
-                            title = "Gestionar servidores",
+                            title = stringResource(R.string.server_manage),
                             subtitle = "${allServers.size} servidor(es) configurado(s)",
                             onClick = { showServersListDialog = true }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsItem(
                             icon = Icons.Rounded.CheckCircle,
-                            title = "Servidor activo",
-                            subtitle = serverInfo?.url ?: "No conectado"
+                            title = stringResource(R.string.server_active),
+                            subtitle = serverInfo?.url ?: stringResource(R.string.server_not_connected)
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsItem(
                             icon = Icons.Rounded.Person,
-                            title = "Usuario",
+                            title = stringResource(R.string.server_username),
                             subtitle = serverInfo?.username ?: "-"
                         )
                     }
@@ -111,31 +136,31 @@ fun SettingsScreen(
 
             // Storage Section
             item {
-                SettingsSection(title = "Almacenamiento") {
+                SettingsSection(title = stringResource(R.string.settings_storage)) {
                     SettingsCard {
                         SettingsItem(
                             icon = Icons.Rounded.Download,
-                            title = "Canciones descargadas",
+                            title = stringResource(R.string.settings_downloaded_songs),
                             subtitle = "$downloadedCount canciones"
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsItem(
                             icon = Icons.Rounded.Storage,
-                            title = "Caché de imágenes",
+                            title = stringResource(R.string.settings_image_cache),
                             subtitle = cacheSize
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.DeleteSweep,
-                            title = "Limpiar caché",
-                            subtitle = "Eliminar archivos temporales",
+                            title = stringResource(R.string.settings_clear_cache),
+                            subtitle = stringResource(R.string.settings_clear_cache_desc),
                             onClick = { viewModel.clearCache() }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.DeleteForever,
-                            title = "Eliminar todas las descargas",
-                            subtitle = "Borrar canciones y cover arts descargados",
+                            title = stringResource(R.string.settings_delete_all_downloads),
+                            subtitle = stringResource(R.string.settings_delete_all_downloads_desc),
                             onClick = { showDeleteAllDialog = true },
                             iconTint = MaterialTheme.colorScheme.error
                         )
@@ -145,28 +170,28 @@ fun SettingsScreen(
 
             // Playback Section
             item {
-                SettingsSection(title = "Reproducción") {
+                SettingsSection(title = stringResource(R.string.settings_playback)) {
                     SettingsCard {
                         SettingsSwitchItem(
                             icon = Icons.Rounded.GraphicEq,
-                            title = "Fade In Suave",
-                            subtitle = "Suavizar inicio de canciones (Fade In)",
+                            title = stringResource(R.string.settings_playback_fade_in),
+                            subtitle = stringResource(R.string.settings_playback_fade_in_desc),
                             checked = audioSettings.crossfadeEnabled,
                             onCheckedChange = { viewModel.updateCrossfadeEnabled(it) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsSwitchItem(
                             icon = Icons.Rounded.Headphones,
-                            title = "Crossfeed",
-                            subtitle = "Mezcla ligera para reducir fatiga con audífonos",
+                            title = stringResource(R.string.settings_playback_crossfeed),
+                            subtitle = stringResource(R.string.settings_playback_crossfeed_desc),
                             checked = audioSettings.crossfeedEnabled,
                             onCheckedChange = { viewModel.updateCrossfeedEnabled(it) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsSwitchItem(
                             icon = Icons.Rounded.VolumeUp,
-                            title = "Normalizar volumen",
-                            subtitle = "Igualar volumen entre canciones",
+                            title = stringResource(R.string.settings_playback_normalize),
+                            subtitle = stringResource(R.string.settings_playback_normalize_desc),
                             checked = audioSettings.normalizeVolume,
                             onCheckedChange = { viewModel.updateNormalizeVolume(it) }
                         )
@@ -176,18 +201,18 @@ fun SettingsScreen(
 
             // Quality Section
             item {
-                SettingsSection(title = "Calidad de audio - Streaming") {
+                SettingsSection(title = stringResource(R.string.settings_audio_streaming)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.Wifi,
-                            title = "Streaming por WiFi",
+                            title = stringResource(R.string.settings_stream_wifi),
                             subtitle = getStreamQualityLabel(audioSettings.streamWifiQuality),
                             onClick = { showQualityDialog = QualityDialogType.STREAM_WIFI }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.SignalCellularAlt,
-                            title = "Streaming por datos móviles",
+                            title = stringResource(R.string.settings_stream_mobile),
                             subtitle = getStreamQualityLabel(audioSettings.streamMobileQuality),
                             onClick = { showQualityDialog = QualityDialogType.STREAM_MOBILE }
                         )
@@ -197,18 +222,18 @@ fun SettingsScreen(
 
             // Download Quality Section
             item {
-                SettingsSection(title = "Calidad de audio - Descarga") {
+                SettingsSection(title = stringResource(R.string.settings_audio_download)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.Wifi,
-                            title = "Descarga por WiFi",
+                            title = stringResource(R.string.settings_download_wifi),
                             subtitle = getDownloadQualityLabel(audioSettings.downloadWifiQuality),
                             onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_WIFI }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.SignalCellularAlt,
-                            title = "Descarga por datos móviles",
+                            title = stringResource(R.string.settings_download_mobile),
                             subtitle = getDownloadQualityLabel(audioSettings.downloadMobileQuality),
                             onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_MOBILE }
                         )
@@ -218,13 +243,20 @@ fun SettingsScreen(
 
             // Appearance Section
             item {
-                SettingsSection(title = "Apariencia") {
+                SettingsSection(title = stringResource(R.string.settings_appearance)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.Palette,
-                            title = "Tema",
+                            title = stringResource(R.string.settings_theme),
                             subtitle = getThemeLabel(appSettings.themeMode),
                             onClick = { showThemeDialog = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Language,
+                            title = stringResource(R.string.settings_language),
+                            subtitle = currentLanguageStr,
+                            onClick = { showLanguageDialog = true }
                         )
                         // Dynamic Colors removed
                     }
@@ -233,12 +265,12 @@ fun SettingsScreen(
 
             // External Services Section
             item {
-                SettingsSection(title = "Servicios Externos") {
+                SettingsSection(title = stringResource(R.string.settings_services)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.VpnKey,
-                            title = "API Key de Gemini",
-                            subtitle = if (appSettings.geminiApiKey.isNotBlank()) "Configurada (Toca para editar o eliminar)" else "No configurada",
+                            title = stringResource(R.string.settings_gemini_title),
+                            subtitle = if (appSettings.geminiApiKey.isNotBlank()) stringResource(R.string.settings_gemini_configured) else stringResource(R.string.settings_gemini_not_configured),
                             onClick = { showGeminiKeyDialog = true }
                         )
                     }
@@ -247,17 +279,17 @@ fun SettingsScreen(
 
             // About Section
             item {
-                SettingsSection(title = "Acerca de") {
+                SettingsSection(title = stringResource(R.string.settings_about)) {
                     SettingsCard {
                         SettingsItem(
                             icon = Icons.Rounded.Info,
-                            title = "NeoSynth",
+                            title = stringResource(R.string.app_name),
                             subtitle = "Versión 2.2.0"
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
                             icon = Icons.Rounded.Code,
-                            title = "Código fuente",
+                            title = stringResource(R.string.settings_source_code),
                             subtitle = "github.com/ActioMeta/NeoSynth",
                             onClick = {
                                 val intent = Intent(
@@ -278,7 +310,7 @@ fun SettingsScreen(
         when (type) {
             QualityDialogType.STREAM_WIFI -> {
                 StreamQualityPickerDialog(
-                    title = "Streaming por WiFi",
+                    title = stringResource(R.string.settings_stream_wifi),
                     currentQuality = audioSettings.streamWifiQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateStreamWifiQuality(quality)
@@ -289,7 +321,7 @@ fun SettingsScreen(
             }
             QualityDialogType.STREAM_MOBILE -> {
                 StreamQualityPickerDialog(
-                    title = "Streaming por datos móviles",
+                    title = stringResource(R.string.settings_stream_mobile),
                     currentQuality = audioSettings.streamMobileQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateStreamMobileQuality(quality)
@@ -300,7 +332,7 @@ fun SettingsScreen(
             }
             QualityDialogType.DOWNLOAD_WIFI -> {
                 DownloadQualityPickerDialog(
-                    title = "Descarga por WiFi",
+                    title = stringResource(R.string.settings_download_wifi),
                     currentQuality = audioSettings.downloadWifiQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateDownloadWifiQuality(quality)
@@ -311,7 +343,7 @@ fun SettingsScreen(
             }
             QualityDialogType.DOWNLOAD_MOBILE -> {
                 DownloadQualityPickerDialog(
-                    title = "Descarga por datos móviles",
+                    title = stringResource(R.string.settings_download_mobile),
                     currentQuality = audioSettings.downloadMobileQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateDownloadMobileQuality(quality)
@@ -331,6 +363,17 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+    
+    if (showLanguageDialog) {
+        LanguagePickerDialog(
+            currentLanguageTag = currentLocaleTag,
+            onLanguageSelected = { tag ->
+                viewModel.updateLanguage(tag)
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false }
         )
     }
     
@@ -364,10 +407,10 @@ fun SettingsScreen(
                 )
             },
             title = {
-                Text("Eliminar todas las descargas")
+                Text(stringResource(R.string.settings_delete_all_downloads))
             },
             text = {
-                Text("Se eliminarán todas las canciones y cover arts descargados. Esta acción no se puede deshacer.")
+                Text(stringResource(R.string.settings_delete_all_downloads_desc))
             },
             confirmButton = {
                 Button(
@@ -379,12 +422,12 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Eliminar todo")
+                    Text(stringResource(R.string.settings_delete_all_downloads))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -431,41 +474,34 @@ private enum class QualityDialogType {
     STREAM_WIFI, STREAM_MOBILE, DOWNLOAD_WIFI, DOWNLOAD_MOBILE
 }
 
+@Composable
 private fun getStreamQualityLabel(quality: StreamQuality): String {
     return when (quality) {
-        StreamQuality.LOW -> "Baja (128 kbps Opus)"
-        StreamQuality.MEDIUM -> "Media (192 kbps MP3)"
-        StreamQuality.HIGH -> "Alta (256 kbps AAC)"
-        StreamQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
-        StreamQuality.LOSSLESS -> "Sin pérdida (Original)"
+        StreamQuality.LOW -> stringResource(R.string.quality_low) + " (128 kbps Opus)"
+        StreamQuality.MEDIUM -> stringResource(R.string.quality_medium) + " (192 kbps MP3)"
+        StreamQuality.HIGH -> stringResource(R.string.quality_high) + " (256 kbps AAC)"
+        StreamQuality.VERY_HIGH -> stringResource(R.string.quality_very_high) + " (320 kbps MP3)"
+        StreamQuality.LOSSLESS -> stringResource(R.string.quality_lossless) + " (Original)"
     }
 }
 
+@Composable
 private fun getDownloadQualityLabel(quality: DownloadQuality): String {
     return when (quality) {
-        DownloadQuality.LOW -> "Baja (128 kbps Opus)"
-        DownloadQuality.MEDIUM -> "Media (192 kbps MP3)"
-        DownloadQuality.HIGH -> "Alta (256 kbps AAC)"
-        DownloadQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
-        DownloadQuality.LOSSLESS -> "Sin pérdida (Original)"
+        DownloadQuality.LOW -> stringResource(R.string.quality_low) + " (128 kbps Opus)"
+        DownloadQuality.MEDIUM -> stringResource(R.string.quality_medium) + " (192 kbps MP3)"
+        DownloadQuality.HIGH -> stringResource(R.string.quality_high) + " (256 kbps AAC)"
+        DownloadQuality.VERY_HIGH -> stringResource(R.string.quality_very_high) + " (320 kbps MP3)"
+        DownloadQuality.LOSSLESS -> stringResource(R.string.quality_lossless) + " (Original)"
     }
 }
 
-private fun getQualityLabel(quality: StreamQuality): String {
-    return when (quality) {
-        StreamQuality.LOW -> "Baja (128 kbps MP3)"
-        StreamQuality.MEDIUM -> "Media (192 kbps MP3)"
-        StreamQuality.HIGH -> "Alta (256 kbps MP3)"
-        StreamQuality.VERY_HIGH -> "Muy alta (320 kbps MP3)"
-        StreamQuality.LOSSLESS -> "Sin pérdida (Original)"
-    }
-}
-
+@Composable
 private fun getThemeLabel(theme: ThemeMode): String {
     return when (theme) {
-        ThemeMode.LIGHT -> "Claro"
-        ThemeMode.DARK -> "Oscuro"
-        ThemeMode.SYSTEM -> "Sistema"
+        ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+        ThemeMode.DARK -> stringResource(R.string.theme_dark)
+        ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
     }
 }
 
@@ -658,11 +694,11 @@ private fun GeminiApiKeyDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("API Key de Gemini", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.settings_gemini_title), fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
-                    text = "Ingresa tu API Key para generar letras de canciones sincronizadas automáticamente.",
+                    text = stringResource(R.string.gemini_dialog_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -670,7 +706,7 @@ private fun GeminiApiKeyDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("API Key") },
+                    label = { Text(stringResource(R.string.gemini_api_key_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -678,12 +714,64 @@ private fun GeminiApiKeyDialog(
         },
         confirmButton = {
             Button(onClick = { onKeySaved(text.trim()) }) {
-                Text("Guardar")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    currentLanguageTag: String,
+    onLanguageSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_language), fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onLanguageSelected("es") }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = currentLanguageTag.startsWith("es"),
+                        onClick = { onLanguageSelected("es") }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(stringResource(R.string.lang_spanish), style = MaterialTheme.typography.bodyLarge)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onLanguageSelected("en") }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = currentLanguageTag.startsWith("en"),
+                        onClick = { onLanguageSelected("en") }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(stringResource(R.string.lang_english), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

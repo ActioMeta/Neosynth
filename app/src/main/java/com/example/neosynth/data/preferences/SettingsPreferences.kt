@@ -52,8 +52,8 @@ data class AudioSettings(
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val visualizerEnabled: Boolean = false,
-    val geminiApiKey: String = ""
-    // Dynamic Colors removed by user request
+    val geminiApiKey: String = "",
+    val language: String = ""
 )
 
 @Singleton
@@ -81,6 +81,8 @@ class SettingsPreferences @Inject constructor(
         
         // External Services
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        
+        val LANGUAGE = stringPreferencesKey("app_language")
     }
 
     // Audio Settings Flow
@@ -103,8 +105,8 @@ class SettingsPreferences @Inject constructor(
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
             visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false,
-            geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: ""
-            // dynamicColors removed
+            geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: "",
+            language = prefs[Keys.LANGUAGE] ?: ""
         )
     }
 
@@ -155,5 +157,9 @@ class SettingsPreferences @Inject constructor(
     
     suspend fun updateGeminiApiKey(apiKey: String) {
         dataStore.edit { it[Keys.GEMINI_API_KEY] = apiKey }
+    }
+    
+    suspend fun updateLanguage(language: String) {
+        dataStore.edit { it[Keys.LANGUAGE] = language }
     }
 }

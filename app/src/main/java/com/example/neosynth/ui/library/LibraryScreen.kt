@@ -31,6 +31,8 @@ import com.example.neosynth.data.remote.responses.AlbumDto
 import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.ui.components.AlphabetScrollbar
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +50,7 @@ fun LibraryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Álbumes", "Artistas")
+    val tabs = listOf(stringResource(R.string.tab_playlists), stringResource(R.string.tab_albums), stringResource(R.string.tab_artists))
     
     // Dialogs
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -64,7 +66,7 @@ fun LibraryScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "Biblioteca",
+                        stringResource(R.string.nav_library),
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -72,7 +74,7 @@ fun LibraryScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Volver"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -81,7 +83,7 @@ fun LibraryScreen(
                         IconButton(onClick = { showCreatePlaylistDialog = true }) {
                             Icon(
                                 imageVector = Icons.Rounded.Add,
-                                contentDescription = "Crear playlist"
+                                contentDescription = stringResource(R.string.playlist_new)
                             )
                         }
                     }
@@ -191,8 +193,8 @@ private fun PlaylistsTab(
     if (playlists.isEmpty()) {
         EmptyState(
             icon = Icons.Rounded.QueueMusic,
-            title = "No tienes playlists",
-            subtitle = "Crea tu primera playlist con el botón +"
+            title = stringResource(R.string.library_no_playlists_title),
+            subtitle = stringResource(R.string.library_no_playlists_subtitle)
         )
     } else {
         val listState = rememberLazyListState()
@@ -287,8 +289,8 @@ private fun AlbumsTab(
     if (albums.isEmpty()) {
         EmptyState(
             icon = Icons.Rounded.Album,
-            title = "No hay álbumes",
-            subtitle = "Los álbumes aparecerán aquí"
+            title = stringResource(R.string.library_no_albums_title),
+            subtitle = stringResource(R.string.library_no_albums_subtitle)
         )
     } else {
         val listState = rememberLazyListState()
@@ -446,8 +448,8 @@ private fun ArtistsTab(
     if (artists.isEmpty()) {
         EmptyState(
             icon = Icons.Rounded.Person,
-            title = "No hay artistas",
-            subtitle = "Los artistas aparecerán aquí"
+            title = stringResource(R.string.library_no_artists_title),
+            subtitle = stringResource(R.string.library_no_artists_subtitle)
         )
     } else {
         val listState = rememberLazyListState()
@@ -588,7 +590,7 @@ private fun PlaylistRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${playlist.songCount} canciones",
+                    text = stringResource(R.string.library_songs_count, playlist.songCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -598,7 +600,7 @@ private fun PlaylistRow(
                 IconButton(onClick = { showMenu = true }) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = "Opciones"
+                        contentDescription = stringResource(R.string.action_options)
                     )
                 }
                 
@@ -607,7 +609,7 @@ private fun PlaylistRow(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Editar") },
+                        text = { Text(stringResource(R.string.action_edit)) },
                         onClick = {
                             showMenu = false
                             onEdit()
@@ -617,7 +619,7 @@ private fun PlaylistRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Eliminar") },
+                        text = { Text(stringResource(R.string.action_delete)) },
                         onClick = {
                             showMenu = false
                             onDelete()
@@ -688,7 +690,7 @@ private fun ArtistRowItem(
 
                 artist.albumCount?.let { count ->
                     Text(
-                        text = "$count álbumes",
+                        text = stringResource(R.string.library_albums_count, count),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -745,12 +747,12 @@ private fun CreatePlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nueva playlist") },
+        title = { Text(stringResource(R.string.playlist_new)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text(stringResource(R.string.playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -760,12 +762,12 @@ private fun CreatePlaylistDialog(
                 onClick = { onCreate(name) },
                 enabled = name.isNotBlank()
             ) {
-                Text("Crear")
+                Text(stringResource(R.string.action_create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -781,12 +783,12 @@ private fun EditPlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar playlist") },
+        title = { Text(stringResource(R.string.playlist_edit)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text(stringResource(R.string.playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -796,12 +798,12 @@ private fun EditPlaylistDialog(
                 onClick = { onSave(name) },
                 enabled = name.isNotBlank()
             ) {
-                Text("Guardar")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -815,16 +817,16 @@ private fun DeletePlaylistDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Eliminar playlist") },
-        text = { Text("¿Estás seguro de que deseas eliminar \"$playlistName\"?") },
+        title = { Text(stringResource(R.string.playlist_delete_title)) },
+        text = { Text(stringResource(R.string.playlist_delete_desc, playlistName)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

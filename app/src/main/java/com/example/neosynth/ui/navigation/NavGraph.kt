@@ -46,6 +46,7 @@ import com.example.neosynth.ui.album.AlbumDetailScreen
 import com.example.neosynth.ui.library.LibraryScreen
 import com.example.neosynth.ui.settings.SettingsScreen
 import com.example.neosynth.ui.playlist.PlaylistDetailScreen
+import com.example.neosynth.ui.discover.recent.RecentSongsScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -107,7 +108,16 @@ fun NeosynthNavGraph(
                     onNavigateToArtist = { artistId, artistName ->
                         val encodedName = URLEncoder.encode(artistName, "UTF-8")
                         navController.navigate("artist/$artistId/$encodedName")
+                    },
+                    onNavigateToRecentSongs = {
+                        navController.navigate("recent_songs")
                     }
+                )
+            }
+
+            composable("recent_songs") {
+                RecentSongsScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
 

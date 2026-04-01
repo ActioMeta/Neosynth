@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -110,7 +111,7 @@ fun FloatingNavBar(navController: NavController) {
                                 ) {
                                     Icon(
                                         imageVector = screen.icon,
-                                        contentDescription = screen.title,
+                                        contentDescription = stringResource(screen.titleResId),
                                         modifier = Modifier.size(28.dp),
                                         tint = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
                                     )

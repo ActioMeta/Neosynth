@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NeoSynth</string>
+    
+    <!-- Widget strings -->
+    <string name="widget_now_playing_description">Muestra la canción actual con controles de reproducción</string>
+    <string name="widget_quick_actions_description">Accesos rápidos a favoritos, descargas, shuffle y continuar</string>
+    <string name="widget_mini_player_description">Reproductor compacto con controles básicos</string>
+    
+    <string name="album_art">Carátula del álbum</string>
+    <string name="previous">Anterior</string>
+    <string name="play_pause">Reproducir/Pausar</string>
+    <string name="next">Siguiente</string>
+    <string name="shuffle">Aleatorio</string>
+    <string name="favorites">Favoritos</string>
+    <string name="downloads">Descargas</string>
+    <string name="continue_playback">Continuar reproducción</string>
+    
+    <!-- Navigation strings -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_discover">Descubrir</string>
+    <string name="nav_library">Biblioteca</string>
+    <string name="nav_downloads">Descargas</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="nav_detail">Detalle</string>
+    
+    <!-- Library Screen -->
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_albums">Álbumes</string>
+    <string name="tab_artists">Artistas</string>
+    <string name="library_no_playlists_title">No tienes playlists</string>
+    <string name="library_no_playlists_subtitle">Crea tu primera playlist con el botón +</string>
+    <string name="library_no_albums_title">No hay álbumes</string>
+    <string name="library_no_albums_subtitle">Los álbumes aparecerán aquí</string>
+    <string name="library_no_artists_title">No hay artistas</string>
+    <string name="library_no_artists_subtitle">Los artistas aparecerán aquí</string>
+    <string name="library_songs_count">%1$d canciones</string>
+    <string name="library_albums_count">%1$d álbumes</string>
+    <string name="playlist_new">Nueva playlist</string>
+    <string name="playlist_name">Nombre</string>
+    <string name="playlist_edit">Editar playlist</string>
+    <string name="playlist_delete_title">Eliminar playlist</string>
+    <string name="playlist_delete_desc">¿Eliminar la playlist \"%1$s\"?</string>
+    <string name="playlist_empty">Esta playlist está vacía</string>
+    <string name="playlist_remove_song_title">Quitar canción</string>
+    <string name="playlist_remove_song_desc">¿Quitar \"%1$s\" de esta playlist?</string>
+    
+    <string name="duration_hours_mins">%1$d h %2$d min</string>
+    <string name="duration_mins">%1$d min</string>
+    
+    <!-- Home Screen -->
+    <string name="home_recently_added">Recién agregados</string>
+    <string name="error_no_downloaded_songs">Sin canciones descargadas</string>
+    <string name="error_no_songs_title">Sin Canciones</string>
+    <string name="error_connection_title">Error de Conexión</string>
+    <string name="error_connection_message">No se pudo conectar al servidor.</string>
+    
+    <!-- Downloads Screen -->
+    <string name="search_artists_hint">Buscar artistas...</string>
+    <string name="search_albums_hint">Buscar álbumes...</string>
+    <string name="search_songs_hint">Buscar canciones...</string>
+    <string name="search_hint">Buscar...</string>
+    <string name="downloads_songs_count">%1$d canciones</string>
+    <string name="downloads_empty">No hay descargas</string>
+    <string name="downloads_playlists_count">Playlists (%1$d)</string>
+    <string name="downloads_filtering">Filtrando: %1$s</string>
+    
+    <!-- Discover Screen -->
+    <string name="discover_search_hint">Buscar canciones, artistas, álbumes...</string>
+    <string name="discover_clear">Limpiar</string>
+    <string name="discover_artists">Artistas</string>
+    <string name="discover_albums">Álbumes</string>
+    <string name="discover_songs">Canciones</string>
+    <string name="discover_select_hint">Mantén presionada una canción para seleccionar varias</string>
+    <string name="discover_no_results">Sin resultados</string>
+    <string name="discover_recent_songs">Canciones recientes</string>
+    <string name="discover_view_all">Ver todo</string>
+    <string name="discover_genres">Géneros</string>
+    <string name="discover_view_all_genres">Ver todos los géneros (%1$d)</string>
+    <string name="discover_by_decade">Por década</string>
+    <string name="discover_songs_count">%1$d canciones</string>
+    <string name="discover_random">Aleatorio</string>
+    <string name="discover_decade_of">Década de los %1$s</string>
+    <string name="discover_all_genres">Todos los géneros</string>
+    <string name="discover_genres_count">%1$d géneros</string>
+    <string name="discover_add_to_playlist">Agregar a playlist</string>
+    <string name="discover_playlists_selected">%1$d playlist(s) seleccionada(s)</string>
+    <string name="discover_no_playlists">No hay playlists disponibles</string>
+
+    <!-- General Actions & Commons -->
+    <string name="action_retry">Reintentar</string>
+    <string name="action_back">Volver</string>
+    <string name="action_select_all">Seleccionar todo</string>
+    <string name="action_clear_selection">Limpiar selección</string>
+    <string name="action_search">Buscar</string>
+    <string name="action_collapse">Colapsar</string>
+    <string name="action_expand">Expandir</string>
+    <string name="action_clear_filter">Limpiar filtro</string>
+    <string name="action_play">Play</string>
+    <string name="action_fav">Fav</string>
+    <string name="action_playlist">Lista</string>
+    <string name="action_del">Del</string>
+    <string name="action_queue">Cola</string>
+    <string name="action_down">Desc</string>
+    <string name="action_options">Opciones</string>
+    <string name="action_create">Crear</string>
+    <string name="action_shuffle">Aleatorio</string>
+    <string name="action_sync_playlist">Sincronizar playlist</string>
+    <string name="action_download_playlist">Descargar playlist</string>
+    <string name="action_download">Descargar</string>
+    <string name="action_sort">Ordenar</string>
+    <string name="filter_all">Todo</string>
+    <string name="filter_albums">Álbumes</string>
+    <string name="filter_artists">Artistas</string>
+    <string name="action_clear">Limpiar</string>
+    <string name="save_as_playlist">Guardar como Playlist</string>
+    <string name="new_playlist_name">Nombre de la nueva playlist</string>
+    <string name="drag_to_reorder">Arrastra para reordenar</string>
+    <string name="hold_to_reorder">%1$d • Mantén presionado para reordenar</string>
+    <string name="action_play_short">Play</string>
+    <string name="action_fav_short">Fav</string>
+    <string name="action_down_short">Desc</string>
+    <string name="action_list_short">Lista</string>
+    
+    <!-- Added for Menus / Artist / Queue -->
+    <string name="action_play_next">Reproducir siguiente</string>
+    <string name="action_add_to_queue">Agregar a la cola</string>
+    <string name="action_go_to_artist">Ir al artista</string>
+    <string name="action_go_to_album">Ir al álbum</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_play_queue">Reproducir cola</string>
+    <string name="action_play_shuffle">Reproducir aleatorio</string>
+    <string name="artist_info">Información</string>
+    <string name="artist_biography">Biografía</string>
+    <string name="artist_see_more">Ver más</string>
+    <string name="artist_see_less">Ver menos</string>
+    <string name="artist_discography">Discografía</string>
+    <string name="artist_popular_songs">Canciones populares</string>
+    <string name="artist_profile">Perfil</string>
+    <string name="queue_title">Cola de reproducción</string>
+    <string name="queue_remove_title">Eliminar de la cola</string>
+    <string name="queue_downloading">Descargando la cola...</string>
+    <string name="error_unknown">Error desconocido</string>
+    <string name="content_desc_downloaded">Descargado</string>
+
+    <!-- Recent Songs Screen -->
+    <string name="recent_loading_songs">Cargando canciones...</string>
+    <string name="recent_songs_count">%1$d canciones</string>
+    <string name="recent_download_count">Descargar %1$d canciones</string>
+    <string name="recent_already_downloaded">Ya descargadas</string>
+    <string name="recent_selection_count">%1$d seleccionadas</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Configuración</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_desc">Cambiar idioma de la aplicación</string>
+
+    <!-- Dialogs and Buttons -->
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_add">Agregar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_apply">Aplicar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_remove">Quitar</string>
+
+    <!-- Server Settings -->
+    <string name="server_title">Servidor</string>
+    <string name="server_manage">Gestionar servidores</string>
+    <string name="server_active">Servidor activo</string>
+    <string name="server_username">Usuario</string>
+    <string name="server_not_connected">No conectado</string>
+    <string name="server_add_title">Agregar servidor</string>
+    <string name="server_edit_title">Editar servidor</string>
+    <string name="server_name_label">Nombre del servidor</string>
+    <string name="server_url_label">URL del servidor</string>
+    <string name="server_password_label">Contraseña</string>
+    <string name="server_password_optional_label">Nueva contraseña (Opcional)</string>
+
+    <string name="settings_storage">Almacenamiento</string>
+    <string name="settings_downloaded_songs">Canciones descargadas</string>
+    <string name="settings_image_cache">Caché de imágenes</string>
+    <string name="settings_clear_cache">Limpiar caché</string>
+    <string name="settings_clear_cache_desc">Eliminar archivos temporales</string>
+    <string name="settings_delete_all_downloads">Eliminar todas las descargas</string>
+    <string name="settings_delete_all_downloads_desc">Borrar canciones y cover arts descargados</string>
+    <string name="settings_playback">Reproducción</string>
+    
+    <string name="settings_playback_fade_in">Fade In Suave</string>
+    <string name="settings_playback_fade_in_desc">Suavizar inicio de canciones (Fade In)</string>
+    <string name="settings_playback_crossfeed">Crossfeed</string>
+    <string name="settings_playback_crossfeed_desc">Mezcla ligera para reducir fatiga con audífonos</string>
+    <string name="settings_playback_normalize">Normalizar volumen</string>
+    <string name="settings_playback_normalize_desc">Igualar volumen entre canciones</string>
+
+    <string name="settings_audio_streaming">Calidad de audio - Streaming</string>
+    <string name="settings_stream_wifi">Streaming por WiFi</string>
+    <string name="settings_stream_mobile">Streaming por datos móviles</string>
+    <string name="settings_audio_download">Calidad de audio - Descarga</string>
+    <string name="settings_download_wifi">Descarga por WiFi</string>
+    <string name="settings_download_mobile">Descarga por datos móviles</string>
+
+    <string name="quality_low">Baja</string>
+    <string name="quality_medium">Media</string>
+    <string name="quality_high">Alta</string>
+    <string name="quality_very_high">Muy alta</string>
+    <string name="quality_lossless">Sin pérdida</string>
+    
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_system">Sistema</string>
+
+    <string name="settings_services">Servicios Externos</string>
+    <string name="settings_gemini_title">API Key de Gemini</string>
+    <string name="settings_gemini_configured">Configurada (Toca para editar o eliminar)</string>
+    <string name="settings_gemini_not_configured">No configurada</string>
+    <string name="gemini_dialog_desc">Ingresa tu API Key para generar letras de canciones sincronizadas automáticamente.</string>
+    <string name="gemini_api_key_label">API Key</string>
+
+    <string name="settings_about">Acerca de</string>
+    <string name="settings_source_code">Código fuente</string>
+
+    <string name="lang_spanish">Español</string>
+    <string name="lang_english">English</string>
+    <string name="lang_system">Sistema</string>
+</resources>

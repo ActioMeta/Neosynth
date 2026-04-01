@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import com.example.neosynth.data.local.entities.ServerEntity
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +51,7 @@ fun EditServerDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Editar servidor", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.server_edit_title), fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -64,7 +66,7 @@ fun EditServerDialog(
                         serverName = it
                         errorMessage = null
                     },
-                    label = { Text("Nombre del servidor") },
+                    label = { Text(stringResource(R.string.server_name_label)) },
                     placeholder = { Text("Mi servidor") },
                     leadingIcon = {
                         Icon(Icons.Rounded.Label, contentDescription = null)
@@ -88,7 +90,7 @@ fun EditServerDialog(
                         serverUrl = it
                         errorMessage = null
                     },
-                    label = { Text("URL del servidor") },
+                    label = { Text(stringResource(R.string.server_url_label)) },
                     placeholder = { Text("http://servidor:4533") },
                     leadingIcon = {
                         Icon(Icons.Rounded.Dns, contentDescription = null)
@@ -112,7 +114,7 @@ fun EditServerDialog(
                         username = it
                         errorMessage = null
                     },
-                    label = { Text("Usuario") },
+                    label = { Text(stringResource(R.string.server_username)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Person, contentDescription = null)
                     },
@@ -135,7 +137,7 @@ fun EditServerDialog(
                         password = it
                         errorMessage = null
                     },
-                    label = { Text("Nueva contraseña (Opcional)") },
+                    label = { Text(stringResource(R.string.server_password_optional_label)) },
                     placeholder = { Text("Dejar en blanco para conservar") },
                     leadingIcon = {
                         Icon(Icons.Rounded.Lock, contentDescription = null)
@@ -232,7 +234,7 @@ fun EditServerDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Guardar")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
@@ -240,7 +242,7 @@ fun EditServerDialog(
                 onClick = onDismiss,
                 enabled = !isLoading
             ) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

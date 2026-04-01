@@ -44,7 +44,7 @@ class DownloadWorker @AssistedInject constructor(
         private const val TAG = "DownloadWorker"
         const val CHANNEL_ID = "download_channel"
         private const val CHANNEL_NAME = "Descargas"
-        private const val FOREGROUND_NOTIFICATION_ID = 1001
+        const val FOREGROUND_NOTIFICATION_ID = 1001
     }
 
     private val notificationManager = NotificationManagerCompat.from(applicationContext)
@@ -130,8 +130,9 @@ class DownloadWorker @AssistedInject constructor(
     private fun showCompleteNotification(title: String, playlistName: String? = null, total: Int = 0) {
         if (!hasNotificationPermission()) return
 
-        // Cancelar la notificación de progreso antes de mostrar la de completado
+        // Cancelar tanto la notificación de progreso como la del foreground service
         notificationManager.cancel(notificationId)
+        notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
 
         // Crear PendingIntent para abrir MainActivity al hacer click
         val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
@@ -165,8 +166,9 @@ class DownloadWorker @AssistedInject constructor(
     private fun showErrorNotification(title: String) {
         if (!hasNotificationPermission()) return
 
-        // Cancelar la notificación de progreso antes de mostrar la de error
+        // Cancelar tanto la notificación de progreso como la del foreground service
         notificationManager.cancel(notificationId)
+        notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
 
         // Crear PendingIntent para abrir MainActivity al hacer click
         val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
@@ -203,11 +205,12 @@ class DownloadWorker @AssistedInject constructor(
         val coverArt = inputData.getString("coverArt")
         val serverId = inputData.getLong("serverId", 0L)
         
-        // Parámetros para notificación consolidada (playlists)
+        // Parámetros para notificación consolidada (playlists/albums)
         val playlistId = inputData.getString("playlist_id")
         val playlistName = inputData.getString("playlist_name")
         val totalSongs = inputData.getInt("total_songs", 0)
         val currentIndex = inputData.getInt("current_index", 0)
+        val isAlbumBatch = inputData.getBoolean("is_album", false)
         val isPartOfBatch = playlistId != null && totalSongs > 0
         
         // Usar playlistId para consolidar notificaciones
@@ -420,13 +423,18 @@ class DownloadWorker @AssistedInject constructor(
             }
             Log.d(TAG, "Canción actualizada en Room: $title")
 
-            // Notifiación final
+            // Notificación final
             if (isPartOfBatch && playlistId != null) {
-                // Consultar DB para cuenta exacta final
-                val actualProgress = musicRepository.getPlaylistDownloadedCount(playlistId)
-                
-                 if (actualProgress >= totalSongs) {
-                    // Última canción: mostrar completado de playlist
+                // Para álbumes usamos getDownloadedSongsByAlbum (no joinea con playlist_song_cross_ref)
+                // Para playlists usamos getPlaylistDownloadedCount (necesita el join)
+                val actualProgress = if (isAlbumBatch) {
+                    musicRepository.getDownloadedSongsByAlbum(albumId).size
+                } else {
+                    musicRepository.getPlaylistDownloadedCount(playlistId)
+                }
+
+                if (actualProgress >= totalSongs) {
+                    // Última canción: mostrar completado de playlist/album
                     showCompleteNotification(
                         title = "$title - $artist",
                         playlistName = playlistName,
@@ -434,8 +442,6 @@ class DownloadWorker @AssistedInject constructor(
                     )
                 } else {
                     // Progreso intermedio completado (preparando para siguiente)
-                     // Opcional: Podríamos dejar el 100% visible o simplemente esperar al siguiente worker
-                     // Pero para consistencia, mostramos completado de esta canción
                     Log.d(TAG, "✅ [$actualProgress/$totalSongs] $title - $artist")
                 }
             } else {

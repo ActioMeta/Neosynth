@@ -100,15 +100,9 @@ class PlaybackService : MediaSessionService() {
         // Permanent Listener for Queue Cleanup and Audio Session
         exoPlayer.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                // Queue Optimization: Keep only the 3 most recent previous songs
-                val keepHistory = 3
-                val currentIndex = exoPlayer.currentMediaItemIndex
-                if (currentIndex > keepHistory) {
-                    // Remove current 0 to (index - keep)
-                    // Example: Index 4. Keep 3. Remove 0 to 1 (Item 0).
-                    // This shifts indices, keeping the specific "previous" items we want.
-                    exoPlayer.removeMediaItems(0, currentIndex - keepHistory)
-                }
+                // Removed queue truncation optimization. It was causing the queue indices
+                // to shift during playback, which broke UI pager synchronization.
+                // ExoPlayer is perfectly capable of handling large static playlists.
             }
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {

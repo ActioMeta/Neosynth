@@ -50,12 +50,15 @@ import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
 import com.example.neosynth.ui.components.ServerErrorScreen
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel = hiltViewModel(),
-    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> }
+    onNavigateToArtist: (artistId: String, artistName: String) -> Unit = { _, _ -> },
+    onNavigateToRecentSongs: () -> Unit = {}
 ) {
     val searchQuery = viewModel.searchQuery
     val isSearching = viewModel.isSearching
@@ -210,7 +213,11 @@ fun DiscoverScreen(
                     onGenreClick = { viewModel.loadSongsByGenre(it) },
                     onShowAllGenres = { viewModel.showAllGenres = true },
                     onDecadeClick = { label, range -> viewModel.loadSongsByDecade(label to range) },
-                    getCoverUrl = { viewModel.getCoverUrl(it) }
+                    getCoverUrl = { viewModel.getCoverUrl(it) },
+                    recentSongsPreview = viewModel.recentSongsPreview,
+                    isLoadingRecentSongs = viewModel.isLoadingRecentSongs,
+                    downloadedIds = downloadedIds,
+                    onNavigateToRecentSongs = onNavigateToRecentSongs
                 )
             }
         }
@@ -259,7 +266,7 @@ private fun SearchBar(
                 decorationBox = { innerTextField ->
                     if (query.isEmpty()) {
                         Text(
-                            text = "Buscar canciones, artistas, álbumes...",
+                            text = stringResource(R.string.discover_search_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -280,7 +287,7 @@ private fun SearchBar(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Clear,
-                        contentDescription = "Limpiar",
+                        contentDescription = stringResource(R.string.discover_clear),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -323,7 +330,7 @@ private fun SearchResultsContent(
                     )
                 ) {
                     Text(
-                        text = "Artistas",
+                        text = stringResource(R.string.discover_artists),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -368,7 +375,7 @@ private fun SearchResultsContent(
                     )
                 ) {
                     Text(
-                        text = "Álbumes",
+                        text = stringResource(R.string.discover_albums),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -411,7 +418,7 @@ private fun SearchResultsContent(
                 ) {
                     Column {
                         Text(
-                            text = "Canciones",
+                            text = stringResource(R.string.discover_songs),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -419,7 +426,7 @@ private fun SearchResultsContent(
                         // Hint de selección
                         if (selectedSongIds.isEmpty()) {
                             Text(
-                                text = "Mantén presionada una canción para seleccionar varias",
+                                text = stringResource(R.string.discover_select_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
@@ -491,7 +498,7 @@ private fun SearchResultsContent(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Sin resultados",
+                                text = stringResource(R.string.discover_no_results),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -509,7 +516,7 @@ private fun SearchResultsContent(
             actions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.PlayArrow,
-                    label = "Play",
+                    label = stringResource(R.string.action_play),
                     onClick = {
                         onPlaySongs(selectedSongs)
                         selectedSongIds = emptySet()
@@ -517,7 +524,7 @@ private fun SearchResultsContent(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Favorite,
-                    label = "Fav",
+                    label = stringResource(R.string.action_fav),
                     onClick = {
                         onAddToFavorites(selectedSongs)
                         selectedSongIds = emptySet()
@@ -525,7 +532,7 @@ private fun SearchResultsContent(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
-                    label = "Down",
+                    label = stringResource(R.string.action_down),
                     onClick = {
                         selectedSongs.forEach { onDownload(it) }
                         selectedSongIds = emptySet()
@@ -533,7 +540,7 @@ private fun SearchResultsContent(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.PlaylistAdd,
-                    label = "List",
+                    label = stringResource(R.string.action_playlist),
                     onClick = {
                         onAddToPlaylist(selectedSongs)
                         selectedSongIds = emptySet()
@@ -554,16 +561,121 @@ private fun BrowseContent(
     onGenreClick: (String) -> Unit,
     onShowAllGenres: () -> Unit,
     onDecadeClick: (String, IntRange) -> Unit,
-    getCoverUrl: (String?) -> String?
+    getCoverUrl: (String?) -> String?,
+    recentSongsPreview: List<SongDto> = emptyList(),
+    isLoadingRecentSongs: Boolean = false,
+    downloadedIds: Set<String> = emptySet(),
+    onNavigateToRecentSongs: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 180.dp)
     ) {
+        // Recent Songs Section
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.discover_recent_songs),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = onNavigateToRecentSongs) {
+                    Text(stringResource(R.string.discover_view_all))
+                    Icon(
+                        Icons.Rounded.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
+        if (isLoadingRecentSongs && recentSongsPreview.isEmpty()) {
+            item {
+                Box(
+                    Modifier.fillMaxWidth().height(72.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp) }
+            }
+        } else if (recentSongsPreview.isNotEmpty()) {
+            items(recentSongsPreview, key = { "preview_${it.id}" }) { song ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNavigateToRecentSongs)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                    ) {
+                        val url = getCoverUrl(song.coverArt)
+                        if (url != null) {
+                            AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Surface(
+                                Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Icon(
+                                    Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = song.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${song.artist} • ${song.album}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (song.id in downloadedIds) {
+                        Icon(
+                            Icons.Rounded.DownloadDone,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 72.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
+        }
         // Genres Section
         item {
             Text(
-                text = "Géneros",
+                text = stringResource(R.string.discover_genres),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -609,7 +721,7 @@ private fun BrowseContent(
                     onClick = onShowAllGenres,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
-                    Text("Ver todos los géneros (${genres.size})")
+                    Text(stringResource(R.string.discover_view_all_genres, genres.size))
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Rounded.ArrowForward,
@@ -624,7 +736,7 @@ private fun BrowseContent(
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Por década",
+                text = stringResource(R.string.discover_by_decade),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -1073,7 +1185,7 @@ private fun GenreSongsSheet(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${songs.size} canciones",
+                            text = stringResource(R.string.discover_songs_count, songs.size),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1091,7 +1203,7 @@ private fun GenreSongsSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Aleatorio")
+                            Text(stringResource(R.string.discover_random))
                         }
                     }
                 }
@@ -1099,7 +1211,7 @@ private fun GenreSongsSheet(
                 // Hint de selección
                 if (songs.isNotEmpty() && !isLoading && selectedSongIds.isEmpty()) {
                     Text(
-                        text = "Mantén presionada una canción para seleccionar varias",
+                        text = stringResource(R.string.discover_select_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.padding(top = 4.dp)
@@ -1162,7 +1274,7 @@ private fun GenreSongsSheet(
                 actions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.PlayArrow,
-                        label = "Play",
+                        label = stringResource(R.string.action_play_short),
                         onClick = {
                             onPlaySongs(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1170,7 +1282,7 @@ private fun GenreSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.Favorite,
-                        label = "Fav",
+                        label = stringResource(R.string.action_fav_short),
                         onClick = {
                             onAddToFavorites(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1178,7 +1290,7 @@ private fun GenreSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = "Down",
+                        label = stringResource(R.string.action_down_short),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1186,7 +1298,7 @@ private fun GenreSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = "List",
+                        label = stringResource(R.string.action_list_short),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1242,12 +1354,12 @@ private fun DecadeSongsSheet(
                 ) {
                     Column {
                         Text(
-                            text = "Década de los $decade",
+                            text = stringResource(R.string.discover_decade_of, decade),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${songs.size} canciones",
+                            text = stringResource(R.string.discover_songs_count, songs.size),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1265,7 +1377,7 @@ private fun DecadeSongsSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Aleatorio")
+                            Text(stringResource(R.string.discover_random))
                         }
                     }
                 }
@@ -1273,7 +1385,7 @@ private fun DecadeSongsSheet(
                 // Hint de selección
                 if (songs.isNotEmpty() && !isLoading && selectedSongIds.isEmpty()) {
                     Text(
-                        text = "Mantén presionada una canción para seleccionar varias",
+                        text = stringResource(R.string.discover_select_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.padding(top = 4.dp)
@@ -1335,7 +1447,7 @@ private fun DecadeSongsSheet(
                 actions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.PlayArrow,
-                        label = "Play",
+                        label = stringResource(R.string.action_play_short),
                         onClick = {
                             onPlaySongs(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1343,7 +1455,7 @@ private fun DecadeSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.Favorite,
-                        label = "Fav",
+                        label = stringResource(R.string.action_fav_short),
                         onClick = {
                             onAddToFavorites(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1351,7 +1463,7 @@ private fun DecadeSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = "Down",
+                        label = stringResource(R.string.action_down_short),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1359,7 +1471,7 @@ private fun DecadeSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = "List",
+                        label = stringResource(R.string.action_list_short),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
@@ -1393,13 +1505,13 @@ private fun AllGenresSheet(
                 .padding(horizontal = 16.dp)
         ) {
             Text(
-                text = "Todos los géneros",
+                text = stringResource(R.string.discover_all_genres),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                text = "${genres.size} géneros",
+                text = stringResource(R.string.discover_genres_count, genres.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -1444,7 +1556,7 @@ private fun PlaylistPickerDialog(
         onDismissRequest = onDismiss,
         title = { 
             Text(
-                text = "Agregar a playlist",
+                text = stringResource(R.string.discover_add_to_playlist),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -1453,7 +1565,7 @@ private fun PlaylistPickerDialog(
             Column {
                 if (selectedPlaylistIds.isNotEmpty()) {
                     Text(
-                        text = "${selectedPlaylistIds.size} playlist(s) seleccionada(s)",
+                        text = stringResource(R.string.discover_playlists_selected, selectedPlaylistIds.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium,
@@ -1469,7 +1581,7 @@ private fun PlaylistPickerDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No hay playlists disponibles",
+                            text = stringResource(R.string.discover_no_playlists),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

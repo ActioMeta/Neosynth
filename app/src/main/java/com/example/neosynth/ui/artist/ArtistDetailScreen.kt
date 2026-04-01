@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.AlbumDto
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,7 +150,7 @@ fun ArtistDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Reproducir aleatorio",
+                                    stringResource(R.string.action_play_shuffle),
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -170,7 +172,7 @@ fun ArtistDetailScreen(
                 if (albums.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Discografía",
+                            text = stringResource(R.string.artist_discography),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -198,7 +200,7 @@ fun ArtistDetailScreen(
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Canciones populares",
+                            text = stringResource(R.string.artist_popular_songs),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -229,7 +231,7 @@ fun ArtistDetailScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Volver"
+                contentDescription = stringResource(R.string.action_back)
             )
         }
     }
@@ -250,7 +252,7 @@ private fun ArtistInfoSection(
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
-            text = "Información",
+            text = stringResource(R.string.artist_info),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -271,18 +273,18 @@ private fun ArtistInfoSection(
                     StatItem(
                         icon = Icons.Rounded.Album,
                         value = albumCount.toString(),
-                        label = "Álbumes"
+                        label = stringResource(R.string.tab_albums)
                     )
                     StatItem(
                         icon = Icons.Rounded.MusicNote,
                         value = songCount.toString(),
-                        label = "Canciones"
+                        label = stringResource(R.string.discover_songs)
                     )
                     if (lastFmUrl != null) {
                         StatItem(
                             icon = Icons.Rounded.Language,
                             value = "Last.fm",
-                            label = "Perfil"
+                            label = stringResource(R.string.artist_profile)
                         )
                     }
                 }
@@ -294,7 +296,7 @@ private fun ArtistInfoSection(
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Text(
-                        text = "Biografía",
+                        text = stringResource(R.string.artist_biography),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -312,7 +314,7 @@ private fun ArtistInfoSection(
                             onClick = { expanded = !expanded },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text(if (expanded) "Ver menos" else "Ver más")
+                            Text(if (expanded) stringResource(R.string.artist_see_less) else stringResource(R.string.artist_see_more))
                         }
                     }
                 }
@@ -400,7 +402,7 @@ private fun TopSongRow(
             IconButton(onClick = onClick) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Reproducir"
+                    contentDescription = stringResource(R.string.action_play)
                 )
             }
         }

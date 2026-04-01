@@ -42,6 +42,8 @@ import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
@@ -168,7 +170,7 @@ fun PlaylistDetailScreen(
 
                             // Song count
                             Text(
-                                text = "${songs.size} canciones",
+                                text = stringResource(R.string.library_songs_count, songs.size),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -185,7 +187,7 @@ fun PlaylistDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.playPlaylist() },
                                     icon = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Reproducir",
+                                    contentDescription = stringResource(R.string.action_play),
                                     isPrimary = true,
                                     size = 64.dp,
                                     iconSize = 36.dp
@@ -197,7 +199,7 @@ fun PlaylistDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.shufflePlay() },
                                     icon = Icons.Rounded.Shuffle,
-                                    contentDescription = "Aleatorio",
+                                    contentDescription = stringResource(R.string.action_shuffle),
                                     size = 48.dp,
                                     iconSize = 24.dp
                                 )
@@ -206,7 +208,7 @@ fun PlaylistDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.syncPlaylist() },
                                     icon = if (isSyncing) Icons.Rounded.Sync else Icons.Rounded.CloudSync,
-                                    contentDescription = "Sincronizar playlist",
+                                    contentDescription = stringResource(R.string.action_sync_playlist),
                                     size = 48.dp,
                                     iconSize = 24.dp
                                 )
@@ -214,7 +216,7 @@ fun PlaylistDetailScreen(
                                 AnimatedIconButton(
                                     onClick = { viewModel.downloadPlaylist() },
                                     icon = Icons.Rounded.Download,
-                                    contentDescription = "Descargar playlist",
+                                    contentDescription = stringResource(R.string.action_download_playlist),
                                     size = 48.dp,
                                     iconSize = 24.dp
                                 )
@@ -228,7 +230,7 @@ fun PlaylistDetailScreen(
                 // Songs header
                 item {
                     Text(
-                        text = "Canciones",
+                        text = stringResource(R.string.discover_songs),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
@@ -253,7 +255,7 @@ fun PlaylistDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Esta playlist está vacía",
+                                    text = stringResource(R.string.playlist_empty),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -301,7 +303,7 @@ fun PlaylistDetailScreen(
             actions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.PlayArrow,
-                    label = "Play",
+                    label = stringResource(R.string.action_play),
                     onClick = {
                         viewModel.playSongs(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -309,7 +311,7 @@ fun PlaylistDetailScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Favorite,
-                    label = "Favoritos",
+                    label = stringResource(R.string.action_fav),
                     onClick = {
                         viewModel.addToFavorites(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -317,7 +319,7 @@ fun PlaylistDetailScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
-                    label = "Descargar",
+                    label = stringResource(R.string.action_download),
                     onClick = {
                         viewModel.downloadSongs(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -336,7 +338,7 @@ fun PlaylistDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Volver"
+                        contentDescription = stringResource(R.string.action_back)
                     )
                 }
             },
@@ -352,8 +354,8 @@ fun PlaylistDetailScreen(
     showDeleteSongDialog?.let { (index, song) ->
         AlertDialog(
             onDismissRequest = { showDeleteSongDialog = null },
-            title = { Text("Quitar canción") },
-            text = { Text("¿Quitar \"${song.title}\" de esta playlist?") },
+            title = { Text(stringResource(R.string.playlist_remove_song_title)) },
+            text = { Text(stringResource(R.string.playlist_remove_song_desc, song.title)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -361,12 +363,12 @@ fun PlaylistDetailScreen(
                         showDeleteSongDialog = null
                     }
                 ) {
-                    Text("Quitar", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteSongDialog = null }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -498,7 +500,7 @@ private fun PlaylistSongRow(
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Rounded.Remove,
-                        contentDescription = "Quitar de playlist",
+                        contentDescription = stringResource(R.string.playlist_remove_song_title),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }

@@ -41,6 +41,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.ui.components.AlphabetScrollbar
 import com.example.neosynth.ui.components.RowListItem
@@ -63,7 +65,7 @@ fun DownloadsScreen(
     val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
     
     // Estado para colapsar/expandir playlists
-    var playlistsExpanded by remember { mutableStateOf(true) }
+    var playlistsExpanded by remember { mutableStateOf(false) }
 
     val allSongs = remember(groupedSongs) { groupedSongs.values.flatten() }
 
@@ -223,10 +225,10 @@ fun DownloadsScreen(
                                         if (searchQuery.isEmpty()) {
                                             Text(
                                                 text = when (currentFilter) {
-                                                    FilterType.ARTIST -> "Buscar artistas..."
-                                                    FilterType.ALBUM -> "Buscar álbumes..."
-                                                    FilterType.SONG -> "Buscar canciones..."
-                                                    else -> "Buscar..."
+                                                    FilterType.ARTIST -> stringResource(R.string.search_artists_hint)
+                                                    FilterType.ALBUM -> stringResource(R.string.search_albums_hint)
+                                                    FilterType.SONG -> stringResource(R.string.search_songs_hint)
+                                                    else -> stringResource(R.string.search_hint)
                                                 },
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 style = MaterialTheme.typography.bodyMedium
@@ -242,7 +244,7 @@ fun DownloadsScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Clear,
-                                            contentDescription = "Limpiar",
+                                            contentDescription = stringResource(R.string.discover_clear),
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -252,7 +254,7 @@ fun DownloadsScreen(
                     } else {
                         // Mostrar cantidad de canciones
                         Text(
-                            text = "${allSongs.size} canciones",
+                            text = stringResource(R.string.downloads_songs_count, allSongs.size),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(start = 8.dp),
@@ -266,7 +268,7 @@ fun DownloadsScreen(
                     IconButton(onClick = { isSearchVisible = true }) {
                         Icon(
                             imageVector = Icons.Rounded.Search,
-                            contentDescription = "Buscar"
+                            contentDescription = stringResource(R.string.action_search)
                         )
                     }
                 }
@@ -304,7 +306,7 @@ fun DownloadsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = if (searchQuery.isNotEmpty()) "Sin resultados" else "No hay descargas",
+                                    text = if (searchQuery.isNotEmpty()) stringResource(R.string.discover_no_results) else stringResource(R.string.downloads_empty),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -328,7 +330,7 @@ fun DownloadsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Playlists (${allPlaylists.size})",
+                                        text = stringResource(R.string.downloads_playlists_count, allPlaylists.size),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
@@ -338,7 +340,7 @@ fun DownloadsScreen(
                                             Icons.Rounded.ExpandLess 
                                         else 
                                             Icons.Rounded.ExpandMore,
-                                        contentDescription = if (playlistsExpanded) "Colapsar" else "Expandir",
+                                        contentDescription = if (playlistsExpanded) stringResource(R.string.action_collapse) else stringResource(R.string.action_expand),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -375,7 +377,7 @@ fun DownloadsScreen(
                                     FilterChip(
                                         selected = true,
                                         onClick = { viewModel.clearPlaylistFilter() },
-                                        label = { Text("Filtrando: ${selectedPlaylist.playlist.name}") },
+                                        label = { Text(stringResource(R.string.downloads_filtering, selectedPlaylist.playlist.name)) },
                                         leadingIcon = {
                                             Icon(
                                                 Icons.Rounded.QueueMusic,
@@ -386,7 +388,7 @@ fun DownloadsScreen(
                                         trailingIcon = {
                                             Icon(
                                                 Icons.Default.Close,
-                                                contentDescription = "Limpiar filtro",
+                                                contentDescription = stringResource(R.string.action_clear_filter),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         },
@@ -688,7 +690,7 @@ fun DownloadsScreen(
             actions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.PlayArrow,
-                    label = "Play",
+                    label = stringResource(R.string.action_play),
                     onClick = {
                         val selectedSongs = allSongs.filter { it.id in selectedSongIds }
                         if (selectedSongs.isNotEmpty()) {
@@ -699,7 +701,7 @@ fun DownloadsScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Favorite,
-                    label = "Fav",
+                    label = stringResource(R.string.action_fav),
                     onClick = {
                         val selectedSongs = allSongs.filter { it.id in selectedSongIds }
                         viewModel.addToFavorites(selectedSongs.map { it.id }.toSet())
@@ -708,7 +710,7 @@ fun DownloadsScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.PlaylistAdd,
-                    label = "Playlist",
+                    label = stringResource(R.string.action_playlist),
                     onClick = {
                         pendingAddSongIds = selectedSongIds
                         showAddToPlaylistDialog = true
@@ -717,7 +719,7 @@ fun DownloadsScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.Delete,
-                    label = "Del",
+                    label = stringResource(R.string.action_del),
                     onClick = {
                         viewModel.deleteSelectedSongs(selectedSongIds)
                         selectedSongIds = emptySet()
@@ -725,7 +727,7 @@ fun DownloadsScreen(
                 ),
                 MultiSelectAction(
                     icon = Icons.Rounded.QueueMusic,
-                    label = "Queue",
+                    label = stringResource(R.string.action_queue),
                     onClick = {
                         val selectedSongs = allSongs.filter { it.id in selectedSongIds }
                         viewModel.addToQueue(selectedSongs)
@@ -894,33 +896,33 @@ private fun DownloadsFabGroup(
             ) {
                 FabMenuPill(
                     icon = Icons.Rounded.Shuffle,
-                    label = "Aleatorio",
+                    label = stringResource(R.string.action_shuffle),
                     onClick = onShuffleAll,
                     delay = 0
                 )
                 FabMenuPill(
                     icon = Icons.Rounded.QueueMusic,
-                    label = "Reproducir cola",
+                    label = stringResource(R.string.action_play_queue),
                     onClick = onPlayQueue,
                     delay = 40
                 )
                 FabMenuPill(
                     icon = Icons.Rounded.Album,
-                    label = "Álbumes",
+                    label = stringResource(R.string.filter_albums),
                     onClick = onFilterAlbum,
                     isSelected = currentFilter == FilterType.ALBUM,
                     delay = 80
                 )
                 FabMenuPill(
                     icon = Icons.Rounded.Person,
-                    label = "Artistas",
+                    label = stringResource(R.string.filter_artists),
                     onClick = onFilterArtist,
                     isSelected = currentFilter == FilterType.ARTIST,
                     delay = 120
                 )
                 FabMenuPill(
-                    icon = Icons.Rounded.LibraryMusic,
-                    label = "Todo",
+                    icon = Icons.Rounded.FormatListBulleted,
+                    label = stringResource(R.string.filter_all),
                     onClick = onFilterAll,
                     isSelected = currentFilter == FilterType.ALL,
                     delay = 160

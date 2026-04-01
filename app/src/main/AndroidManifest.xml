@@ -22,7 +22,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
-        android:theme="@style/Theme.NeoSynth_android">
+        android:theme="@style/Theme.NeoSynth_android"
+        android:localeConfig="@xml/locales_config">
 
         <activity
             android:name=".MainActivity"

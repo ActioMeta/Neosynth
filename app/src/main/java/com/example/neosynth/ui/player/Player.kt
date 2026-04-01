@@ -77,6 +77,8 @@ import com.example.neosynth.ui.components.AnimatedPlayerSlider
 import com.example.neosynth.ui.components.bounceClick
 import kotlinx.coroutines.launch
 import androidx.media3.common.Player
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
@@ -711,6 +713,7 @@ private fun QueueBottomSheet(
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     // Estado para drag & drop
     var displayQueue by remember { mutableStateOf(queue) }
@@ -794,11 +797,13 @@ private fun QueueBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Cola de reproducción",
-                        style = MaterialTheme.typography.titleLarge,
+                  Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.queue_title),
+                style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
                 }
                 
                 Row(
@@ -817,9 +822,9 @@ private fun QueueBottomSheet(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (draggedIndex >= 0) 
-                        "Arrastra para reordenar"
+                        stringResource(R.string.drag_to_reorder)
                     else
-                        "${queue.size} • Mantén presionado para reordenar",
+                        stringResource(R.string.hold_to_reorder, queue.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (draggedIndex >= 0)
                         MaterialTheme.colorScheme.primary
@@ -950,20 +955,21 @@ private fun QueueBottomSheet(
                 actions = listOf(
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = "Guardar",
+                        label = stringResource(R.string.action_save),
                         onClick = { showSavePlaylistDialog = true }
                     ),
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.Download,
-                        label = "Descargar",
+                        label = stringResource(R.string.action_download),
                         onClick = {
+                            val downloadingMsg = context.getString(R.string.queue_downloading)
                             viewModel.downloadQueue()
-                            onShowSnackbar("Descargando la cola...")
+                            onShowSnackbar(downloadingMsg)
                         }
                     ),
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.ClearAll,
-                        label = "Limpiar",
+                        label = stringResource(R.string.action_clear),
                         onClick = {
                             musicController.clearQueue()
                             onDismiss()
@@ -979,15 +985,16 @@ private fun QueueBottomSheet(
         if (showSavePlaylistDialog) {
             var playlistName by remember { mutableStateOf("") }
             val isProcessing by viewModel.isProcessingQueueAction.collectAsState()
+            val okMessage = stringResource(R.string.playlist_new) // Reusing playlist_new or similar for success? Actually just let it be or extract
             
             AlertDialog(
                 onDismissRequest = { if (!isProcessing) showSavePlaylistDialog = false },
-                title = { Text("Guardar como Playlist") },
+                title = { Text(stringResource(R.string.save_as_playlist)) },
                 text = {
                     OutlinedTextField(
                         value = playlistName,
                         onValueChange = { playlistName = it },
-                        label = { Text("Nombre de la nueva playlist") },
+                        label = { Text(stringResource(R.string.new_playlist_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1010,7 +1017,7 @@ private fun QueueBottomSheet(
                         },
                         enabled = playlistName.isNotBlank() && !isProcessing
                     ) {
-                        Text("Guardar")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
                 dismissButton = {
@@ -1018,7 +1025,7 @@ private fun QueueBottomSheet(
                         onClick = { showSavePlaylistDialog = false },
                         enabled = !isProcessing
                     ) {
-                        Text("Cancelar")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             )
@@ -1041,7 +1048,7 @@ private fun QueueItem(
     onDrag: (PointerInputChange, Offset) -> Unit = { _, _ -> },
     onDragEnd: () -> Unit = {}
 ) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     
     // Animación de escala cuando está siendo arrastrado
     val scale by animateFloatAsState(
@@ -1140,13 +1147,13 @@ private fun QueueItem(
 
             // Remove button
             IconButton(
-                onClick = { showDeleteConfirm = true },
+                onClick = { showDeleteDialog = true },
                 modifier = Modifier.size(32.dp),
                 enabled = !isDragged
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Eliminar de la cola",
+                    contentDescription = stringResource(R.string.queue_remove_title),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1156,26 +1163,26 @@ private fun QueueItem(
     }
     
     // Confirmación de eliminar
-    if (showDeleteConfirm) {
+    if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Eliminar de la cola") },
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.queue_remove_title)) },
             text = { 
-                Text("¿Eliminar \"${item.mediaMetadata.title}\" de la lista de reproducción?") 
+                Text(item.mediaMetadata.title?.toString() ?: "Canción") 
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onRemove()
-                        showDeleteConfirm = false
+                        showDeleteDialog = false
                     }
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancelar")
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

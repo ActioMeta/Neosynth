@@ -122,6 +122,7 @@ class AlbumDownloadHandler @Inject constructor(
                         .putString("playlist_name", albumName)
                         .putInt("total_songs", songsToDownload.size)
                         .putInt("current_index", globalIndex)
+                        .putBoolean("is_album", true)
                         .build()
 
                     androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
@@ -193,6 +194,10 @@ class AlbumDownloadHandler @Inject constructor(
                         .putString("username", server.username)
                         .putString("token", server.token)
                         .putString("salt", server.salt)
+                        .putString("playlist_id", albumId)
+                        .putString("playlist_name", albumName)
+                        .putInt("total_songs", songsToDownload.size)
+                        .putBoolean("is_album", true)
                         .build()
 
                     androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()

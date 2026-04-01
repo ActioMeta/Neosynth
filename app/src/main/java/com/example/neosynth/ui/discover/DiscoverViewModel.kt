@@ -23,6 +23,9 @@ import com.example.neosynth.player.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
@@ -89,9 +92,16 @@ class DiscoverViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
+    // --- Canciones recientes (preview para Discover) ---
+    var recentSongsPreview by mutableStateOf<List<SongDto>>(emptyList())
+        private set
+    var isLoadingRecentSongs by mutableStateOf(false)
+        private set
+
     init {
         loadGenres()
         loadDecades()
+        loadRecentSongsPreview()
     }
 
     fun onSearchQueryChange(query: String) {
@@ -201,6 +211,54 @@ class DiscoverViewModel @Inject constructor(
                 error = e.localizedMessage ?: "Error de conexión"
             } finally {
                 isLoadingGenres = false
+            }
+        }
+    }
+
+    fun loadRecentSongsPreview() {
+        viewModelScope.launch {
+            isLoadingRecentSongs = true
+            try {
+                val server = serverDao.getActiveServer() ?: return@launch
+                if (cachedServer == null) cachedServer = server
+                urlInterceptor.setBaseUrl(server.url)
+
+                // Obtener los 3 álbumes más recientes
+                val albumResponse = api.getAlbumList(
+                    type = "newest",
+                    size = 3,
+                    user = server.username,
+                    token = server.token,
+                    salt = server.salt
+                )
+                val albums = albumResponse.response.albumList2?.album
+                    ?: albumResponse.response.albumList?.album
+                    ?: emptyList()
+
+                // Obtener canciones de cada álbum en paralelo
+                val songs = coroutineScope {
+                    albums.map { album ->
+                        async {
+                            try {
+                                val detail = api.getAlbum(
+                                    albumId = album.id,
+                                    u = server.username,
+                                    t = server.token,
+                                    s = server.salt
+                                )
+                                detail.response.albumDetails?.song ?: emptyList()
+                            } catch (e: Exception) { emptyList<SongDto>() }
+                        }
+                    }.awaitAll()
+                }.flatten()
+
+                recentSongsPreview = songs
+                    .sortedByDescending { it.created ?: "" }
+                    .take(6)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingRecentSongs = false
             }
         }
     }

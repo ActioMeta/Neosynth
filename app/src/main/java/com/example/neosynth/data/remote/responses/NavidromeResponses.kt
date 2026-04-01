@@ -56,7 +56,8 @@ data class SongDto(
     val year: Int? = null,
     val bitRate: Int? = null,
     val contentType: String? = null,
-    val suffix: String? = null
+    val suffix: String? = null,
+    val created: String? = null   // ISO-8601: "2024-03-15T10:00:00Z"
 )
 
 data class ArtistsContainer(

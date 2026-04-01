@@ -66,11 +66,40 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.SYSTEM -> systemInDarkTheme
             }
             
-            NeoSynth_androidTheme(darkTheme = useDarkTheme) {
-                val navController = rememberNavController()
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-                val view = androidx.compose.ui.platform.LocalView.current
+            // Custom Language Configuration Override
+            val locale = if (appSettings.language.isNotEmpty()) {
+                java.util.Locale.forLanguageTag(appSettings.language)
+            } else {
+                java.util.Locale.getDefault()
+            }
+            java.util.Locale.setDefault(locale)
+            
+            val configuration = android.content.res.Configuration(androidx.compose.ui.platform.LocalConfiguration.current)
+            configuration.setLocale(locale)
+            
+            // LayoutDirection needs to be set properly for RTL languages
+            configuration.setLayoutDirection(locale)
+            
+            val originalContext = androidx.compose.ui.platform.LocalContext.current
+            
+            val newContext = remember(originalContext, configuration) {
+                object : android.content.ContextWrapper(originalContext) {
+                    val configContext = originalContext.createConfigurationContext(configuration)
+                    override fun getResources(): android.content.res.Resources = configContext.resources
+                    override fun getAssets(): android.content.res.AssetManager = configContext.assets
+                    override fun getSystemService(name: String): Any? = configContext.getSystemService(name)
+                }
+            }
+            
+            CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalConfiguration provides configuration,
+                androidx.compose.ui.platform.LocalContext provides newContext
+            ) {
+                NeoSynth_androidTheme(darkTheme = useDarkTheme) {
+                    val navController = rememberNavController()
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
+                    val view = androidx.compose.ui.platform.LocalView.current
 
                 var startDestination by remember { mutableStateOf<String?>(null) }
 
@@ -140,6 +169,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }

@@ -226,6 +226,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
     
+    fun updateLanguage(language: String) {
+        viewModelScope.launch {
+            settingsPreferences.updateLanguage(language)
+        }
+    }
+    
     // Dynamic Colors removed
     
     // Server Management

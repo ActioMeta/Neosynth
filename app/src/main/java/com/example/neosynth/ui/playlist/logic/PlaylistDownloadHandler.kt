@@ -147,6 +147,7 @@ class PlaylistDownloadHandler @Inject constructor(
 
                     androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
+                        .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                         .setConstraints(constraints)
                         .addTag("playlist_$playlistId")
                         .addTag("download_worker")
@@ -201,6 +202,7 @@ class PlaylistDownloadHandler @Inject constructor(
 
                 val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                     .setInputData(inputData)
+                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .build()
 
                 androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)

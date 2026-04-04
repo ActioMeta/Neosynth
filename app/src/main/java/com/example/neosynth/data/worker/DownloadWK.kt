@@ -328,7 +328,7 @@ class DownloadWorker @AssistedInject constructor(
                 
                 // Solo descargar si no existe ya
                 if (coverFile.exists()) {
-                    localCoverPath = coverFile.absolutePath
+                    localCoverPath = "file://${coverFile.absolutePath}"
                     Log.d(TAG, "♻️ Cover reutilizado (ya existe): ${coverFile.name}")
                 } else {
                     var retries = 3
@@ -352,7 +352,7 @@ class DownloadWorker @AssistedInject constructor(
                             Log.d(TAG, "Descargando cover art (intento ${4 - retries}/3): $coverUrl")
                             // No necesitamos callback para el cover art (es rápido y pequeño)
                             downloadFile(coverUrl, coverFile) { } 
-                            localCoverPath = coverFile.absolutePath
+                            localCoverPath = "file://${coverFile.absolutePath}"
                             downloaded = true
                             Log.d(TAG, "Cover art descargado: ${coverFile.absolutePath} (${coverFile.length()} bytes)")
                         } catch (e: Exception) {

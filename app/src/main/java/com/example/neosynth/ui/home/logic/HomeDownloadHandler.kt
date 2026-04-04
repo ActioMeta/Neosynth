@@ -117,6 +117,7 @@ class HomeDownloadHandler @Inject constructor(
 
                 val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
                     .setInputData(inputData)
+                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .addTag("download_$songId")
                     .build()
 
@@ -176,6 +177,7 @@ class HomeDownloadHandler @Inject constructor(
 
         val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(inputData)
+            .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag("download_${songDto.id}")
             .build()
 

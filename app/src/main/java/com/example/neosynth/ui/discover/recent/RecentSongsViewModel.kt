@@ -254,6 +254,7 @@ class RecentSongsViewModel @Inject constructor(
 
                 val request = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                     .setInputData(inputData)
+                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .addTag("recent_songs_download")
                     .build()
                 workManager.enqueue(request)

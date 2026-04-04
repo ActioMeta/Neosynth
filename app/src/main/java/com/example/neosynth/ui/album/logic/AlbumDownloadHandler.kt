@@ -59,6 +59,7 @@ class AlbumDownloadHandler @Inject constructor(
 
             val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                 .setInputData(inputData)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
 
             androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)
@@ -127,6 +128,7 @@ class AlbumDownloadHandler @Inject constructor(
 
                     androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
+                        .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                         .setConstraints(constraints)
                         .addTag("album_$albumId")
                         .addTag("download_worker")
@@ -202,6 +204,7 @@ class AlbumDownloadHandler @Inject constructor(
 
                     androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
                         .setInputData(inputData)
+                        .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                         .setConstraints(constraints)
                         .addTag("album_$albumId")
                         .addTag("download_worker")

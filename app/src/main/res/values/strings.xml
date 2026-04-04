@@ -111,6 +111,7 @@
     <string name="filter_all">All</string>
     <string name="filter_albums">Albums</string>
     <string name="filter_artists">Artists</string>
+    <string name="filter_recent">Most Recent</string>
     <string name="action_clear">Clear</string>
     <string name="save_as_playlist">Save as Playlist</string>
     <string name="new_playlist_name">New playlist name</string>

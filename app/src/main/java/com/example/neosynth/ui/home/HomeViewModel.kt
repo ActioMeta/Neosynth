@@ -299,8 +299,9 @@ class HomeViewModel @Inject constructor(
         }
     }
     
-    fun playAlbum(albumId: String, shuffle: Boolean = false) {
-        playerHandler.playAlbum(albumId, shuffle, viewModelScope)
+    fun playAlbum(album: Album, shuffle: Boolean = false) {
+        val isLocal = album.sourceType == com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES
+        playerHandler.playAlbum(album.id, shuffle, viewModelScope, isLocal)
     }
 
     fun downloadAlbum(albumId: String) {

@@ -18,7 +18,8 @@ class HomeContextMenuHandler @Inject constructor(
     fun onPlayNext(album: Album, scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>) {
         scope.launch {
             try {
-                val songs = playerHandler.getAlbumSongs(album.id)
+                val isLocal = album.sourceType == com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES
+                val songs = playerHandler.getAlbumSongs(album.id, isLocal)
                 if (songs.isNotEmpty()) {
                     musicController.addAfterCurrent(songs)
                     uiEvent.emit(UiEvent.ShowSnackbar("Playing next: ${album.name}"))
@@ -35,7 +36,8 @@ class HomeContextMenuHandler @Inject constructor(
     fun onAddToQueue(album: Album, scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>) {
         scope.launch {
             try {
-                val songs = playerHandler.getAlbumSongs(album.id)
+                val isLocal = album.sourceType == com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES
+                val songs = playerHandler.getAlbumSongs(album.id, isLocal)
                 if (songs.isNotEmpty()) {
                     musicController.addToQueue(songs)
                     uiEvent.emit(UiEvent.ShowSnackbar("Added to queue: ${album.name}"))

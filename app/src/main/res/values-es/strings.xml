@@ -112,6 +112,7 @@
     <string name="filter_all">Todo</string>
     <string name="filter_albums">Álbumes</string>
     <string name="filter_artists">Artistas</string>
+    <string name="filter_recent">Más Recientes</string>
     <string name="action_clear">Limpiar</string>
     <string name="save_as_playlist">Guardar como Playlist</string>
     <string name="new_playlist_name">Nombre de la nueva playlist</string>

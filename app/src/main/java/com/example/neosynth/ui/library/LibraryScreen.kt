@@ -48,6 +48,7 @@ fun LibraryScreen(
     val albums by viewModel.albums.collectAsState()
     val artists by viewModel.artists.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoadingMoreAlbums by viewModel.isLoadingMoreAlbums.collectAsState()
     
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf(stringResource(R.string.tab_playlists), stringResource(R.string.tab_albums), stringResource(R.string.tab_artists))
@@ -133,8 +134,10 @@ fun LibraryScreen(
                     )
                     1 -> AlbumsTab(
                         albums = albums,
+                        isLoadingMoreAlbums = isLoadingMoreAlbums,
                         getCoverUrl = { viewModel.getCoverUrl(it) },
-                        onAlbumClick = onNavigateToAlbum
+                        onAlbumClick = onNavigateToAlbum,
+                        onLoadMore = { viewModel.loadMoreAlbums() }
                     )
                     2 -> ArtistsTab(
                         artists = artists,
@@ -283,8 +286,10 @@ private fun PlaylistsTab(
 @Composable
 private fun AlbumsTab(
     albums: List<AlbumDto>,
+    isLoadingMoreAlbums: Boolean,
     getCoverUrl: (String?) -> String?,
-    onAlbumClick: (String) -> Unit
+    onAlbumClick: (String) -> Unit,
+    onLoadMore: () -> Unit
 ) {
     if (albums.isEmpty()) {
         EmptyState(
@@ -343,6 +348,35 @@ private fun AlbumsTab(
                             onClick = { onAlbumClick(album.id) }
                         )
                     }
+                }
+
+                if (isLoadingMoreAlbums) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        }
+                    }
+                }
+            }
+            
+            // Endless scrolling detection
+            val isScrollToEnd by remember {
+                derivedStateOf {
+                    val layoutInfo = listState.layoutInfo
+                    val totalItems = layoutInfo.totalItemsCount
+                    val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                    totalItems > 0 && lastVisibleItemIndex >= totalItems - 5
+                }
+            }
+
+            LaunchedEffect(isScrollToEnd) {
+                if (isScrollToEnd && !isLoadingMoreAlbums) {
+                    onLoadMore()
                 }
             }
             

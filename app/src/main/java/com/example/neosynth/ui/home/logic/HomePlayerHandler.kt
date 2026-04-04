@@ -100,8 +100,8 @@ class HomePlayerHandler @Inject constructor(
         }
     }
 
-    suspend fun getAlbumSongs(albumId: String): List<MediaItem> {
-         if (networkHelper.isCurrentConnectionOffline) {
+    suspend fun getAlbumSongs(albumId: String, isLocal: Boolean = false): List<MediaItem> {
+         if (networkHelper.isCurrentConnectionOffline || isLocal) {
              var albumSongs = musicRepository.getDownloadedSongsByAlbum(albumId)
              // Fallback: if no album match, treat albumId as a songId (offline carousel uses song.id)
              if (albumSongs.isEmpty()) {
@@ -158,9 +158,9 @@ class HomePlayerHandler @Inject constructor(
         }
     }
 
-    fun playAlbum(albumId: String, shuffle: Boolean = false, scope: CoroutineScope) {
+    fun playAlbum(albumId: String, shuffle: Boolean = false, scope: CoroutineScope, isLocal: Boolean = false) {
         scope.launch {
-            val mediaItems = getAlbumSongs(albumId)
+            val mediaItems = getAlbumSongs(albumId, isLocal)
             if (mediaItems.isNotEmpty()) {
                  if (shuffle) {
                      musicController.playQueue(mediaItems.shuffled(), 0)

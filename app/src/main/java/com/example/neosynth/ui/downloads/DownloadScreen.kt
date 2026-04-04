@@ -51,7 +51,7 @@ import com.example.neosynth.ui.components.MultiSelectAction
 import kotlinx.coroutines.launch
 
 enum class FilterType {
-    ALL, ARTIST, ALBUM, SONG
+    ALL, ARTIST, ALBUM, SONG, RECENT_DOWNLOADS
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -105,6 +105,12 @@ fun DownloadsScreen(
             
             // Agrupar según el filtro seleccionado
             when (currentFilter) {
+                FilterType.RECENT_DOWNLOADS -> {
+                    // Ordenar por fecha de descarga descendente
+                    val recentSorted = filtered.sortedByDescending { it.downloadedAt ?: 0L }
+                    // Agrupar bajo un solo caracter indicador (debe ser un solo Char en Kotlin)
+                    recentSorted.groupBy { '↓' }.toSortedMap()
+                }
                 FilterType.ARTIST -> {
                     // Agrupar por primera letra del artista
                     filtered.groupBy { song ->
@@ -761,6 +767,10 @@ fun DownloadsScreen(
                     currentFilter = FilterType.ALL
                     fabExpanded = false
                 },
+                onFilterRecent = {
+                    currentFilter = FilterType.RECENT_DOWNLOADS
+                    fabExpanded = false
+                },
                 onFilterArtist = {
                     currentFilter = FilterType.ARTIST
                     fabExpanded = false
@@ -866,6 +876,7 @@ private fun DownloadsFabGroup(
     onShuffleAll: () -> Unit,
     onPlayQueue: () -> Unit,
     onFilterAll: () -> Unit,
+    onFilterRecent: () -> Unit,
     onFilterArtist: () -> Unit,
     onFilterAlbum: () -> Unit,
     currentFilter: FilterType,
@@ -914,18 +925,25 @@ private fun DownloadsFabGroup(
                     delay = 80
                 )
                 FabMenuPill(
+                    icon = Icons.Rounded.AccessTime,
+                    label = stringResource(R.string.filter_recent),
+                    onClick = onFilterRecent,
+                    isSelected = currentFilter == FilterType.RECENT_DOWNLOADS,
+                    delay = 120
+                )
+                FabMenuPill(
                     icon = Icons.Rounded.Person,
                     label = stringResource(R.string.filter_artists),
                     onClick = onFilterArtist,
                     isSelected = currentFilter == FilterType.ARTIST,
-                    delay = 120
+                    delay = 160
                 )
                 FabMenuPill(
                     icon = Icons.Rounded.FormatListBulleted,
                     label = stringResource(R.string.filter_all),
                     onClick = onFilterAll,
                     isSelected = currentFilter == FilterType.ALL,
-                    delay = 160
+                    delay = 200
                 )
             }
         }

@@ -734,6 +734,13 @@ private fun QueueBottomSheet(
         }
     }
 
+    LaunchedEffect(Unit) {
+        val targetIndex = displayQueue.indexOfFirst { it.mediaId == currentSongId }
+        if (targetIndex >= 0) {
+            listState.scrollToItem(targetIndex)
+        }
+    }
+
     fun moveInDisplayQueue(fromIndex: Int, toIndex: Int) {
         if (fromIndex == toIndex) return
         if (fromIndex !in displayQueue.indices || toIndex !in displayQueue.indices) return

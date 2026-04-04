@@ -294,9 +294,9 @@ fun HomeScreen(
                                     items(recentlyAdded) { album ->
                                         CardItem(
                                             album = album,
-                                            onClick = { viewModel.playAlbum(album.id) },
-                                            onPlay = { viewModel.playAlbum(album.id) },
-                                            onShuffle = { viewModel.playAlbum(album.id, shuffle = true) },
+                                            onClick = { viewModel.playAlbum(album) },
+                                            onPlay = { viewModel.playAlbum(album) },
+                                            onShuffle = { viewModel.playAlbum(album, shuffle = true) },
                                             onDownload = { viewModel.downloadAlbum(album.id) },
                                             onGoToArtist = { onNavigateToArtist(album.artistId, album.artistName) },
                                             onPlayNext = { viewModel.onContextPlayNext(album) },

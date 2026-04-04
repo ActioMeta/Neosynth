@@ -50,6 +50,13 @@ class LibraryViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _isLoadingMoreAlbums = MutableStateFlow(false)
+    val isLoadingMoreAlbums: StateFlow<Boolean> = _isLoadingMoreAlbums
+
+    private var albumOffset = 0
+    private val ALBUM_PAGE_SIZE = 50
+    private var isLastAlbumPage = false
+
     private var cachedServer: ServerEntity? = null
 
     fun loadLibrary() {
@@ -96,16 +103,26 @@ class LibraryViewModel @Inject constructor(
                     e.printStackTrace()
                 }
 
-                // Load all albums
+                // Load all albums (Initial load)
                 try {
+                    albumOffset = 0
+                    isLastAlbumPage = false
                     val albumsResponse = api.getAlbumList(
                         type = "alphabeticalByName",
+                        size = ALBUM_PAGE_SIZE,
+                        offset = albumOffset,
                         user = server.username,
                         token = server.token,
                         salt = server.salt
                     )
-                    _albums.value = albumsResponse.response.albumList?.album 
+                    val newAlbums = albumsResponse.response.albumList?.album 
                         ?: albumsResponse.response.albumList2?.album ?: emptyList()
+                    
+                    if (newAlbums.size < ALBUM_PAGE_SIZE) {
+                        isLastAlbumPage = true
+                    }
+                    _albums.value = newAlbums
+                    albumOffset += newAlbums.size
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -132,6 +149,38 @@ class LibraryViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.e("LibraryViewModel", "Failed to load local playlists", e)
+        }
+    }
+
+    fun loadMoreAlbums() {
+        if (_isLoadingMoreAlbums.value || isLastAlbumPage || _isLoading.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreAlbums.value = true
+            try {
+                val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+                val albumsResponse = api.getAlbumList(
+                    type = "alphabeticalByName",
+                    size = ALBUM_PAGE_SIZE,
+                    offset = albumOffset,
+                    user = server.username,
+                    token = server.token,
+                    salt = server.salt
+                )
+                val newAlbums = albumsResponse.response.albumList?.album 
+                    ?: albumsResponse.response.albumList2?.album ?: emptyList()
+                
+                if (newAlbums.size < ALBUM_PAGE_SIZE) {
+                    isLastAlbumPage = true
+                }
+                
+                _albums.value = _albums.value + newAlbums
+                albumOffset += newAlbums.size
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoadingMoreAlbums.value = false
+            }
         }
     }
 

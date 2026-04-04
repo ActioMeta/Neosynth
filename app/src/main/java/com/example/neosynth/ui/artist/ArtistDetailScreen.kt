@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +38,11 @@ fun ArtistDetailScreen(
     onBack: () -> Unit,
     onAlbumClick: (String) -> Unit = {}
 ) {
-    val artist by viewModel.artist.collectAsState()
-    val artistInfo by viewModel.artistInfo.collectAsState()
-    val albums by viewModel.albums.collectAsState()
-    val topSongs by viewModel.topSongs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val artist by viewModel.artist.collectAsStateWithLifecycle()
+    val artistInfo by viewModel.artistInfo.collectAsStateWithLifecycle()
+    val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val topSongs by viewModel.topSongs.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(artistId) {
         viewModel.loadArtist(artistId, artistName)

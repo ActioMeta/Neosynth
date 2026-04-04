@@ -99,6 +99,7 @@ dependencies {
   implementation(libs.androidx.datastore.preferences)
   implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
   implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+  implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
   val media3Version = "1.5.0"
   implementation("androidx.media3:media3-exoplayer:$media3Version")
   implementation("androidx.media3:media3-session:$media3Version")

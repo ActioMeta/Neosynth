@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +48,10 @@ fun AlbumDetailScreen(
     onBack: () -> Unit,
     onArtistClick: (String, String) -> Unit = { _, _ -> }
 ) {
-    val album by viewModel.album.collectAsState()
-    val songs by viewModel.songs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val downloadedIds by viewModel.downloadedSongIds.collectAsState()
+    val album by viewModel.album.collectAsStateWithLifecycle()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val downloadedIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
     
     // Multi-selection state
     var selectedSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -236,7 +237,7 @@ fun AlbumDetailScreen(
                     )
                 }
 
-                itemsIndexed(songs) { index, song ->
+                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                     val isSelected = song.id in selectedSongIds
                     AlbumSongRow(
                         index = index + 1,
@@ -334,7 +335,7 @@ fun AlbumDetailScreen(
         
         // Playlist Picker Dialog
         if (showPlaylistPicker) {
-            val playlists by viewModel.playlists.collectAsState()
+            val playlists by viewModel.playlists.collectAsStateWithLifecycle()
             
             LaunchedEffect(showPlaylistPicker) {
                 if (showPlaylistPicker) {

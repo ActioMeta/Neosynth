@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,10 +60,10 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onArtistClick: (String, String) -> Unit = { _, _ -> }
 ) {
-    val playlist by viewModel.playlist.collectAsState()
-    val songs by viewModel.songs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val downloadedIds by viewModel.downloadedSongIds.collectAsState()
+    val playlist by viewModel.playlist.collectAsStateWithLifecycle()
+    val songs by viewModel.songs.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val downloadedIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
 
     var showAddSongsSheet by remember { mutableStateOf(false) }
     var showDeleteSongDialog by remember { mutableStateOf<Pair<Int, SongDto>?>(null) }
@@ -205,7 +206,7 @@ fun PlaylistDetailScreen(
                                     iconSize = 24.dp
                                 )
 
-                                val isSyncing by viewModel.isSyncing.collectAsState()
+                                val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
                                 AnimatedIconButton(
                                     onClick = { viewModel.syncPlaylist() },
                                     icon = if (isSyncing) Icons.Rounded.Sync else Icons.Rounded.CloudSync,
@@ -264,7 +265,7 @@ fun PlaylistDetailScreen(
                         }
                     }
                 } else {
-                    itemsIndexed(songs) { index, song ->
+                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                         PlaylistSongRow(
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,

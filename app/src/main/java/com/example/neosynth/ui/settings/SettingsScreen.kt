@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,12 +35,12 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val serverInfo by viewModel.serverInfo.collectAsState()
-    val allServers by viewModel.allServers.collectAsState()
-    val cacheSize by viewModel.cacheSize.collectAsState()
-    val downloadedCount by viewModel.downloadedCount.collectAsState()
-    val audioSettings by viewModel.audioSettings.collectAsState()
-    val appSettings by viewModel.appSettings.collectAsState()
+    val serverInfo by viewModel.serverInfo.collectAsStateWithLifecycle()
+    val allServers by viewModel.allServers.collectAsStateWithLifecycle()
+    val cacheSize by viewModel.cacheSize.collectAsStateWithLifecycle()
+    val downloadedCount by viewModel.downloadedCount.collectAsStateWithLifecycle()
+    val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
+    val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
     
     val currentConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
     val currentLocaleTag = remember(currentConfiguration) {

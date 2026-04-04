@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,11 +91,11 @@ fun LyricsEditorScreen(
         }
     }
     
-    val rawLyrics by viewModel.rawLyrics.collectAsState()
-    val parsedLines by viewModel.parsedLines.collectAsState()
-    val isPublishing by viewModel.isPublishing.collectAsState()
-    val publishStatus by viewModel.publishStatus.collectAsState()
-    val appSettings by viewModel.geminiApiKey.collectAsState(initial = com.example.neosynth.data.preferences.AppSettings())
+    val rawLyrics by viewModel.rawLyrics.collectAsStateWithLifecycle()
+    val parsedLines by viewModel.parsedLines.collectAsStateWithLifecycle()
+    val isPublishing by viewModel.isPublishing.collectAsStateWithLifecycle()
+    val publishStatus by viewModel.publishStatus.collectAsStateWithLifecycle()
+    val appSettings by viewModel.geminiApiKey.collectAsStateWithLifecycle(initialValue = com.example.neosynth.data.preferences.AppSettings())
 
     // UI States
     var showTextInputDialog by remember { mutableStateOf(false) }

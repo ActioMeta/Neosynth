@@ -185,14 +185,21 @@ class RecentSongsViewModel @Inject constructor(
         albumOffset += PAGE_SIZE
         hasMore = albums.size == PAGE_SIZE
 
-        songs = applySortOrder(allRawSongs)
+        songs = withContext(kotlinx.coroutines.Dispatchers.Default) {
+            applySortOrder(allRawSongs)
+        }
     }
 
     // ---------- Ordenamiento ----------
 
     fun changeSortOrder(order: SongSortOrder) {
         sortOrder = order
-        songs = applySortOrder(allRawSongs)
+        viewModelScope.launch {
+            val sorted = withContext(kotlinx.coroutines.Dispatchers.Default) {
+                applySortOrder(allRawSongs)
+            }
+            songs = sorted
+        }
     }
 
     private fun applySortOrder(list: List<SongDto>): List<SongDto> = when (sortOrder) {

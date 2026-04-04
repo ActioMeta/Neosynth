@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -60,9 +61,9 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel = hiltViewModel(),
     onBack: () -> Unit
 ) {
-    val groupedSongs: Map<Char, List<SongEntity>> by viewModel.groupedSongs.collectAsState(initial = emptyMap())
-    val allPlaylists by viewModel.allPlaylists.collectAsState()
-    val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
+    val groupedSongs: Map<Char, List<SongEntity>> by viewModel.groupedSongs.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val allPlaylists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+    val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsStateWithLifecycle()
     
     // Estado para colapsar/expandir playlists
     var playlistsExpanded by remember { mutableStateOf(false) }

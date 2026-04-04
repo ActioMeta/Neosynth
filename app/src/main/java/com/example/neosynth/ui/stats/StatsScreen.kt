@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.neosynth.data.local.entities.PlaybackHistoryEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,9 +24,9 @@ fun StatsScreen(
     onBack: () -> Unit,
     viewModel: StatsViewModel = hiltViewModel()
 ) {
-    val topArtists by viewModel.topArtists.collectAsState(initial = emptyList())
-    val topSongs by viewModel.topSongs.collectAsState(initial = emptyList())
-    val recentHistory by viewModel.recentHistory.collectAsState(initial = emptyList())
+    val topArtists by viewModel.topArtists.collectAsStateWithLifecycle(initialValue = emptyList())
+    val topSongs by viewModel.topSongs.collectAsStateWithLifecycle(initialValue = emptyList())
+    val recentHistory by viewModel.recentHistory.collectAsStateWithLifecycle(initialValue = emptyList())
 
     Column(
         modifier = Modifier
@@ -57,7 +58,7 @@ fun StatsScreen(
                 )
             }
 
-            items(topArtists) { artist ->
+            items(topArtists, key = { it.artist }) { artist ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -77,7 +78,7 @@ fun StatsScreen(
                 )
             }
 
-            items(topSongs) { song ->
+            items(topSongs, key = { it.songId }) { song ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -100,7 +101,7 @@ fun StatsScreen(
                 )
             }
 
-            items(recentHistory) { history ->
+            items(recentHistory, key = { it.id }) { history ->
                 HistoryItem(history)
             }
         }

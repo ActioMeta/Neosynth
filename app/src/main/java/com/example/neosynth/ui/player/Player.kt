@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.DisposableEffect
@@ -85,7 +86,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.togetherWith
 
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,8 +112,8 @@ fun PlayerScreen(
     val queue by musicController.currentQueue
     val currentIndex by musicController.currentIndex
 
-    val bitrateText by viewModel.bitrateText.collectAsState()
-    val hasAudioPermission by viewModel.hasAudioPermission.collectAsState()
+    val bitrateText by viewModel.bitrateText.collectAsStateWithLifecycle()
+    val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
 
     var showQueueSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -991,7 +991,7 @@ private fun QueueBottomSheet(
         
         if (showSavePlaylistDialog) {
             var playlistName by remember { mutableStateOf("") }
-            val isProcessing by viewModel.isProcessingQueueAction.collectAsState()
+            val isProcessing by viewModel.isProcessingQueueAction.collectAsStateWithLifecycle()
             val okMessage = stringResource(R.string.playlist_new) // Reusing playlist_new or similar for success? Actually just let it be or extract
             
             AlertDialog(

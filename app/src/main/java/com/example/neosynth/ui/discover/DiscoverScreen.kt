@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +74,7 @@ fun DiscoverScreen(
     val selectedDecade = viewModel.selectedDecade
     val decadeSongs = viewModel.decadeSongs
     val isLoadingDecadeSongs = viewModel.isLoadingDecadeSongs
-    val downloadedIds by viewModel.downloadedSongIds.collectAsState()
+    val downloadedIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
     val errorMsg = viewModel.error
 
     val focusRequester = remember { FocusRequester() }
@@ -351,7 +352,7 @@ private fun SearchResultsContent(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(results.artists) { artist ->
+                        items(results.artists, key = { it.id }) { artist ->
                             ArtistCard(
                                 artist = artist,
                                 onClick = { onArtistClick(artist) }
@@ -396,7 +397,7 @@ private fun SearchResultsContent(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(results.albums) { album ->
+                        items(results.albums, key = { it.id }) { album ->
                             AlbumCard(album = album, getCoverUrl = getCoverUrl)
                         }
                     }
@@ -435,7 +436,7 @@ private fun SearchResultsContent(
                     }
                 }
             }
-            itemsIndexed(results.songs) { index, song ->
+            itemsIndexed(results.songs, key = { _, song -> song.id }) { index, song ->
                 androidx.compose.animation.AnimatedVisibility(
                     visible = true,
                     enter = androidx.compose.animation.fadeIn(

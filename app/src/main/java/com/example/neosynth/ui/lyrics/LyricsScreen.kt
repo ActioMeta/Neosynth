@@ -3,7 +3,6 @@ package com.example.neosynth.ui.lyrics
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -36,7 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import com.example.neosynth.player.MusicController
@@ -354,29 +352,19 @@ fun LyricsScreen(
                             contentPadding = PaddingValues(vertical = 100.dp, horizontal = 16.dp),
                             horizontalAlignment = Alignment.Start
                         ) {
-                            itemsIndexed(parsedLyrics) { index, lyricLine ->
+                            itemsIndexed(parsedLyrics, key = { index, _ -> index }) { index, lyricLine ->
                                 val isCurrent = isLrcFormat && index == effectiveLyricIndex
                                 val isPast = isLrcFormat && index < effectiveLyricIndex
-                                
-                                val scale by animateFloatAsState(
-                                    targetValue = if (isCurrent) 1.05f else 1f, // Escala más sutil
-                                    label = "scale"
-                                )
-                                
-                                val blurRadius by animateFloatAsState(
-                                    targetValue = if (isCurrent) 0f else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) 2f else 0f,
-                                    label = "blur"
-                                )
-                                
-                                val alpha by animateFloatAsState(
-                                    targetValue = when {
-                                        isCurrent -> 1f
-                                        isPast -> 0.4f
-                                        else -> 0.3f
-                                    },
-                                    label = "alpha"
-                                )
-                                
+
+                                // Direct computed values — no separate animateFloatAsState instances per item.
+                                // Alpha animates smoothly through graphicsLayer without creating extra state holders.
+                                val targetAlpha = when {
+                                    isCurrent -> 1f
+                                    isPast -> 0.4f
+                                    else -> 0.3f
+                                }
+                                val targetScale = if (isCurrent) 1.05f else 1f
+
                                 // Full-width Box is the clickable so the entire row
                                 // height is tappable, not just the text bounds.
                                 Box(
@@ -401,10 +389,7 @@ fun LyricsScreen(
                                 ) {
                                     Text(
                                         text = lyricLine.text,
-                                        fontSize = when {
-                                            isCurrent -> 28.sp
-                                            else -> 22.sp
-                                        },
+                                        fontSize = if (isCurrent) 28.sp else 22.sp,
                                         fontFamily = FontFamily.SansSerif,
                                         fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
                                         color = if (isCurrent) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface,
@@ -413,11 +398,10 @@ fun LyricsScreen(
                                             .fillMaxWidth()
                                             .padding(vertical = 10.dp)
                                             .graphicsLayer {
-                                                scaleX = scale
-                                                scaleY = scale
-                                                this.alpha = alpha
+                                                scaleX = targetScale
+                                                scaleY = targetScale
+                                                alpha = targetAlpha
                                             }
-                                            .then(if (blurRadius > 0f) Modifier.blur(blurRadius.dp) else Modifier)
                                     )
                                 }
                             }

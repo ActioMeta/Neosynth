@@ -349,33 +349,41 @@ fun PlayerScreen(
                         label = "cover_spring"
                     )
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(24.dp))
-                            .graphicsLayer {
-                                scaleX = coverScale
-                                scaleY = coverScale
-                            }
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onPress = {
-                                        isPressed = true
-                                        tryAwaitRelease()
-                                        isPressed = false
-                                        showControls = !showControls
-                                    }
+                    val coverShape = RoundedCornerShape(24.dp)
+                    with(sharedTransitionScope) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (pageSong != null) {
+                                        Modifier.sharedBounds(
+                                            sharedContentState = rememberSharedContentState(key = "artwork-${pageSong.mediaId}"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            clipInOverlayDuringTransition = OverlayClip(coverShape)
+                                        )
+                                    } else Modifier
                                 )
-                            },
-                        shape = RoundedCornerShape(24.dp),
-                        elevation = CardDefaults.cardElevation(15.dp)
-                    ) {
-                        Crossfade(
-                            targetState = pageSong?.mediaMetadata?.artworkUri,
-                            animationSpec = tween(durationMillis = 300),
-                            label = "cover_crossfade"
-                        ) { artworkUri ->
-                            with(sharedTransitionScope) {
+                                .clip(coverShape)
+                                .graphicsLayer {
+                                    scaleX = coverScale
+                                    scaleY = coverScale
+                                }
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            isPressed = true
+                                            tryAwaitRelease()
+                                            isPressed = false
+                                            showControls = !showControls
+                                        }
+                                    )
+                                }
+                        ) {
+                            Crossfade(
+                                targetState = pageSong?.mediaMetadata?.artworkUri,
+                                animationSpec = tween(durationMillis = 300),
+                                label = "cover_crossfade"
+                            ) { artworkUri ->
                                 AsyncImage(
                                     model = androidx.compose.ui.platform.LocalContext.current.let { context ->
                                         coil.request.ImageRequest.Builder(context)
@@ -386,17 +394,7 @@ fun PlayerScreen(
                                     },
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .then(
-                                            if (pageSong != null) {
-                                                Modifier.sharedElement(
-                                                    sharedContentState = rememberSharedContentState(key = "artwork-${pageSong.mediaId}"),
-                                                    animatedVisibilityScope = animatedVisibilityScope
-                                                )
-                                            } else Modifier
-                                        )
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }

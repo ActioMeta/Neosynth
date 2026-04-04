@@ -98,17 +98,19 @@ fun MiniPlayer(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Artwork with Shared Element Transition
+            val miniCoverShape = RoundedCornerShape(12.dp)
             with(sharedTransitionScope) {
-                 AsyncImage(
+                AsyncImage(
                     model = artworkUri,
                     contentDescription = null,
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .sharedElement(
-                    sharedContentState = rememberSharedContentState(key = "artwork-$mediaId"),
-                    animatedVisibilityScope = animatedVisibilityScope
-                ),
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = "artwork-$mediaId"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            clipInOverlayDuringTransition = OverlayClip(miniCoverShape)
+                        )
+                        .clip(miniCoverShape),
                     contentScale = ContentScale.Crop
                 )
             }

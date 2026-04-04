@@ -263,60 +263,96 @@ class RecentSongsViewModel @Inject constructor(
             clearSelection()
         }
     }
+    // ---------- Quick Actions ----------
+
+    fun playSelected() {
+        val selected = songs.filter { it.id in selectedSongIds }
+        if (selected.isEmpty()) return
+        
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val mediaItems = buildMediaItems(selected, server)
+            if (mediaItems.isNotEmpty()) {
+                musicController.playQueue(mediaItems, startIndex = 0)
+            }
+        }
+    }
+
+    fun addSelectedToQueue() {
+        val selected = songs.filter { it.id in selectedSongIds }
+        if (selected.isEmpty()) return
+        
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val mediaItems = buildMediaItems(selected, server)
+            if (mediaItems.isNotEmpty()) {
+                musicController.addToQueue(mediaItems)
+            }
+        }
+    }
+
+    fun addSelectedToPlaylist() {
+        // Opción actualmente stub debido a que la funcionalidad requiere un sheet para seleccionar playlists.
+    }
 
     // ---------- Reproducción ----------
 
     fun playSong(song: SongDto) {
         viewModelScope.launch {
             val server = serverDao.getActiveServer() ?: return@launch
-            val connectionType = networkHelper.getConnectionType()
-            val audioSettings = settingsPreferences.audioSettings.first()
-            val streamQuality = when (connectionType) {
-                ConnectionType.WIFI   -> audioSettings.streamWifiQuality
-                ConnectionType.MOBILE -> audioSettings.streamMobileQuality
-                ConnectionType.NONE   -> StreamQuality.MEDIUM
-            }
-
-            val mediaItems = songs.map { s ->
-                val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) {
-                    streamQuality.bitrate
-                } else {
-                    s.bitRate ?: 0
-                }
+            val mediaItems = buildMediaItems(songs, server)
             
-                val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) {
-                    streamQuality.format.uppercase()
-                } else {
-                    s.suffix?.uppercase() ?: "MP3"
-                }
-
-                val streamUrl = StreamUrlBuilder.buildStreamUrl(server, s.id, streamQuality)
-                val coverUrl = buildCoverArtUrl(server, s.coverArt)
-                MediaItem.Builder()
-                    .setMediaId(s.id)
-                    .setUri(streamUrl)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(s.title)
-                            .setArtist(s.artist)
-                            .setAlbumTitle(s.album)
-                            .setArtworkUri(coverUrl?.toUri())
-                            .setExtras(
-                                android.os.Bundle().apply {
-                                    putInt("bitRate", effectiveBitrate)
-                                    putString("suffix", effectiveFormat)
-                                    putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
-                                    putLong("duration", s.duration * 1000L)
-                                    putInt("originalBitRate", s.bitRate ?: 0)
-                                    putString("originalSuffix", s.suffix ?: "MP3")
-                                }
-                            )
-                            .build()
-                    )
-                    .build()
-            }
             val startIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             musicController.playQueue(mediaItems, startIndex)
+        }
+    }
+
+    private suspend fun buildMediaItems(songList: List<SongDto>, server: com.example.neosynth.data.local.entities.ServerEntity): List<MediaItem> {
+        val connectionType = networkHelper.getConnectionType()
+        val audioSettings = settingsPreferences.audioSettings.first()
+        val streamQuality = when (connectionType) {
+            ConnectionType.WIFI   -> audioSettings.streamWifiQuality
+            ConnectionType.MOBILE -> audioSettings.streamMobileQuality
+            ConnectionType.NONE   -> StreamQuality.MEDIUM
+        }
+
+        return songList.map { s ->
+            val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) {
+                streamQuality.bitrate
+            } else {
+                s.bitRate ?: 0
+            }
+            
+            val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) {
+                streamQuality.format.uppercase()
+            } else {
+                s.suffix?.uppercase() ?: "MP3"
+            }
+
+            val streamUrl = StreamUrlBuilder.buildStreamUrl(server, s.id, streamQuality)
+            val coverUrl = buildCoverArtUrl(server, s.coverArt)
+            MediaItem.Builder()
+                .setMediaId(s.id)
+                .setUri(streamUrl)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(s.title)
+                        .setArtist(s.artist)
+                        .setAlbumTitle(s.album)
+                        .setArtworkUri(coverUrl?.toUri())
+                        .setExtras(
+                            android.os.Bundle().apply {
+                                putInt("bitRate", effectiveBitrate)
+                                putString("suffix", effectiveFormat)
+                                putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")
+                                putLong("duration", s.duration * 1000L)
+                                putInt("originalBitRate", s.bitRate ?: 0)
+                                putString("originalSuffix", s.suffix ?: "MP3")
+                            }
+                        )
+                        .build()
+                )
+                .build()
         }
     }
 

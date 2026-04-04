@@ -413,23 +413,10 @@ private fun AlbumSongRow(
     onLongClick: () -> Unit,
     onDownload: () -> Unit
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "song_scale"
-    )
-    
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -441,26 +428,6 @@ private fun AlbumSongRow(
             modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Checkbox o número
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onClick() },
-                    modifier = Modifier.size(28.dp)
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(28.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -500,7 +467,7 @@ private fun AlbumSongRow(
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
-            // Botón de descarga (solo visible si no está en modo selección)
+            // Botón de descarga (solo visible si no hay selección)
             if (!isSelectionMode && !isDownloaded) {
                 IconButton(
                     onClick = onDownload,

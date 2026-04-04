@@ -62,8 +62,8 @@ fun SideMultiSelectBar(
         Surface(
             modifier = Modifier
                 .wrapContentHeight() // No ocupar toda la altura
-                .width(78.dp) // Ancho ajustado
-                .padding(top = 16.dp, bottom = 16.dp, end = 26.dp) // Padding reducido para estar más cerca del scrollbar
+                .width(64.dp) // Ancho ajustado (reducido)
+                .padding(top = 16.dp, bottom = 16.dp, end = 16.dp) // Padding reducido para estar más cerca del scrollbar
                 .shadow(
                     elevation = 8.dp,
                     shape = RoundedCornerShape(20.dp),
@@ -115,7 +115,7 @@ fun SideMultiSelectBar(
                     FilledTonalIconButton(
                         onClick = action.onClick,
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(42.dp)
                             .clip(CircleShape), // Clip para que el ripple respete la forma
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -125,7 +125,7 @@ fun SideMultiSelectBar(
                         Icon(
                             imageVector = action.icon,
                             contentDescription = action.label,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

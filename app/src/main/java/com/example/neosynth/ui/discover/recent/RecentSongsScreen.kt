@@ -35,6 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.R
+import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.MultiSelectAction
 import com.example.neosynth.data.remote.responses.SongDto
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -167,32 +169,46 @@ fun RecentSongsScreen(
                 }
             }
 
-            // FAB de descarga masiva
-            AnimatedVisibility(
+            SideMultiSelectBar(
                 visible = viewModel.isSelectionMode,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = if (isMiniPlayerVisible) 200.dp else 120.dp) // sobre la navbar flotante / miniplayer
-            ) {
-                val count = viewModel.selectedSongIds.size
-                val alreadyDownloaded = viewModel.selectedSongIds.count { it in downloadedIds }
-                val toDownload = count - alreadyDownloaded
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.downloadSelected() },
-                    icon = { Icon(Icons.Rounded.Download, contentDescription = null) },
-                    text = {
-                        Text(
-                            if (toDownload > 0) stringResource(R.string.recent_download_count, toDownload)
-                            else stringResource(R.string.recent_already_downloaded)
-                        )
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+                selectedCount = viewModel.selectedSongIds.size,
+                actions = listOf(
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = stringResource(R.string.action_play),
+                        onClick = {
+                            viewModel.playSelected()
+                            viewModel.clearSelection()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Download,
+                        label = stringResource(R.string.action_download),
+                        onClick = {
+                            viewModel.downloadSelected()
+                            viewModel.clearSelection()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlaylistAdd,
+                        label = stringResource(R.string.action_playlist),
+                        onClick = {
+                            viewModel.addSelectedToPlaylist()
+                            viewModel.clearSelection()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.QueueMusic,
+                        label = "Add to Queue",
+                        onClick = {
+                            viewModel.addSelectedToQueue()
+                            viewModel.clearSelection()
+                        }
+                    )
+                ),
+                onClose = { viewModel.clearSelection() },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
         }
     }
 }
@@ -285,73 +301,50 @@ private fun RecentSongRow(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = if (isSelected)
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-    else
-        Color.Transparent
-
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .background(bgColor)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent
     ) {
-        // Cover art + overlay de selección
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Siempre mostrar la portada
-            val coverUrl = getCoverUrl(song.coverArt)
-            if (coverUrl != null) {
-                AsyncImage(
-                    model = coverUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Icon(
-                        Icons.Rounded.MusicNote,
+            // Cover art
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                val coverUrl = getCoverUrl(song.coverArt)
+                if (coverUrl != null) {
+                    AsyncImage(
+                        model = coverUrl,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(10.dp)
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                }
-            }
-            // Overlay de selección encima de la cover
-            if (isSelectionMode) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            if (isSelected)
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                            else
-                                Color.Black.copy(alpha = 0.35f)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
                         Icon(
-                            Icons.Rounded.Check,
+                            Icons.Rounded.MusicNote,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(10.dp)
                         )
                     }
                 }
             }
-        }
 
         // Metadata
         Column(modifier = Modifier.weight(1f)) {
@@ -389,11 +382,7 @@ private fun RecentSongRow(
             )
         }
     }
-
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 76.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-    )
+}
 }
 
 private fun formatSeconds(seconds: Int): String {

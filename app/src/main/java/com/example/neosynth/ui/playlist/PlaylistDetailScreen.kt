@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
@@ -390,19 +391,10 @@ private fun PlaylistSongRow(
     onLongClick: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isSelected) 0.97f else 1f,
-        label = "scale"
-    )
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .padding(horizontal = 16.dp, vertical = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -418,25 +410,6 @@ private fun PlaylistSongRow(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Checkbox o índice
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = null,
-                    modifier = Modifier.width(28.dp)
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(28.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
             // Cover
             Box {
                 with(sharedTransitionScope) {
@@ -495,7 +468,7 @@ private fun PlaylistSongRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Remove button (solo visible cuando no hay selección)
+            // Botón Remove (solo visible cuando no hay selección)
             if (!isSelectionMode) {
                 IconButton(onClick = onRemove) {
                     Icon(

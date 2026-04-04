@@ -49,17 +49,21 @@ fun RowListItem(
         label = "selection_fade"
     )
 
-    Row(
+    androidx.compose.material3.Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor)
+            .padding(horizontal = 16.dp, vertical = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor
     ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         val imageModifier = Modifier
             .size(52.dp)
             .clip(RoundedCornerShape(8.dp))
@@ -99,13 +103,6 @@ fun RowListItem(
                 maxLines = 1
             )
         }
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Rounded.CheckCircle,
-                contentDescription = "Seleccionado",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
     }
+}
 }

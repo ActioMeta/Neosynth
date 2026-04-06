@@ -1,6 +1,5 @@
 package com.example.neosynth.ui.player
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,10 +36,9 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,17 +57,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import coil.compose.AsyncImage
 import com.example.neosynth.player.MusicController
@@ -121,12 +113,13 @@ fun PlayerScreen(
     val song = currentSong
     
     // Pager State synchronized with queue
-    // Pager State synchronized with queue
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
         initialPage = currentIndex,
         pageCount = { queue.size.coerceAtLeast(1) }
     )
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    val artworkUriCache = remember { mutableStateMapOf<String, Any>() }
+    var lastVisibleArtworkUri by remember { mutableStateOf<Any?>(null) }
 
     var pendingSwipeIndex by remember { mutableIntStateOf(-1) }
 
@@ -308,6 +301,35 @@ fun PlayerScreen(
                 .weight(1f) // Takes the space between top spacer and the slider
         ) { page ->
             val pageSong = queue.getOrNull(page)
+            val pageMediaId = pageSong?.mediaId
+            val liveArtworkUri = pageSong?.mediaMetadata?.artworkUri
+            val currentMediaId = song?.mediaId
+            val currentSongArtworkUri = song?.mediaMetadata?.artworkUri
+            val fallbackCurrentArtworkUri = if (pageMediaId != null && pageMediaId == currentMediaId) {
+                currentSongArtworkUri
+            } else {
+                null
+            }
+
+            val resolvedArtworkUri = liveArtworkUri ?: fallbackCurrentArtworkUri
+
+            if (pageMediaId != null && resolvedArtworkUri != null) {
+                artworkUriCache[pageMediaId] = resolvedArtworkUri
+            }
+
+            val stableArtworkUri = when {
+                resolvedArtworkUri != null -> resolvedArtworkUri
+                pageMediaId != null -> artworkUriCache[pageMediaId]
+                else -> null
+            }
+            if (page == currentIndex && stableArtworkUri != null) {
+                lastVisibleArtworkUri = stableArtworkUri
+            }
+            val displayArtworkUri = if (page == currentIndex) {
+                stableArtworkUri ?: lastVisibleArtworkUri
+            } else {
+                stableArtworkUri
+            }
             
             Column(
                 modifier = Modifier
@@ -379,31 +401,18 @@ fun PlayerScreen(
                                     )
                                 }
                         ) {
-                            Crossfade(
-                                targetState = pageSong?.mediaMetadata?.artworkUri,
-                                animationSpec = tween(durationMillis = 300),
-                                label = "cover_crossfade"
-                            ) { artworkUri ->
-                                with(sharedTransitionScope) {
-                                    AsyncImage(
-                                        model = androidx.compose.ui.platform.LocalContext.current.let { context ->
-                                            coil.request.ImageRequest.Builder(context)
-                                                .data(artworkUri)
-                                                .allowHardware(false)
-                                                .crossfade(true)
-                                                .build()
-                                        },
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .sharedElement(
-                                                sharedContentState = rememberSharedContentState(key = "cover_${pageSong?.mediaId}"),
-                                                animatedVisibilityScope = animatedVisibilityScope
-                                            )
-                                            .fillMaxSize()
-                                    )
-                                }
-                            }
+                            AsyncImage(
+                                model = androidx.compose.ui.platform.LocalContext.current.let { context ->
+                                    coil.request.ImageRequest.Builder(context)
+                                        .data(displayArtworkUri)
+                                        .allowHardware(false)
+                                        .crossfade(true)
+                                        .build()
+                                },
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                     

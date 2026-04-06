@@ -326,7 +326,7 @@ fun HomeScreen(
                             onPlayNext = { viewModel.onContextPlayNext(it) },
                             onAddToQueue = { viewModel.onContextAddToQueue(it) },
                             onGoToAlbum = { onNavigateToAlbum(it.id) },
-                            itemHeight = 200,
+                            itemHeight = 188,
                             itemWidth = 180,
                             contentPadding = 24,
                             itemSpacing = 8

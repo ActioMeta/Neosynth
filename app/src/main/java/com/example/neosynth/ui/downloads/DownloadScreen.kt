@@ -503,10 +503,7 @@ fun DownloadsScreen(
                                                 selectedSongIds = if (isSelected) selectedSongIds - song.id
                                                 else selectedSongIds + song.id
                                             } else {
-                                                val index = allSongs.indexOfFirst { it.id == song.id }
-                                                if (index >= 0) {
-                                                    viewModel.playAll(allSongs, index)
-                                                }
+                                                viewModel.playAll(listOf(song), 0)
                                             }
                                         },
                                         onLongClick = {
@@ -588,10 +585,7 @@ fun DownloadsScreen(
                                                 selectedSongIds = if (isSelected) selectedSongIds - song.id
                                                 else selectedSongIds + song.id
                                             } else {
-                                                val index = allSongs.indexOfFirst { it.id == song.id }
-                                                if (index >= 0) {
-                                                    viewModel.playAll(allSongs, index)
-                                                }
+                                                viewModel.playAll(listOf(song), 0)
                                             }
                                         },
                                         onLongClick = {
@@ -615,11 +609,7 @@ fun DownloadsScreen(
                                             selectedSongIds = if (isSelected) selectedSongIds - song.id
                                             else selectedSongIds + song.id
                                         } else {
-                                            // Reproducir canción
-                                            val index = allSongs.indexOfFirst { it.id == song.id }
-                                            if (index >= 0) {
-                                                viewModel.playAll(allSongs, index)
-                                            }
+                                            viewModel.playAll(listOf(song), 0)
                                         }
                                 },
                                 onLongClick = {

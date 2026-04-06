@@ -302,159 +302,122 @@ fun LyricsScreen(
                         drawRect(brush = fadeBrush, blendMode = BlendMode.DstIn)
                     }
             ) {
-                when {
-                    isLoadingLyrics -> {
-                        // Skeleton Loader
-                        val shimmerBrush = com.example.neosynth.ui.components.rememberShimmerBrush()
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(vertical = 100.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(28.dp)
-                        ) {
-                            val lineHeights = listOf(32.dp, 24.dp, 24.dp, 24.dp, 24.dp, 24.dp, 24.dp)
-                            val lineFractions = listOf(0.7f, 0.9f, 0.8f, 0.6f, 0.85f, 0.4f, 0.75f)
-                            
-                            for (i in lineHeights.indices) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(lineFractions[i])
-                                        .height(lineHeights[i])
-                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                                        .background(shimmerBrush)
-                                )
-                            }
-                        }
-                    }
-                    
-                    lyricsError != null -> {
-                        // Error
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                             Text(
-                                text = lyricsError,
-                                style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                    
-                    hasLyrics -> {
-                        // Letras sincronizadas (LRC con timestamps)
-                        LazyColumn(
-                            state = lyricsListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 100.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            itemsIndexed(parsedLyrics, key = { index, _ -> index }) { index, lyricLine ->
-                                val isCurrent = isLrcFormat && index == effectiveLyricIndex
-                                val isPast = isLrcFormat && index < effectiveLyricIndex
+                    when {
+                        isLoadingLyrics -> {
+                            val shimmerBrush = com.example.neosynth.ui.components.rememberShimmerBrush()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 100.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(28.dp)
+                            ) {
+                                val lineHeights = listOf(32.dp, 24.dp, 24.dp, 24.dp, 24.dp, 24.dp, 24.dp)
+                                val lineFractions = listOf(0.7f, 0.9f, 0.8f, 0.6f, 0.85f, 0.4f, 0.75f)
 
-                                // Direct computed values — no separate animateFloatAsState instances per item.
-                                // Alpha animates smoothly through graphicsLayer without creating extra state holders.
-                                val targetAlpha = when {
-                                    isCurrent -> 1f
-                                    isPast -> 0.4f
-                                    else -> 0.3f
-                                }
-                                val targetScale = if (isCurrent) 1.05f else 1f
-
-                                // Full-width Box is the clickable so the entire row
-                                // height is tappable, not just the text bounds.
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .defaultMinSize(minHeight = 56.dp)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            if (isLrcFormat) {
-                                                // Evitar corte de audio por re-seek sobre la misma línea.
-                                                if (index != currentLyricIndex) {
-                                                    manualSelectedIndex = index
-                                                    userSeeked = true
-                                                    musicController.seekTo(lyricLine.timeMs)
-                                                }
-                                            }
-                                            showUi = true
-                                        },
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(
-                                        text = lyricLine.text,
-                                        fontSize = if (isCurrent) 28.sp else 22.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
-                                        color = if (isCurrent) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface,
-                                        textAlign = TextAlign.Start,
+                                for (i in lineHeights.indices) {
+                                    Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 10.dp)
-                                            .graphicsLayer {
-                                                scaleX = targetScale
-                                                scaleY = targetScale
-                                                alpha = targetAlpha
-                                            }
+                                            .fillMaxWidth(lineFractions[i])
+                                            .height(lineHeights[i])
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                            .background(shimmerBrush)
                                     )
                                 }
                             }
                         }
-                    }
-                    
-                    hasPlainLyrics -> {
-                        // Letras en texto plano (sin timestamps — no seekable)
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 100.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            itemsIndexed(plainTextLines) { _, line ->
+
+                        lyricsError != null -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
-                                    text = line,
-                                    fontSize = 22.sp,
-                                    fontFamily = FontFamily.SansSerif,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-                                    textAlign = TextAlign.Start,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { showUi = true }
+                                    text = lyricsError,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        hasLyrics -> {
+                            LazyColumn(
+                                state = lyricsListState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 100.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                itemsIndexed(parsedLyrics, key = { index, _ -> index }) { index, lyricLine ->
+                                    val isCurrent = isLrcFormat && index == effectiveLyricIndex
+                                    val isPast = isLrcFormat && index < effectiveLyricIndex
+
+                                    val targetAlpha = when {
+                                        isCurrent -> 1f
+                                        isPast -> 0.4f
+                                        else -> 0.3f
+                                    }
+                                    val targetScale = if (isCurrent) 1.05f else 1f
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .defaultMinSize(minHeight = 56.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                if (isLrcFormat && index != currentLyricIndex) {
+                                                    manualSelectedIndex = index
+                                                    userSeeked = true
+                                                    musicController.seekTo(lyricLine.timeMs)
+                                                }
+                                                showUi = true
+                                            },
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(
+                                            text = lyricLine.text,
+                                            fontSize = if (isCurrent) 28.sp else 22.sp,
+                                            fontFamily = FontFamily.SansSerif,
+                                            fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
+                                            color = if (isCurrent) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface,
+                                            textAlign = TextAlign.Start,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 10.dp)
+                                                .graphicsLayer {
+                                                    scaleX = targetScale
+                                                    scaleY = targetScale
+                                                    alpha = targetAlpha
+                                                }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "🎵",
+                                    style = MaterialTheme.typography.displayLarge
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "No hay letras disponibles",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                     }
-
-                    else -> {
-                        // Sin letras
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                            Text(
-                            text = "🎵",
-                            style = MaterialTheme.typography.displayLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No hay letras disponibles",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))

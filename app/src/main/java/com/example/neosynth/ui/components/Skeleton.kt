@@ -20,8 +20,8 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun rememberShimmerBrush(): Brush {
-    val baseColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-    val highlightColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+    val baseColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.4f)
+    val highlightColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)
 
     val shimmerColors = listOf(
         baseColor,

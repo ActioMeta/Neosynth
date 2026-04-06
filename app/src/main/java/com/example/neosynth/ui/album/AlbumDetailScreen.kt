@@ -1,5 +1,8 @@
 package com.example.neosynth.ui.album
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -40,9 +43,11 @@ import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
 import kotlin.math.min
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AlbumDetailScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     albumId: String,
     viewModel: AlbumDetailViewModel = hiltViewModel(),
     onBack: () -> Unit,
@@ -135,12 +140,19 @@ fun AlbumDetailScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
                             ) {
-                                AsyncImage(
-                                    model = coverUrl,
-                                    contentDescription = album?.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
+                                with(sharedTransitionScope) {
+                                    AsyncImage(
+                                        model = coverUrl,
+                                        contentDescription = album?.name,
+                                        modifier = Modifier
+                                            .sharedElement(
+                                                sharedContentState = rememberSharedContentState(key = "cover_$albumId"),
+                                                animatedVisibilityScope = animatedVisibilityScope
+                                            )
+                                            .fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -392,7 +404,7 @@ private fun AlbumInfoRow(
 private fun InfoChip(text: String) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
     ) {
         Text(
             text = text,
@@ -528,7 +540,7 @@ private fun AnimatedIconButton(
         color = if (isPrimary) 
             MaterialTheme.colorScheme.primary 
         else 
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = elevation.dp
     ) {
         Box(

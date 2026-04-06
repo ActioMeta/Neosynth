@@ -33,7 +33,7 @@ import com.example.neosynth.domain.model.Song
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun RowListItem(
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -43,52 +43,14 @@ fun RowListItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-        else Color.Transparent,
-        label = "selection_fade"
-    )
-
-    androidx.compose.material3.Surface(
+    androidx.compose.material3.ListItem(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(12.dp),
-        color = backgroundColor
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-        val imageModifier = Modifier
-            .size(52.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .then(
-                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState = rememberSharedContentState(key = "artwork-${song.id}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                    }
-                } else Modifier
-            )
-
-        AsyncImage(
-            model = song.coverArtUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = imageModifier
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
+        headlineContent = {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyLarge,
@@ -96,13 +58,43 @@ fun RowListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        },
+        supportingContent = {
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
-        }
-    }
-}
+        },
+        leadingContent = {
+            val imageModifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .then(
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier.sharedElement(
+                                sharedContentState = rememberSharedContentState(key = "cover_${song.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+                    } else Modifier
+                )
+
+            AsyncImage(
+                model = song.coverArtUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = imageModifier
+            )
+        },
+        colors = androidx.compose.material3.ListItemDefaults.colors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) 
+            else 
+                Color.Transparent
+        )
+    )
 }

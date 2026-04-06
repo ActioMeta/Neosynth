@@ -69,7 +69,7 @@ fun CoverArtButton(
             )
             .clickable(
                 interactionSource = interactionSource,
-                indication = ripple(color = Color.White),
+                indication = ripple(),
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center

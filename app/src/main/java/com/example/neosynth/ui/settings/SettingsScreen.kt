@@ -529,7 +529,7 @@ private fun SettingsCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
     ) {
         Column(content = content)
     }
@@ -592,7 +592,7 @@ private fun SettingsClickableItem(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0f),
         modifier = Modifier.graphicsLayer {
             scaleX = scale
             scaleY = scale
@@ -1095,7 +1095,7 @@ private fun ServersListDialog(
                             color = if (server.id == activeServerId) 
                                 MaterialTheme.colorScheme.primaryContainer 
                             else 
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
                         ) {
                             Row(
                                 modifier = Modifier

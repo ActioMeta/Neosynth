@@ -50,36 +50,25 @@ fun FloatingNavBar(navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 25.dp, vertical = 20.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                shape = RoundedCornerShape(25.dp),
-                shadowElevation = 15.dp,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(28.dp),
+                shadowElevation = 8.dp,
                 modifier = Modifier.wrapContentWidth()
             ) {
                 NavigationBar(
                     containerColor = Color.Transparent,
                     modifier = Modifier
-                        .width(300.dp)
-                        .height(70.dp),
+                        .width(320.dp)
+                        .height(80.dp),
                     tonalElevation = 0.dp
                 ) {
                     items.forEach { screen ->
                         val selected = currentRoute == screen.route
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isPressed by interactionSource.collectIsPressedAsState()
                         
-                        val scale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.92f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "nav_scale"
-                        )
-
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -93,35 +82,19 @@ fun FloatingNavBar(navController: NavController) {
                                     }
                                 }
                             },
-                            interactionSource = interactionSource,
                             icon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .graphicsLayer {
-                                            scaleX = scale
-                                            scaleY = scale
-                                        }
-                                        .clip(RoundedCornerShape(12.dp)) // Más cuadrado, menos redondeado
-                                        .background(
-                                            if (selected) MaterialTheme.colorScheme.primary
-                                            else Color.Transparent
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = screen.icon,
-                                        contentDescription = stringResource(screen.titleResId),
-                                        modifier = Modifier.size(28.dp),
-                                        tint = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Icon(
+                                    imageVector = screen.icon,
+                                    contentDescription = stringResource(screen.titleResId),
+                                    modifier = Modifier.size(26.dp)
+                                )
                             },
                             label = null,
                             alwaysShowLabel = false,
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }

@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +52,7 @@ import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
+import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 import com.example.neosynth.ui.components.ServerErrorScreen
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
@@ -76,6 +79,8 @@ fun DiscoverScreen(
     val isLoadingDecadeSongs = viewModel.isLoadingDecadeSongs
     val downloadedIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
     val errorMsg = viewModel.error
+    val isRefreshing = viewModel.isRefreshing
+    val pullToRefreshState = rememberPullToRefreshState()
 
     val focusRequester = remember { FocusRequester() }
 
@@ -166,62 +171,78 @@ fun DiscoverScreen(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-    ) {
-        // Search Bar
-        SearchBar(
-            query = searchQuery,
-            onQueryChange = { viewModel.onSearchQueryChange(it) },
-            isSearching = isSearching,
-            focusRequester = focusRequester,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        PullToRefreshBox(
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            indicator = {},
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                // Search Bar
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.onSearchQueryChange(it) },
+                    isSearching = isSearching,
+                    focusRequester = focusRequester,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                )
 
-        // Content
-        Crossfade(
-            targetState = searchQuery.isNotBlank(),
-            label = "content_switch"
-        ) { isSearchMode ->
-            if (isSearchMode) {
-                // Search Results
-                SearchResultsContent(
-                    results = searchResults,
-                    isLoading = isSearching,
-                    onPlaySong = { song -> 
-                        viewModel.playSong(song, searchResults.songs) 
-                    },
-                    onArtistClick = { artist ->
-                        onNavigateToArtist(artist.id, artist.name)
-                    },
-                    getCoverUrl = { viewModel.getCoverUrl(it) },
-                    downloadedIds = downloadedIds,
-                    onDownload = { song -> viewModel.downloadSong(song) },
-                    onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
-                    onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
-                    onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
-                )
-            } else {
-                // Browse Content (Genres + Decades)
-                BrowseContent(
-                    genres = genres,
-                    isLoadingGenres = isLoadingGenres,
-                    decades = decades,
-                    onGenreClick = { viewModel.loadSongsByGenre(it) },
-                    onShowAllGenres = { viewModel.showAllGenres = true },
-                    onDecadeClick = { label, range -> viewModel.loadSongsByDecade(label to range) },
-                    getCoverUrl = { viewModel.getCoverUrl(it) },
-                    recentSongsPreview = viewModel.recentSongsPreview,
-                    isLoadingRecentSongs = viewModel.isLoadingRecentSongs,
-                    downloadedIds = downloadedIds,
-                    onNavigateToRecentSongs = onNavigateToRecentSongs
-                )
+                // Content
+                Crossfade(
+                    targetState = searchQuery.isNotBlank(),
+                    label = "content_switch"
+                ) { isSearchMode ->
+                    if (isSearchMode) {
+                        // Search Results
+                        SearchResultsContent(
+                            results = searchResults,
+                            isLoading = isSearching,
+                            onPlaySong = { song ->
+                                viewModel.playSong(song, searchResults.songs)
+                            },
+                            onArtistClick = { artist ->
+                                onNavigateToArtist(artist.id, artist.name)
+                            },
+                            getCoverUrl = { viewModel.getCoverUrl(it) },
+                            downloadedIds = downloadedIds,
+                            onDownload = { song -> viewModel.downloadSong(song) },
+                            onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+                            onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
+                            onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
+                        )
+                    } else {
+                        // Browse Content (Genres + Decades)
+                        BrowseContent(
+                            genres = genres,
+                            isLoadingGenres = isLoadingGenres,
+                            decades = decades,
+                            onGenreClick = { viewModel.loadSongsByGenre(it) },
+                            onShowAllGenres = { viewModel.showAllGenres = true },
+                            onDecadeClick = { label, range -> viewModel.loadSongsByDecade(label to range) },
+                            getCoverUrl = { viewModel.getCoverUrl(it) },
+                            recentSongsPreview = viewModel.recentSongsPreview,
+                            isLoadingRecentSongs = viewModel.isLoadingRecentSongs,
+                            downloadedIds = downloadedIds,
+                            onNavigateToRecentSongs = onNavigateToRecentSongs
+                        )
+                    }
+                }
             }
         }
+
+        NeoPullToRefreshOverlayIndicator(
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            modifier = Modifier
+        )
     }
 }
 
@@ -236,7 +257,7 @@ private fun SearchBar(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Row(
             modifier = Modifier
@@ -631,7 +652,7 @@ private fun BrowseContent(
                         } else {
                             Surface(
                                 Modifier.fillMaxSize(),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
                             ) {
                                 Icon(
                                     Icons.Rounded.MusicNote,
@@ -1007,7 +1028,7 @@ private fun AlbumCard(
             modifier = Modifier
                 .size(120.dp),
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant
+            color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             AsyncImage(
                 model = getCoverUrl(album.coverArt),
@@ -1584,7 +1605,7 @@ private fun PlaylistPickerDialog(
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
                                 }
                             ) {
                                 Row(

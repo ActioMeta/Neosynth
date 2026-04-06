@@ -307,7 +307,7 @@ fun LyricLineItem(
         border = when {
             isCurrentLine -> BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
             isSynced -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         },
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()

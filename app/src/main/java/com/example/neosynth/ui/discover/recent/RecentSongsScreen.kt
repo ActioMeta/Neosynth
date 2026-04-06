@@ -20,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import coil.compose.AsyncImage
 import com.example.neosynth.R
 import com.example.neosynth.ui.components.SideMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
+import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 import com.example.neosynth.data.remote.responses.SongDto
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -47,9 +50,11 @@ fun RecentSongsScreen(
     onBack: () -> Unit
 ) {
     val listState = rememberLazyListState()
+    val pullToRefreshState = rememberPullToRefreshState()
     val downloadedIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
     val currentSong by viewModel.musicController.currentMediaItem
     val isMiniPlayerVisible = currentSong != null
+    val isRefreshing = viewModel.isRefreshing
 
     // Detectar cuando el usuario llega al final para cargar más
     val shouldLoadMore by remember {
@@ -67,150 +72,166 @@ fun RecentSongsScreen(
     // Sort dropdown state
     var showSortMenu by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            RecentSongsTopBar(
-                selectionCount = viewModel.selectedSongIds.size,
-                isSelectionMode = viewModel.isSelectionMode,
-                currentSort = viewModel.sortOrder,
-                showSortMenu = showSortMenu,
-                onShowSortMenu = { showSortMenu = true },
-                onDismissSortMenu = { showSortMenu = false },
-                onSortSelected = { viewModel.changeSortOrder(it); showSortMenu = false },
-                onSelectAll = { viewModel.selectAll() },
-                onClearSelection = { viewModel.clearSelection() },
-                onBack = {
-                    if (viewModel.isSelectionMode) viewModel.clearSelection() else onBack()
-                }
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when {
-                viewModel.isLoading && viewModel.songs.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                            Text(stringResource(R.string.recent_loading_songs), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                RecentSongsTopBar(
+                    selectionCount = viewModel.selectedSongIds.size,
+                    isSelectionMode = viewModel.isSelectionMode,
+                    currentSort = viewModel.sortOrder,
+                    showSortMenu = showSortMenu,
+                    onShowSortMenu = { showSortMenu = true },
+                    onDismissSortMenu = { showSortMenu = false },
+                    onSortSelected = { viewModel.changeSortOrder(it); showSortMenu = false },
+                    onSelectAll = { viewModel.selectAll() },
+                    onClearSelection = { viewModel.clearSelection() },
+                    onBack = {
+                        if (viewModel.isSelectionMode) viewModel.clearSelection() else onBack()
+                    }
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            PullToRefreshBox(
+                state = pullToRefreshState,
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    if (!viewModel.isSelectionMode) viewModel.refreshSongs()
+                },
+                indicator = {},
+                enabled = !viewModel.isSelectionMode,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        viewModel.isLoading && viewModel.songs.isEmpty() -> {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(R.string.recent_loading_songs), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
-                    }
-                }
-                viewModel.error != null && viewModel.songs.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
-                            Text(viewModel.error ?: stringResource(R.string.error_unknown), color = MaterialTheme.colorScheme.error)
-                            TextButton(onClick = { viewModel.loadSongs() }) { Text(stringResource(R.string.action_retry)) }
+                        viewModel.error != null && viewModel.songs.isEmpty() -> {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+                                    Text(viewModel.error ?: stringResource(R.string.error_unknown), color = MaterialTheme.colorScheme.error)
+                                    TextButton(onClick = { viewModel.loadSongs() }) { Text(stringResource(R.string.action_retry)) }
+                                }
+                            }
                         }
-                    }
-                }
-                else -> {
-                    val bottomPadding = if (viewModel.isSelectionMode) {
-                        if (isMiniPlayerVisible) 280.dp else 200.dp
-                    } else {
-                        if (isMiniPlayerVisible) 100.dp else 16.dp
-                    }
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = PaddingValues(bottom = bottomPadding),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(viewModel.songs, key = { it.id }) { song ->
-                            RecentSongRow(
-                                song = song,
-                                isSelected = song.id in viewModel.selectedSongIds,
-                                isSelectionMode = viewModel.isSelectionMode,
-                                isDownloaded = song.id in downloadedIds,
-                                getCoverUrl = viewModel::getCoverUrl,
-                                onClick = {
-                                    if (viewModel.isSelectionMode) {
-                                        viewModel.toggleSelection(song.id)
-                                    } else {
-                                        viewModel.playSong(song)
+                        else -> {
+                            val bottomPadding = if (viewModel.isSelectionMode) {
+                                if (isMiniPlayerVisible) 280.dp else 200.dp
+                            } else {
+                                if (isMiniPlayerVisible) 100.dp else 16.dp
+                            }
+                            LazyColumn(
+                                state = listState,
+                                contentPadding = PaddingValues(bottom = bottomPadding),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(viewModel.songs, key = { it.id }) { song ->
+                                    RecentSongRow(
+                                        song = song,
+                                        isSelected = song.id in viewModel.selectedSongIds,
+                                        isSelectionMode = viewModel.isSelectionMode,
+                                        isDownloaded = song.id in downloadedIds,
+                                        getCoverUrl = viewModel::getCoverUrl,
+                                        onClick = {
+                                            if (viewModel.isSelectionMode) {
+                                                viewModel.toggleSelection(song.id)
+                                            } else {
+                                                viewModel.playSong(song)
+                                            }
+                                        },
+                                        onLongClick = { viewModel.toggleSelection(song.id) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+
+                                if (viewModel.isLoadingMore) {
+                                    item {
+                                        Box(
+                                            Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
-                                },
-                                onLongClick = { viewModel.toggleSelection(song.id) },
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-
-                        // Indicador de carga de más elementos
-                        if (viewModel.isLoadingMore) {
-                            item {
-                                Box(
-                                    Modifier.fillMaxWidth().padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
                                 }
-                            }
-                        }
 
-                        if (!viewModel.hasMore && viewModel.songs.isNotEmpty()) {
-                            item {
-                                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        stringResource(R.string.recent_songs_count, viewModel.songs.size),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                if (!viewModel.hasMore && viewModel.songs.isNotEmpty()) {
+                                    item {
+                                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                stringResource(R.string.recent_songs_count, viewModel.songs.size),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+
+                    SideMultiSelectBar(
+                        visible = viewModel.isSelectionMode,
+                        selectedCount = viewModel.selectedSongIds.size,
+                        actions = listOf(
+                            MultiSelectAction(
+                                icon = Icons.Rounded.PlayArrow,
+                                label = stringResource(R.string.action_play),
+                                onClick = {
+                                    viewModel.playSelected()
+                                    viewModel.clearSelection()
+                                }
+                            ),
+                            MultiSelectAction(
+                                icon = Icons.Rounded.Download,
+                                label = stringResource(R.string.action_download),
+                                onClick = {
+                                    viewModel.downloadSelected()
+                                    viewModel.clearSelection()
+                                }
+                            ),
+                            MultiSelectAction(
+                                icon = Icons.Rounded.PlaylistAdd,
+                                label = stringResource(R.string.action_playlist),
+                                onClick = {
+                                    viewModel.addSelectedToPlaylist()
+                                    viewModel.clearSelection()
+                                }
+                            ),
+                            MultiSelectAction(
+                                icon = Icons.Rounded.QueueMusic,
+                                label = "Add to Queue",
+                                onClick = {
+                                    viewModel.addSelectedToQueue()
+                                    viewModel.clearSelection()
+                                }
+                            )
+                        ),
+                        onClose = { viewModel.clearSelection() },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    )
                 }
             }
-
-            SideMultiSelectBar(
-                visible = viewModel.isSelectionMode,
-                selectedCount = viewModel.selectedSongIds.size,
-                actions = listOf(
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlayArrow,
-                        label = stringResource(R.string.action_play),
-                        onClick = {
-                            viewModel.playSelected()
-                            viewModel.clearSelection()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_download),
-                        onClick = {
-                            viewModel.downloadSelected()
-                            viewModel.clearSelection()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_playlist),
-                        onClick = {
-                            viewModel.addSelectedToPlaylist()
-                            viewModel.clearSelection()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.QueueMusic,
-                        label = "Add to Queue",
-                        onClick = {
-                            viewModel.addSelectedToQueue()
-                            viewModel.clearSelection()
-                        }
-                    )
-                ),
-                onClose = { viewModel.clearSelection() },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
         }
+
+        NeoPullToRefreshOverlayIndicator(
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            modifier = Modifier
+        )
     }
 }
 
@@ -335,7 +356,7 @@ private fun RecentSongRow(
                 } else {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.surfaceVariant
+                        color = MaterialTheme.colorScheme.surfaceContainerLow
                     ) {
                         Icon(
                             Icons.Rounded.MusicNote,

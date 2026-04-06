@@ -72,6 +72,9 @@ class RecentSongsViewModel @Inject constructor(
     var isLoadingMore by mutableStateOf(false)
         private set
 
+    var isRefreshing by mutableStateOf(false)
+        private set
+
     var hasMore by mutableStateOf(true)
         private set
 
@@ -126,6 +129,22 @@ class RecentSongsViewModel @Inject constructor(
                 fetchPage()
             } finally {
                 isLoadingMore = false
+            }
+        }
+    }
+
+    fun refreshSongs() {
+        if (isRefreshing || isLoadingMore) return
+        viewModelScope.launch {
+            isRefreshing = true
+            error = null
+            albumOffset = 0
+            allRawSongs.clear()
+            hasMore = true
+            try {
+                fetchPage()
+            } finally {
+                isRefreshing = false
             }
         }
     }
@@ -233,10 +252,11 @@ class RecentSongsViewModel @Inject constructor(
     // ---------- Descarga masiva ----------
 
     fun downloadSelected() {
+        val selectedIdsSnapshot = selectedSongIds
         viewModelScope.launch {
             val server = serverDao.getActiveServer() ?: return@launch
             val toDownload = songs.filter {
-                it.id in selectedSongIds && it.id !in downloadedSongIds.value
+                it.id in selectedIdsSnapshot && it.id !in downloadedSongIds.value
             }
             if (toDownload.isEmpty()) return@launch
 
@@ -253,6 +273,7 @@ class RecentSongsViewModel @Inject constructor(
                     .putInt("originalBitRate", song.bitRate ?: 0)
                     .putString("originalSuffix", song.suffix ?: "MP3")
                     .putString("coverArt", song.coverArt)
+                    .putString("artworkUri", getCoverUrl(song.coverArt))
                     .putLong("serverId", server.id)
                     .putString("serverUrl", server.url)
                     .putString("username", server.username)
@@ -350,6 +371,8 @@ class RecentSongsViewModel @Inject constructor(
                         .setArtworkUri(coverUrl?.toUri())
                         .setExtras(
                             android.os.Bundle().apply {
+                                    putString("coverArtId", s.coverArt)
+                                    putString("artistId", s.artistId)
                                 putInt("bitRate", effectiveBitrate)
                                 putString("suffix", effectiveFormat)
                                 putString("metadata", """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}""")

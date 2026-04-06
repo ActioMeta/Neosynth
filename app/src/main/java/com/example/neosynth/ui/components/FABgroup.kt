@@ -28,13 +28,15 @@ data class FabAction(
 @Composable
 fun FabGroup(
     actions: List<FabAction>,
+    mainIcon: ImageVector = Icons.Rounded.Add,
+    expandedIcon: ImageVector = Icons.Rounded.Close,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    // Animación de rotación del FAB principal
+    // Animación de rotación del FAB principal (opcional, si el icono lo permite)
     val rotation by animateFloatAsState(
-        targetValue = if (expanded) 45f else 0f,
+        targetValue = if (expanded && (mainIcon == Icons.Rounded.Add)) 45f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -79,9 +81,9 @@ fun FabGroup(
             modifier = Modifier.size(48.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Add,
+                imageVector = if (expanded) expandedIcon else mainIcon,
                 contentDescription = if (expanded) "Cerrar" else "Opciones",
-                modifier = Modifier.rotate(rotation)
+                modifier = if (mainIcon == Icons.Rounded.Add) Modifier.rotate(rotation) else Modifier
             )
         }
     }

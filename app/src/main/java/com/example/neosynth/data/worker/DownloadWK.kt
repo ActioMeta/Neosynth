@@ -203,6 +203,7 @@ class DownloadWorker @AssistedInject constructor(
         val albumId = inputData.getString("albumId") ?: ""
         val duration = inputData.getInt("duration", 0).toLong()
         val coverArt = inputData.getString("coverArt")
+        val artworkUri = inputData.getString("artworkUri")
         val serverId = inputData.getLong("serverId", 0L)
         
         // Parámetros para notificación consolidada (playlists/albums)
@@ -391,6 +392,10 @@ class DownloadWorker @AssistedInject constructor(
             // IMPORTANTE: Si la canción ya existe, usamos UPDATE para no romper relaciones (PlaylistSongCrossRef).
             // Si no existe, la creamos (ej: desde descarga de álbum).
             val existingSong = musicRepository.getSongById(songId)
+            val finalImageUrl = localCoverPath
+                ?: imageUrl
+                ?: artworkUri
+                ?: existingSong?.imageUrl
             if (existingSong == null) {
                 val newSong = com.example.neosynth.data.local.entities.SongEntity(
                     id = songId,
@@ -403,7 +408,7 @@ class DownloadWorker @AssistedInject constructor(
                     albumID = albumId,
                     album = album,
                     duration = duration,
-                    imageUrl = localCoverPath ?: imageUrl,
+                    imageUrl = finalImageUrl,
                     path = outputFile.absolutePath,
                     isDownloaded = true,
                     isFavorite = false,
@@ -415,7 +420,7 @@ class DownloadWorker @AssistedInject constructor(
                 musicRepository.updateSongDownloadState(
                     songId = songId,
                     path = outputFile.absolutePath,
-                    imageUrl = localCoverPath ?: imageUrl,
+                    imageUrl = finalImageUrl,
                     isDownloaded = true,
                     downloadedAt = System.currentTimeMillis(),
                     metadata = metadataJson

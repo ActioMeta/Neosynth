@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +38,7 @@ import com.example.neosynth.ui.home.HomeViewModel
 import com.example.neosynth.ui.login.LoginScreen
 import com.example.neosynth.ui.components.MiniPlayer
 import com.example.neosynth.ui.discover.DiscoverScreen
+import com.example.neosynth.ui.discover.recent.RecentSongsScreen
 import com.example.neosynth.ui.downloads.DownloadsScreen
 import com.example.neosynth.ui.player.PlayerScreen
 import com.example.neosynth.ui.lyrics.LyricsScreen
@@ -46,7 +47,6 @@ import com.example.neosynth.ui.album.AlbumDetailScreen
 import com.example.neosynth.ui.library.LibraryScreen
 import com.example.neosynth.ui.settings.SettingsScreen
 import com.example.neosynth.ui.playlist.PlaylistDetailScreen
-import com.example.neosynth.ui.discover.recent.RecentSongsScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -60,7 +60,7 @@ fun NeosynthNavGraph(
 
     val currentSong by musicController.currentMediaItem
     val isPlaying by musicController.isPlaying
-    val downloadedIds by homeViewModel.downloadedSongIds.collectAsStateWithLifecycle()
+    val downloadedIds by homeViewModel.downloadedSongIds.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -151,6 +151,8 @@ fun NeosynthNavGraph(
             ) { backStackEntry ->
                 val albumId = backStackEntry.arguments?.getString("albumId") ?: ""
                 AlbumDetailScreen(
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this,
                     albumId = albumId,
                     onBack = { navController.popBackStack() },
                     onArtistClick = { artistId, artistName ->
@@ -205,14 +207,14 @@ fun NeosynthNavGraph(
                 route = "player_full"
             ) {
                 val currentSongId = currentSong?.mediaId
-                val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsStateWithLifecycle()
-                val visualizerEnabled by homeViewModel.visualizerEnabled.collectAsStateWithLifecycle()
+                val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
+                val visualizerEnabled by homeViewModel.visualizerEnabled.collectAsState()
                 
                 // Estados para letras
-                val showLyricsSelection by homeViewModel.showLyricsSelection.collectAsStateWithLifecycle()
-                val lyricsOptions by homeViewModel.lyricsOptions.collectAsStateWithLifecycle()
-                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsStateWithLifecycle()
-                val lyricsError by homeViewModel.lyricsError.collectAsStateWithLifecycle()
+                val showLyricsSelection by homeViewModel.showLyricsSelection.collectAsState()
+                val lyricsOptions by homeViewModel.lyricsOptions.collectAsState()
+                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
+                val lyricsError by homeViewModel.lyricsError.collectAsState()
                 
                 // Si no hay canción activa al abrir el player completo, volver atrás
                 LaunchedEffect(currentSong) {
@@ -293,12 +295,12 @@ fun NeosynthNavGraph(
                 }
             ) {
                 val currentSongId = currentSong?.mediaId
-                val currentLyrics by homeViewModel.currentLyrics.collectAsStateWithLifecycle()
-                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsStateWithLifecycle()
-                val isLoadingLyricsOptions by homeViewModel.isLoadingLyricsOptions.collectAsStateWithLifecycle()
-                val lyricsError by homeViewModel.lyricsError.collectAsStateWithLifecycle()
-                val lyricsOptions by homeViewModel.lyricsOptions.collectAsStateWithLifecycle()
-                val selectedLyricsOption by homeViewModel.selectedLyricsOption.collectAsStateWithLifecycle()
+                val currentLyrics by homeViewModel.currentLyrics.collectAsState()
+                val isLoadingLyrics by homeViewModel.isLoadingLyrics.collectAsState()
+                val isLoadingLyricsOptions by homeViewModel.isLoadingLyricsOptions.collectAsState()
+                val lyricsError by homeViewModel.lyricsError.collectAsState()
+                val lyricsOptions by homeViewModel.lyricsOptions.collectAsState()
+                val selectedLyricsOption by homeViewModel.selectedLyricsOption.collectAsState()
                 
                 // Cargar letras cuando cambia la canción
                 LaunchedEffect(currentSongId) {

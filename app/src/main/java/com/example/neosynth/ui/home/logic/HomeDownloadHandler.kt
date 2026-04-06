@@ -108,6 +108,7 @@ class HomeDownloadHandler @Inject constructor(
                     .putInt("originalBitRate", currentItem.mediaMetadata.extras?.getInt("originalBitRate") ?: currentItem.mediaMetadata.extras?.getInt("bitRate") ?: 0)
                     .putString("originalSuffix", currentItem.mediaMetadata.extras?.getString("originalSuffix") ?: currentItem.mediaMetadata.extras?.getString("suffix") ?: "MP3")
                     .putString("coverArt", currentItem.mediaMetadata.extras?.getString("coverArtId"))
+                    .putString("artworkUri", currentItem.mediaMetadata.artworkUri?.toString())
                     .putLong("serverId", server.id)
                     .putString("serverUrl", server.url)
                     .putString("username", server.username)

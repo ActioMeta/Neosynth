@@ -62,8 +62,8 @@ fun SideMultiSelectBar(
         Surface(
             modifier = Modifier
                 .wrapContentHeight() // No ocupar toda la altura
-                .width(64.dp) // Ancho ajustado (reducido)
-                .padding(top = 16.dp, bottom = 16.dp, end = 16.dp) // Padding reducido para estar más cerca del scrollbar
+                .width(78.dp) // Ancho ajustado
+                .padding(top = 16.dp, bottom = 16.dp, end = 26.dp) // Padding reducido para estar más cerca del scrollbar
                 .shadow(
                     elevation = 8.dp,
                     shape = RoundedCornerShape(20.dp),

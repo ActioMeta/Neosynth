@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -18,13 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,15 +41,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.ui.components.CardItem
 import com.example.neosynth.ui.components.ServerErrorScreen
 import kotlinx.coroutines.flow.collectLatest
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
 import com.example.neosynth.domain.model.Album
+import com.example.neosynth.ui.components.Carousel
+import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
@@ -68,6 +74,18 @@ fun HomeScreen(
     val context = LocalContext.current
     val errorMsg = viewModel.error
     val snackbarHostState = remember { SnackbarHostState() }
+    val topAppBarState = rememberTopAppBarState()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(topAppBarState)
+    val homeListState = remember { LazyListState() }
+    val pullToRefreshState = rememberPullToRefreshState()
+    var wasRefreshing by remember { mutableStateOf(false) }
+    val canTriggerRefresh by remember(homeListState, topAppBarState) {
+        derivedStateOf {
+            homeListState.firstVisibleItemIndex == 0 &&
+                homeListState.firstVisibleItemScrollOffset == 0 &&
+                topAppBarState.collapsedFraction <= 0.01f
+        }
+    }
     
 
 
@@ -95,9 +113,9 @@ fun HomeScreen(
     )
     val brush = Brush.linearGradient(
         colors = listOf(
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f),
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f),
         ),
         start = Offset.Zero,
         end = Offset(x = translateAnim, y = translateAnim)
@@ -106,25 +124,76 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         viewModel.initPlayer(context)
         viewModel.loadHomeData()
+        homeListState.scrollToItem(0)
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = 165.dp) // Avoid overlap with NavBar/MiniPlayer
-            ) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
+    LaunchedEffect(isRefreshing) {
+        if (wasRefreshing && !isRefreshing) {
+            homeListState.scrollToItem(0)
         }
-    ) { padding ->
+        wasRefreshing = isRefreshing
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                if (!isLoading && errorMsg == null) {
+                    LargeTopAppBar(
+                        title = {
+                            Column {
+                                Text(
+                                    text = "Random",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Text(
+                                    text = "Mix",
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = onNavigateToLibrary) {
+                                Icon(
+                                    imageVector = Icons.Rounded.LibraryMusic,
+                                    contentDescription = stringResource(R.string.nav_library)
+                                )
+                            }
+                            IconButton(onClick = onNavigateToSettings) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = stringResource(R.string.nav_settings)
+                                )
+                            }
+                        },
+                        scrollBehavior = scrollBehavior,
+                        colors = TopAppBarDefaults.largeTopAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background,
+                            scrolledContainerColor = MaterialTheme.colorScheme.background
+                        )
+                    )
+                }
+            },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.padding(bottom = 165.dp) // Avoid overlap with NavBar/MiniPlayer
+                ) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.inverseSurface,
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        ) { padding ->
 
         Crossfade(
             targetState = isLoading,
@@ -152,83 +221,48 @@ fun HomeScreen(
             } else {
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
-                    onRefresh = { viewModel.refresh() },
-                    modifier = Modifier.fillMaxSize()
+                    onRefresh = {
+                        if (canTriggerRefresh) {
+                            viewModel.refresh()
+                        }
+                    },
+                    state = pullToRefreshState,
+                    enabled = canTriggerRefresh,
+                    modifier = Modifier
+                        .fillMaxSize()
                 ) {
                     LazyColumn(
+                        state = homeListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             top = padding.calculateTopPadding(),
                             bottom = padding.calculateBottomPadding() + 80.dp // Espacio para MiniPlayer + NavBar
                         )
                     ) {
-                    // Top Bar with icons
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .statusBarsPadding()
-                                .padding(horizontal = 16.dp, vertical = 0.dp)
-                                .offset(y = (-8).dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = onNavigateToLibrary) {
-                                Icon(
-                                    imageVector = Icons.Rounded.LibraryMusic,
-                                    contentDescription = stringResource(R.string.nav_library),
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-
-                            IconButton(onClick = onNavigateToSettings) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = stringResource(R.string.nav_settings),
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        }
-                    }
                     
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(280.dp)
+                                .height(160.dp)
                                 .padding(horizontal = 24.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                            ) {
-                                Text(
-                                    text = "Random",
-                                    style = MaterialTheme.typography.displayLarge,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "Mix",
-                                    style = MaterialTheme.typography.displayLarge,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
                             IconButton(
                                 onClick = { viewModel.playShuffle() },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
+                                    .zIndex(3f)
                                     .size(64.dp)
-                                    .clip(CircleShape)
+                                    .clip(
+                                        RoundedCornerShape(percent = 38)
+                                    )
                                     .background(MaterialTheme.colorScheme.primary)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(30.dp)
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(32.dp)
                                 )
                             }
 
@@ -237,24 +271,27 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .align(Alignment.BottomCenter)
-                                    .padding(bottom = 10.dp),
+                                    .padding(bottom = 0.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 randomCovers.forEachIndexed { index, cover ->
-                                    Card(
+                                    Surface(
                                         modifier = Modifier
-                                            .size(140.dp)
+                                            .size(150.dp)
                                             .offset(
-                                                x = if (index == 0) (-60).dp else if (index == 2) 60.dp else 0.dp,
-                                                y = if (index == 1) 0.dp else 20.dp
+                                                x = if (index == 0) (-55).dp else if (index == 2) 55.dp else 0.dp,
+                                                y = if (index == 1) 10.dp else 18.dp
                                             )
                                             .graphicsLayer {
                                                 rotationZ = if (index == 0) -15f else if (index == 2) 15f else 0f
                                                 scaleX = if (index == 1) 1.1f else 0.9f
                                                 scaleY = if (index == 1) 1.1f else 0.9f
+                                                clip = true
+                                                shape = RoundedCornerShape(20.dp)
                                             },
-                                        shape = RoundedCornerShape(16.dp),
-                                        elevation = CardDefaults.cardElevation(if (index == 1) 12.dp else 6.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        tonalElevation = if (index == 1) 12.dp else 6.dp,
+                                        shadowElevation = if (index == 1) 12.dp else 6.dp,
                                         border = if (index == 1) null else BorderStroke(
                                             1.dp,
                                             Color.White.copy(alpha = 0.1f)
@@ -272,45 +309,44 @@ fun HomeScreen(
                         }
                     }
 
-                    item { Spacer(modifier = Modifier.height(40.dp)) }
+                    item { Spacer(modifier = Modifier.height(48.dp)) }
 
                     item {
-                        Text(
-                            text = stringResource(R.string.home_recently_added),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            modifier = Modifier.padding(start = 24.dp, bottom = 16.dp),
-                            color = MaterialTheme.colorScheme.onBackground
+                        Carousel(
+                            albums = recentlyAdded,
+                            title = stringResource(R.string.home_recently_added),
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { viewModel.playAlbum(it) },
+                            onPlay = { viewModel.playAlbum(it) },
+                            onShuffle = { viewModel.playAlbum(it, shuffle = true) },
+                            onDownload = { viewModel.downloadAlbum(it.id) },
+                            onGoToArtist = { onNavigateToArtist(it.artistId, it.artistName) },
+                            onPlayNext = { viewModel.onContextPlayNext(it) },
+                            onAddToQueue = { viewModel.onContextAddToQueue(it) },
+                            onGoToAlbum = { onNavigateToAlbum(it.id) },
+                            itemHeight = 200,
+                            itemWidth = 180,
+                            contentPadding = 24,
+                            itemSpacing = 8
                         )
                     }
 
 
-
-                            item {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 24.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    items(recentlyAdded) { album ->
-                                        CardItem(
-                                            album = album,
-                                            onClick = { viewModel.playAlbum(album) },
-                                            onPlay = { viewModel.playAlbum(album) },
-                                            onShuffle = { viewModel.playAlbum(album, shuffle = true) },
-                                            onDownload = { viewModel.downloadAlbum(album.id) },
-                                            onGoToArtist = { onNavigateToArtist(album.artistId, album.artistName) },
-                                            onPlayNext = { viewModel.onContextPlayNext(album) },
-                                            onAddToQueue = { viewModel.onContextAddToQueue(album) },
-                                            onGoToAlbum = { onNavigateToAlbum(album.id) }
-                                        )
-                                    }
-                                }
-                            }
                         } // LazyColumn
                     } // PullToRefreshBox
 
 
             }
         }
+
+        }
+
+        NeoPullToRefreshOverlayIndicator(
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            modifier = Modifier
+        )
     }
 }

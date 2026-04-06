@@ -158,12 +158,16 @@ fun LyricsOptionItem(
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
+                // Remove redundant info (Netease, parens)
+                val cleanTitle = option.source
+                    .replace("Netease", "", ignoreCase = true)
+                    .replace(Regex("\\(.*\\)"), "") // Remove anything in parentheses
+                    .trim()
+                    
                 Text(
-                    text = option.source.ifBlank { "LRCLIB" },
+                    text = cleanTitle.ifEmpty { option.source }, // Fallback if empty
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 val previewText = option.lyric

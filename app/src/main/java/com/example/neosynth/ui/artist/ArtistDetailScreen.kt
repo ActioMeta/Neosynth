@@ -110,7 +110,7 @@ fun ArtistDetailScreen(
                                         .size(160.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.8f)
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -261,7 +261,7 @@ private fun ArtistInfoSection(
 
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -419,7 +419,7 @@ private fun AlbumCard(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
         modifier = Modifier.width(140.dp)
     ) {
         Column {

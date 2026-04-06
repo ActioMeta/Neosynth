@@ -85,12 +85,11 @@ class LyricsRepository @Inject constructor(
         // PASO 1: Intentar con cada variante del artista usando /api/get (coincidencia exacta)
         for (artistVariant in artistVariants) {
             try {
-                val durationInSeconds = duration?.div(1000)
                 val response = lyricsApi.getLyricsFromLrclib(
                     artistName = artistVariant,
                     trackName = title,
                     albumName = album,
-                    duration = durationInSeconds
+                    duration = duration
                 )
                 
                 if (response.isSuccessful) {
@@ -199,12 +198,11 @@ class LyricsRepository @Inject constructor(
         // La búsqueda amplia (/search) queda para loadLyricsOptions().
         for (artistVariant in artistVariants.take(2)) {
             try {
-                val durationInSeconds = duration?.div(1000)
                 val response = lyricsApi.getLyricsFromLrclib(
                     artistName = artistVariant,
                     trackName = title,
                     albumName = album,
-                    duration = durationInSeconds
+                    duration = duration
                 )
 
                 if (response.isSuccessful) {

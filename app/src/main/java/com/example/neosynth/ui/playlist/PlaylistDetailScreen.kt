@@ -138,7 +138,7 @@ fun PlaylistDetailScreen(
                                     modifier = Modifier.size(160.dp),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                     )
                                 ) {
                                     Box(
@@ -526,7 +526,7 @@ private fun AnimatedIconButton(
         color = if (isPrimary) 
             MaterialTheme.colorScheme.primary 
         else 
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = androidx.compose.ui.unit.Dp(elevation)
     ) {
         Box(

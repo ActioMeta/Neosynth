@@ -200,7 +200,7 @@ fun DownloadsScreen(
                                 .fillMaxWidth()
                                 .height(40.dp)
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             Row(
@@ -958,8 +958,7 @@ private fun DownloadsFabGroup(
         ) {
             Icon(
                 imageVector = if (expanded) Icons.Rounded.Close else Icons.Rounded.MoreVert,
-                contentDescription = if (expanded) "Cerrar" else "Opciones",
-                modifier = Modifier.rotate(rotation)
+                contentDescription = if (expanded) "Cerrar" else "Opciones"
             )
         }
     }

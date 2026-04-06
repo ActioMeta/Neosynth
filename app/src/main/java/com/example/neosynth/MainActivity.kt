@@ -66,6 +66,8 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.SYSTEM -> systemInDarkTheme
             }
             
+            val useDynamicColor = appSettings.dynamicColor
+            
             // Custom Language Configuration Override
             val locale = if (appSettings.language.isNotEmpty()) {
                 java.util.Locale.forLanguageTag(appSettings.language)
@@ -95,7 +97,10 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.ui.platform.LocalConfiguration provides configuration,
                 androidx.compose.ui.platform.LocalContext provides newContext
             ) {
-                NeoSynth_androidTheme(darkTheme = useDarkTheme) {
+                NeoSynth_androidTheme(
+                    darkTheme = useDarkTheme,
+                    dynamicColor = useDynamicColor
+                ) {
                     val navController = rememberNavController()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val currentRoute = navBackStackEntry?.destination?.route

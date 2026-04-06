@@ -357,7 +357,7 @@ fun PlayerScreen(
                                 .then(
                                     if (pageSong != null) {
                                         Modifier.sharedBounds(
-                                            sharedContentState = rememberSharedContentState(key = "artwork-${pageSong.mediaId}"),
+                                            sharedContentState = rememberSharedContentState(key = "cover_${pageSong.mediaId}"),
                                             animatedVisibilityScope = animatedVisibilityScope,
                                             clipInOverlayDuringTransition = OverlayClip(coverShape)
                                         )
@@ -384,18 +384,25 @@ fun PlayerScreen(
                                 animationSpec = tween(durationMillis = 300),
                                 label = "cover_crossfade"
                             ) { artworkUri ->
-                                AsyncImage(
-                                    model = androidx.compose.ui.platform.LocalContext.current.let { context ->
-                                        coil.request.ImageRequest.Builder(context)
-                                            .data(artworkUri)
-                                            .allowHardware(false)
-                                            .crossfade(true)
-                                            .build()
-                                    },
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                with(sharedTransitionScope) {
+                                    AsyncImage(
+                                        model = androidx.compose.ui.platform.LocalContext.current.let { context ->
+                                            coil.request.ImageRequest.Builder(context)
+                                                .data(artworkUri)
+                                                .allowHardware(false)
+                                                .crossfade(true)
+                                                .build()
+                                        },
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .sharedElement(
+                                                sharedContentState = rememberSharedContentState(key = "cover_${pageSong?.mediaId}"),
+                                                animatedVisibilityScope = animatedVisibilityScope
+                                            )
+                                            .fillMaxSize()
+                                    )
+                                }
                             }
                         }
                     }
@@ -957,6 +964,7 @@ private fun QueueBottomSheet(
         
         if (queue.isNotEmpty()) {
             com.example.neosynth.ui.components.FabGroup(
+                mainIcon = Icons.Rounded.MoreVert,
                 actions = listOf(
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.PlaylistAdd,

@@ -80,7 +80,7 @@ fun MiniPlayer(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .fillMaxWidth()
-            .height(72.dp)
+            .height(80.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -89,9 +89,9 @@ fun MiniPlayer(
                 interactionSource = interactionSource,
                 indication = null
             ) { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        color = colorScheme.surfaceVariant.copy(alpha = 0.95f),
-        tonalElevation = 4.dp
+        shape = RoundedCornerShape(20.dp),
+        color = colorScheme.surfaceContainer.copy(alpha = 0.95f),
+        tonalElevation = 6.dp
     ) {
         Row(
             modifier = Modifier.padding(8.dp),
@@ -104,9 +104,9 @@ fun MiniPlayer(
                     model = artworkUri,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(64.dp)
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState(key = "artwork-$mediaId"),
+                            sharedContentState = rememberSharedContentState(key = "cover_$mediaId"),
                             animatedVisibilityScope = animatedVisibilityScope,
                             clipInOverlayDuringTransition = OverlayClip(miniCoverShape)
                         )

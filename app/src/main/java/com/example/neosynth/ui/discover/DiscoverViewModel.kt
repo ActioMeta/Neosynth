@@ -74,6 +74,8 @@ class DiscoverViewModel @Inject constructor(
     var selectedDecade by mutableStateOf<Pair<String, IntRange>?>(null)
     var decadeSongs by mutableStateOf<List<SongDto>>(emptyList())
     var isLoadingDecadeSongs by mutableStateOf(false)
+    var isRefreshing by mutableStateOf(false)
+        private set
     
     var error by mutableStateOf<String?>(null)
     
@@ -102,6 +104,24 @@ class DiscoverViewModel @Inject constructor(
         loadGenres()
         loadDecades()
         loadRecentSongsPreview()
+    }
+
+    fun refresh() {
+        if (isRefreshing) return
+        viewModelScope.launch {
+            isRefreshing = true
+            error = null
+            try {
+                loadGenresInternal()
+                loadDecadesInternal()
+                loadRecentSongsPreviewInternal()
+                if (searchQuery.isNotBlank()) {
+                    search(searchQuery)
+                }
+            } finally {
+                isRefreshing = false
+            }
+        }
     }
 
     fun onSearchQueryChange(query: String) {
@@ -184,145 +204,126 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun loadGenres() {
+        if (isLoadingGenres) return
         viewModelScope.launch {
-            isLoadingGenres = true
-            error = null
-            try {
-                val server = serverDao.getActiveServer() ?: run {
-                    error = "No hay servidor configurado"
-                    isLoadingGenres = false
-                    return@launch
-                }
-                cachedServer = server
-                urlInterceptor.setBaseUrl(server.url)
-                
-                val response = api.getGenres(
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
-                
-                genres = response.response.genres?.genre
-                    ?.filter { (it.songCount ?: 0) > 0 }
-                    ?.sortedByDescending { it.songCount }
-                    ?: emptyList()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                error = e.localizedMessage ?: "Error de conexión"
-            } finally {
+            loadGenresInternal()
+        }
+    }
+
+    private suspend fun loadGenresInternal() {
+        isLoadingGenres = true
+        error = null
+        try {
+            val server = serverDao.getActiveServer() ?: run {
+                error = "No hay servidor configurado"
                 isLoadingGenres = false
+                return
             }
+            cachedServer = server
+            urlInterceptor.setBaseUrl(server.url)
+
+            val response = api.getGenres(
+                u = server.username,
+                t = server.token,
+                s = server.salt
+            )
+
+            genres = response.response.genres?.genre
+                ?.filter { (it.songCount ?: 0) > 0 }
+                ?.sortedByDescending { it.songCount }
+                ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            error = e.localizedMessage ?: "Error de conexión"
+        } finally {
+            isLoadingGenres = false
         }
     }
 
     fun loadRecentSongsPreview() {
+        if (isLoadingRecentSongs) return
         viewModelScope.launch {
-            isLoadingRecentSongs = true
-            try {
-                val server = serverDao.getActiveServer() ?: return@launch
-                if (cachedServer == null) cachedServer = server
-                urlInterceptor.setBaseUrl(server.url)
+            loadRecentSongsPreviewInternal()
+        }
+    }
 
-                // Obtener los 3 álbumes más recientes
-                val albumResponse = api.getAlbumList(
-                    type = "newest",
-                    size = 3,
-                    user = server.username,
-                    token = server.token,
-                    salt = server.salt
-                )
-                val albums = albumResponse.response.albumList2?.album
-                    ?: albumResponse.response.albumList?.album
-                    ?: emptyList()
+    private suspend fun loadRecentSongsPreviewInternal() {
+        isLoadingRecentSongs = true
+        try {
+            val server = serverDao.getActiveServer() ?: return
+            if (cachedServer == null) cachedServer = server
+            urlInterceptor.setBaseUrl(server.url)
 
-                // Obtener canciones de cada álbum en paralelo
-                val songs = coroutineScope {
-                    albums.map { album ->
-                        async {
-                            try {
-                                val detail = api.getAlbum(
-                                    albumId = album.id,
-                                    u = server.username,
-                                    t = server.token,
-                                    s = server.salt
-                                )
-                                detail.response.albumDetails?.song ?: emptyList()
-                            } catch (e: Exception) { emptyList<SongDto>() }
-                        }
-                    }.awaitAll()
-                }.flatten()
+            // Obtener los 3 álbumes más recientes
+            val albumResponse = api.getAlbumList(
+                type = "newest",
+                size = 3,
+                user = server.username,
+                token = server.token,
+                salt = server.salt
+            )
+            val albums = albumResponse.response.albumList2?.album
+                ?: albumResponse.response.albumList?.album
+                ?: emptyList()
 
-                recentSongsPreview = songs
-                    .sortedByDescending { it.created ?: "" }
-                    .take(6)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                isLoadingRecentSongs = false
-            }
+            // Obtener canciones de cada álbum en paralelo
+            val songs = coroutineScope {
+                albums.map { album ->
+                    async {
+                        try {
+                            val detail = api.getAlbum(
+                                albumId = album.id,
+                                u = server.username,
+                                t = server.token,
+                                s = server.salt
+                            )
+                            detail.response.albumDetails?.song ?: emptyList()
+                        } catch (e: Exception) { emptyList<SongDto>() }
+                    }
+                }.awaitAll()
+            }.flatten()
+
+            recentSongsPreview = songs
+                .sortedByDescending { it.created ?: "" }
+                .take(6)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isLoadingRecentSongs = false
         }
     }
 
     private fun loadDecades() {
+        if (isLoadingDecades) return
         viewModelScope.launch {
-            isLoadingDecades = true
-            try {
-                val server = serverDao.getActiveServer() ?: run {
-                    isLoadingDecades = false
-                    return@launch
-                }
-                urlInterceptor.setBaseUrl(server.url)
-                
-                // Obtener una muestra representativa de canciones para detectar años
-                val response = api.getRandomSongs(
-                    size = 500,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt,
-                    v = "1.16.1",
-                    c = "NeoSynth"
-                )
-                
-                val allSongs = response.response.randomSongs?.song ?: emptyList()
-                val years = allSongs.mapNotNull { it.year }.distinct().sorted()
-                
-                if (years.isEmpty()) {
-                    // Si no hay años, usar décadas predeterminadas
-                    decades = listOf(
-                        "2020s" to 2020..2029,
-                        "2010s" to 2010..2019,
-                        "2000s" to 2000..2009,
-                        "90s" to 1990..1999,
-                        "80s" to 1980..1989,
-                        "70s" to 1970..1979,
-                        "60s" to 1960..1969
-                    )
-                } else {
-                    // Generar décadas dinámicamente basadas en los años disponibles
-                    val minYear = years.first()
-                    val maxYear = years.last()
-                    
-                    val decadesList = mutableListOf<Pair<String, IntRange>>()
-                    
-                    // Generar décadas desde la más reciente a la más antigua
-                    val currentDecade = (maxYear / 10) * 10
-                    val oldestDecade = (minYear / 10) * 10
-                    
-                    for (decadeStart in currentDecade downTo oldestDecade step 10) {
-                        val decadeEnd = decadeStart + 9
-                        val label = if (decadeStart >= 2000) {
-                            "${decadeStart}s"
-                        } else {
-                            "${decadeStart % 100}s"
-                        }
-                        decadesList.add(label to decadeStart..decadeEnd)
-                    }
-                    
-                    decades = decadesList
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // En caso de error, usar décadas predeterminadas
+            loadDecadesInternal()
+        }
+    }
+
+    private suspend fun loadDecadesInternal() {
+        isLoadingDecades = true
+        try {
+            val server = serverDao.getActiveServer() ?: run {
+                isLoadingDecades = false
+                return
+            }
+            urlInterceptor.setBaseUrl(server.url)
+
+            // Obtener una muestra representativa de canciones para detectar años
+            val response = api.getRandomSongs(
+                size = 500,
+                u = server.username,
+                t = server.token,
+                s = server.salt,
+                v = "1.16.1",
+                c = "NeoSynth"
+            )
+
+            val allSongs = response.response.randomSongs?.song ?: emptyList()
+            val years = allSongs.mapNotNull { it.year }.distinct().sorted()
+
+            if (years.isEmpty()) {
+                // Si no hay años, usar décadas predeterminadas
                 decades = listOf(
                     "2020s" to 2020..2029,
                     "2010s" to 2010..2019,
@@ -332,9 +333,43 @@ class DiscoverViewModel @Inject constructor(
                     "70s" to 1970..1979,
                     "60s" to 1960..1969
                 )
-            } finally {
-                isLoadingDecades = false
+            } else {
+                // Generar décadas dinámicamente basadas en los años disponibles
+                val minYear = years.first()
+                val maxYear = years.last()
+
+                val decadesList = mutableListOf<Pair<String, IntRange>>()
+
+                // Generar décadas desde la más reciente a la más antigua
+                val currentDecade = (maxYear / 10) * 10
+                val oldestDecade = (minYear / 10) * 10
+
+                for (decadeStart in currentDecade downTo oldestDecade step 10) {
+                    val decadeEnd = decadeStart + 9
+                    val label = if (decadeStart >= 2000) {
+                        "${decadeStart}s"
+                    } else {
+                        "${decadeStart % 100}s"
+                    }
+                    decadesList.add(label to decadeStart..decadeEnd)
+                }
+
+                decades = decadesList
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // En caso de error, usar décadas predeterminadas
+            decades = listOf(
+                "2020s" to 2020..2029,
+                "2010s" to 2010..2019,
+                "2000s" to 2000..2009,
+                "90s" to 1990..1999,
+                "80s" to 1980..1989,
+                "70s" to 1970..1979,
+                "60s" to 1960..1969
+            )
+        } finally {
+            isLoadingDecades = false
         }
     }
 

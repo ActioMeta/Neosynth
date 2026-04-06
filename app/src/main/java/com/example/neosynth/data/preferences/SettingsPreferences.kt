@@ -51,6 +51,7 @@ data class AudioSettings(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicColor: Boolean = false,
     val visualizerEnabled: Boolean = false,
     val geminiApiKey: String = "",
     val language: String = ""
@@ -75,7 +76,7 @@ class SettingsPreferences @Inject constructor(
         // Apariencia
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val VISUALIZER_ENABLED = booleanPreferencesKey("visualizer_enabled")
-        // val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors") // Removed
+        val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors")
         val CROSSFEED_ENABLED = booleanPreferencesKey("crossfeed_enabled")
         val CROSSFEED_STRENGTH = intPreferencesKey("crossfeed_strength")
         
@@ -104,6 +105,7 @@ class SettingsPreferences @Inject constructor(
     val appSettings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
+            dynamicColor = prefs[Keys.DYNAMIC_COLORS] ?: false,
             visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false,
             geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: "",
             language = prefs[Keys.LANGUAGE] ?: ""
@@ -141,6 +143,10 @@ class SettingsPreferences @Inject constructor(
 
     suspend fun updateThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    suspend fun updateDynamicColor(enabled: Boolean) {
+        dataStore.edit { it[Keys.DYNAMIC_COLORS] = enabled }
     }
 
     suspend fun updateVisualizerEnabled(enabled: Boolean) {

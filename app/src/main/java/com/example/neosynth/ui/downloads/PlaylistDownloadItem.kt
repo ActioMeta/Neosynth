@@ -14,7 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.neosynth.data.local.entities.PlaylistWithSongs
+import com.example.neosynth.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -79,11 +81,11 @@ fun PlaylistDownloadItem(
                 val totalCount = playlistWithSongs.songs.size
                 
                 val statusText = if (downloadedCount == totalCount && totalCount > 0) {
-                    "$totalCount canciones"
+                    stringResource(R.string.downloads_songs_count, totalCount)
                 } else if (totalCount == 0) {
-                    "${playlistWithSongs.playlist.songCount} canciones (sin descargar)"
+                    stringResource(R.string.downloads_songs_not_downloaded, playlistWithSongs.playlist.songCount)
                 } else {
-                    "$downloadedCount/$totalCount descargadas"
+                    stringResource(R.string.downloads_songs_downloaded_count, downloadedCount, totalCount)
                 }
                 
                 Text(
@@ -97,7 +99,7 @@ fun PlaylistDownloadItem(
             IconButton(onClick = onPlay) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Reproducir",
+                    contentDescription = stringResource(R.string.action_play),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -116,10 +118,10 @@ fun PlaylistDownloadItem(
                 )
             },
             title = {
-                Text("Eliminar playlist")
+                Text(stringResource(R.string.download_delete_playlist))
             },
             text = {
-                Text("¿Eliminar '${playlistWithSongs.playlist.name}' de las descargas? Las canciones descargadas no se eliminarán.")
+                Text(stringResource(R.string.download_delete_playlist_desc, playlistWithSongs.playlist.name))
             },
             confirmButton = {
                 TextButton(
@@ -131,12 +133,12 @@ fun PlaylistDownloadItem(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Eliminar")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

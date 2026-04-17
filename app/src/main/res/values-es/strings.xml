@@ -98,7 +98,8 @@
     <string name="action_clear_filter">Limpiar filtro</string>
     <string name="action_play">Play</string>
     <string name="action_fav">Fav</string>
-    <string name="action_playlist">Lista</string>
+    <string name="action_playlist">Playlist</string>
+    <string name="action_add_to_queue">Añadir a la cola</string>
     <string name="action_del">Del</string>
     <string name="action_queue">Cola</string>
     <string name="action_down">Desc</string>
@@ -116,8 +117,7 @@
     <string name="action_clear">Limpiar</string>
     <string name="save_as_playlist">Guardar como Playlist</string>
     <string name="new_playlist_name">Nombre de la nueva playlist</string>
-    <string name="drag_to_reorder">Arrastra para reordenar</string>
-    <string name="hold_to_reorder">%1$d • Mantén presionado para reordenar</string>
+
     <string name="action_play_short">Play</string>
     <string name="action_fav_short">Fav</string>
     <string name="action_down_short">Desc</string>
@@ -125,7 +125,6 @@
     
     <!-- Added for Menus / Artist / Queue -->
     <string name="action_play_next">Reproducir siguiente</string>
-    <string name="action_add_to_queue">Agregar a la cola</string>
     <string name="action_go_to_artist">Ir al artista</string>
     <string name="action_go_to_album">Ir al álbum</string>
     <string name="action_close">Cerrar</string>
@@ -226,4 +225,160 @@
     <string name="lang_spanish">Español</string>
     <string name="lang_english">English</string>
     <string name="lang_system">Sistema</string>
+    <string name="action_accept">Aceptar</string>
+    <string name="server_registration">Registro de servidor</string>
+    <string name="server_url_placeholder">https://tu_ip:443</string>
+    <string name="subsonic_compatible_server">Servidor compatible con Subsonic API (Navidrome, Airsonic, etc.)</string>
+    <string name="server_password_optional_hint">Dejar en blanco para conservar</string>
+    <string name="my_server_placeholder">Mi servidor</string>
+    <string name="no_servers">No hay servidores</string>
+    <string name="stats_title">Estadísticas</string>
+    <string name="stats_plays">%1$d plays</string>
+    <string name="stats_top_artists">Top Artistas</string>
+    <string name="stats_top_songs">Top Canciones</string>
+    <string name="stats_recent_history">Historial Reciente</string>
+    <string name="lyrics_editor_title">Editor de Letras</string>
+    <string name="lyrics_editor_pasted">Pegar Letras</string>
+    <string name="lyrics_editor_paste_hint">Pega las letras aquí...</string>
+    <string name="lyrics_edit_line">Editar Línea</string>
+    <string name="lyrics_lyric">Letra</string>
+    <string name="lyrics_time_format">Tiempo (mm:ss.xx)</string>
+    <string name="lyrics_publish_lrclib">Publicar a LRCLib</string>
+    <string name="lyrics_jump_time">Saltar a este tiempo</string>
+    <string name="lyrics_assign_time">Asignar tiempo actual</string>
+    <string name="lyrics_minus_5s">-5s</string>
+    <string name="lyrics_plus_5s">+5s</string>
+    <string name="lyrics_file">Archivo</string>
+    <string name="lyrics_text">Texto</string>
+    <string name="lyrics_import_hint">Importa letras para empezar a sincronizar.</string>
+    <string name="lyrics_select">Selecciona una letra</string>
+    <string name="lyrics_no_options">No hay opciones disponibles en esta categoría</string>
+    <string name="lyrics_no_lyrics">No hay letras disponibles</string>
+    <string name="lyrics_edit">Editar letras</string>
+    <string name="lyrics_web_options">Opciones web</string>
+    <string name="settings_high_quality">Alta Calidad</string>
+    <string name="settings_high_quality_desc">Transmitir y descargar en 320kbps</string>
+    <string name="settings_dynamic_theme">Modo Oscuro Dinámico</string>
+    <string name="settings_dynamic_theme_desc">Usa los colores del sistema</string>
+    <string name="settings_version">Versión %1$s</string>
+    <string name="settings_github">github.com/ActioMeta/NeoSynth</string>
+    <string name="playlist_add_to">Agregar a playlist</string>
+    <string name="playlist_no_available">No tienes playlists disponibles.</string>
+    <string name="download_delete_playlist">Eliminar playlist</string>
+    <string name="download_delete_playlist_desc">¿Eliminar \"%1$s\" de las descargas? Las canciones descargadas no se eliminarán.</string>
+    <string name="playlist_downloaded_desc">%1$s - %2$d canciones descargadas</string>
+    <string name="mix_play">Mix</string>
+    <string name="content_desc_logo">Logo</string>
+    <string name="content_desc_selected">Seleccionado</string>
+    <string name="content_desc_more_options">Más opciones</string>
+    <string name="content_desc_audio_quality">Calidad de Audio</string>
+
+    <string name="lyrics_synced">Sincronizadas</string>
+    <string name="lyrics_plain_text">Texto Plano</string>
+    <string name="lyrics_synced_lyric">Letra sincronizada</string>
+    <string name="lyrics_plain_text_lyric">Letra en texto plano</string>
+    <string name="lyrics_showing_source">Mostrando %1$s</string>
+    <string name="downloads_songs_not_downloaded">%1$d canciones (sin descargar)</string>
+    <string name="downloads_songs_downloaded_count">%1$d/%2$d descargadas</string>
+    <string name="notification_downloading">Descargando...</string>
+    <string name="notification_downloading_short">Descargando</string>
+    <string name="notification_download_error">Error de descarga</string>
+
+    <string name="error_server_unreachable">Servidor inalcanzable</string>
+    <string name="error_server_unreachable_desc">No pudimos conectar con tu biblioteca. Verifica tu conexión o los ajustes del servidor.</string>
+    <string name="download_album_downloading">Descargando álbum...</string>
+    <string name="action_download_album">Descargar álbum</string>
+    <string name="action_settings">Configuración</string>
+    <string name="content_desc_show_password">Mostrar contraseña</string>
+    <string name="content_desc_hide_password">Ocultar contraseña</string>
+    <string name="error_all_fields_required">Todos los campos son requeridos</string>
+    <string name="error_fields_required_edit">El nombre, URL y usuario son requeridos</string>
+    <string name="lyrics_apply">Aplicar</string>
+    <string name="settings_servers">Servidores</string>
+
+    <string name="queue_playing_name">Cola de reproducción</string>
+    <string name="playlist_created_success">Playlist creada correctamente</string>
+    <string name="error_no_active_server">No hay un servidor activo</string>
+    <string name="error_queue_empty">La cola está vacía</string>
+    <string name="error_create_playlist_failed">Error al crear la playlist</string>
+    <string name="error_create_playlist_unknown">Error desconocido al crear playlist</string>
+    <string name="unknown_title">Sin título</string>
+    <string name="unknown_artist">Artista desconocido</string>
+    <string name="unknown_album">Álbum desconocido</string>
+    <string name="song_label">Canción</string>
+    <string name="drag_to_reorder">Arrastra para reordenar canciones</string>
+    <string name="hold_to_reorder">Mantén presionado para reordenar %1$d canciones</string>
+
+    <!-- UI Menus & Actions -->
+    <string name="action_remove_favorite">Quitar de favoritos</string>
+    <string name="action_add_favorite">Añadir a favoritos</string>
+    <string name="action_add_to_playlist">Añadir a playlist</string>
+    <string name="action_downloading">Descargando...</string>
+    <string name="action_download_done">Descargado</string>
+
+    <!-- Settings Qualities & Themes -->
+    <string name="quality_max_mp3">320 kbps MP3 - Máxima calidad</string>
+    <string name="quality_lossless_desc">Sin pérdida (FLAC)</string>
+    <string name="theme_follow_system">Seguir configuración del sistema</string>
+    <string name="quality_stream_mobile">Calidad de streaming en datos móviles</string>
+    <string name="quality_download_mobile">Calidad de descarga en datos móviles</string>
+
+    <!-- Sorting Options -->
+    <string name="sort_most_recent">Más recientes</string>
+    <string name="sort_oldest">Más antiguos</string>
+    <string name="sort_title_az">Título A→Z</string>
+    <string name="sort_artist_az">Artista A→Z</string>
+    <string name="sort_album_az">Álbum A→Z</string>
+    <string name="sort_longest_duration">Mayor duración</string>
+
+    <!-- Messages & Errors -->
+    <string name="msg_already_downloaded">\"%1$s\" ya está descargada</string>
+    <string name="msg_no_lyrics_found">No se encontraron letras para esta canción</string>
+    <string name="msg_no_song_playing">No hay canción reproduciéndose</string>
+    <string name="error_invalid_credentials">Credenciales inválidas</string>
+    <string name="error_connection_failed">Fallo de conexión: %1$s</string>
+    <string name="msg_empty_line">(Línea en blanco)</string>
+    <string name="msg_requesting_challenge">Solicitando desafío a LRCLib...</string>
+    <string name="error_lyrics_search_failed">Error al buscar letras: %1$s</string>
+    <string name="msg_added_to_favorites">Agregado a favoritos</string>
+    <string name="error_setup_gemini">Configura la API Key de Gemini en Ajustes.</string>
+    <string name="msg_generating_lyrics_gemini">Generando letras con Gemini...</string>
+    <string name="msg_lyrics_generated_success">Letras generadas exitosamente.</string>
+    <string name="error_generating_lyrics">Error al generar letras: %1$s</string>
+    <string name="msg_computing_pow">Calculando Proof of Work...</string>
+    <string name="msg_publishing_lrclib">Publicando en LRCLib...</string>
+    <string name="msg_lyrics_published_success">¡Letras publicadas correctamente en LRCLib!</string>
+    <string name="error_lyrics_already_exist">Ya existen letras para esta canción en LRCLib.</string>
+    <string name="error_publish_failed">Error al publicar (HTTP %1$d).</string>
+    <string name="msg_removed_from_favorites">Eliminado de favoritos</string>
+    <string name="error_server_sync_failed">Error al sincronizar con servidor</string>
+    <string name="error_favorite_toggle_failed">Error al cambiar favorito</string>
+
+    <!-- Worker & Notifications -->
+    <string name="notification_channel_downloads">Notificaciones de descarga de música</string>
+    <string name="error_offline_no_downloads">Sin conexión y sin canciones descargadas</string>
+    <string name="error_no_songs_downloaded">No hay canciones descargadas</string>
+    <string name="discover_select_playlist">Selecciona playlist</string>
+    <string name="discover_add_to_n_playlists">Agregar a %1$d</string>
+    <string name="error_rate_limit_reached">Límite de peticiones alcanzado. Espera un minuto e intenta de nuevo.</string>
+    <string name="error_invalid_token_challenge">Error: token/challenge inválido o datos incorrectos.</string>
+    <string name="playlist_songs_count">%1$d canciones</string>
+    <string name="quality_low_desc_stream">128 kbps Opus - Ahorro de datos</string>
+    <string name="quality_medium_desc_stream">192 kbps MP3 - Equilibrado</string>
+    <string name="quality_high_desc_stream">256 kbps AAC - Calidad alta</string>
+    <string name="quality_very_high_desc_stream">320 kbps MP3 - Máxima calidad</string>
+    <string name="quality_lossless_desc_stream">Original - Sin transcodificar</string>
+    <string name="quality_low_desc_download">128 kbps Opus - Ahorro de espacio</string>
+    <string name="quality_medium_desc_download">192 kbps MP3 - Equilibrado</string>
+    <string name="quality_high_desc_download">256 kbps AAC - Calidad alta</string>
+    <string name="quality_very_high_desc_download">320 kbps MP3 - Máxima calidad</string>
+    <string name="quality_lossless_desc_download">Original - Sin transcodificar</string>
+    <string name="theme_light_desc">Siempre tema claro</string>
+    <string name="theme_dark_desc">Siempre tema oscuro</string>
+    <string name="theme_system_desc">Seguir configuración del sistema</string>
+    <string name="notification_download_complete">Descarga completa</string>
+    <string name="notification_playlist_download_complete">%1$s - %2$d canciones descargadas</string>
+    <string name="settings_servers_count">%1$d servidor(es) configurado(s)</string>
+    <string name="settings_version_label">Versión %1$s</string>
+    <string name="lang_system_with_name">Sistema (%1$s)</string>
 </resources>

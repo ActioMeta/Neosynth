@@ -1,6 +1,7 @@
 package com.example.neosynth.ui.discover
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.AlbumDto
@@ -171,7 +173,19 @@ fun DiscoverScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
+                    MaterialTheme.colorScheme.background
+                ),
+                center = androidx.compose.ui.geometry.Offset(x = 0f, y = 0f),
+                radius = 2000f
+            )
+        )
+    ) {
         PullToRefreshBox(
             state = pullToRefreshState,
             isRefreshing = isRefreshing,
@@ -591,9 +605,8 @@ private fun BrowseContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 180.dp)
-    ) {
-        // Recent Songs Section
+        contentPadding = PaddingValues(bottom = 240.dp)
+    ) {        // Recent Songs Section
         item {
             Row(
                 modifier = Modifier
@@ -792,19 +805,16 @@ private fun GenreChip(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
+        targetValue = if (isPressed) 0.96f else 1f,
         label = "genre_chip_scale"
     )
     
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+        border = BorderStroke(1.dp, genreColor.copy(alpha = 0.3f)),
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
@@ -812,61 +822,47 @@ private fun GenreChip(
                 scaleY = scale
             }
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            genreColor,
-                            genreColor.copy(alpha = 0.7f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            // Indicador de color vertical
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(genreColor)
+            )
+
+            Text(
+                text = genre.value,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            
+            // Badge con número de canciones (sutil)
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = genreColor.copy(alpha = 0.15f)
             ) {
-                // Icono de nota musical (estático para todos)
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White.copy(alpha = 0.9f)
-                )
-                
                 Text(
-                    text = genre.value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    text = "${genre.songCount ?: 0}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = genreColor,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
-                
-                // Badge con número de canciones
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.White.copy(alpha = 0.25f)
-                ) {
-                    Text(
-                        text = "${genre.songCount ?: 0}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
             }
         }
     }
 }
 
-// Colores para géneros
+// Colores para géneros (rest of getGenreColor function follows...)
 private fun getGenreColor(genreName: String): Color {
     val lowerName = genreName.lowercase()
     return when {
@@ -905,62 +901,55 @@ private fun DecadeCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
+        targetValue = if (isPressed) 0.94f else 1f,
         label = "decade_card_scale"
     )
     
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
         modifier = Modifier
-            .size(width = 110.dp, height = 70.dp)
+            .size(width = 120.dp, height = 80.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            decadeColor,
-                            decadeColor.copy(alpha = 0.75f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            // Icono de fondo decorativo (calendario)
-            Icon(
-                imageVector = Icons.Rounded.CalendarMonth,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(36.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-6).dp, y = 6.dp),
-                tint = Color.White.copy(alpha = 0.2f)
-            )
-            
-            // Solo el texto de la década
+            // Fondo sutil con gradiente desvanecido (sin brillo blanco)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
-                contentAlignment = Alignment.BottomStart
-            ) {
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                decadeColor.copy(alpha = 0.25f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = decade,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Box(
+                    modifier = Modifier
+                        .width(20.dp)
+                        .height(2.dp)
+                        .clip(CircleShape)
+                        .background(decadeColor.copy(alpha = 0.6f))
                 )
             }
         }
@@ -1022,12 +1011,18 @@ private fun AlbumCard(
     getCoverUrl: (String?) -> String?
 ) {
     Column(
-        modifier = Modifier.width(120.dp)
+        modifier = Modifier.width(130.dp)
     ) {
         Surface(
             modifier = Modifier
-                .size(120.dp),
-            shape = RoundedCornerShape(12.dp),
+                .size(130.dp)
+                .graphicsLayer {
+                    shadowElevation = 8.dp.toPx()
+                    shape = RoundedCornerShape(16.dp)
+                    clip = true
+                },
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 4.dp,
             color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             AsyncImage(
@@ -1037,18 +1032,18 @@ private fun AlbumCard(
                 modifier = Modifier.fillMaxSize()
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = album.title,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
             text = album.artist,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1110,7 +1105,7 @@ private fun SongRow(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = "Descargada",
+                            contentDescription = stringResource(R.string.action_download_done),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1648,7 +1643,7 @@ private fun PlaylistPickerDialog(
                                             }
                                         )
                                         Text(
-                                            text = "${playlist.songCount} canciones",
+                                            text = stringResource(R.string.playlist_songs_count, playlist.songCount),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1673,18 +1668,18 @@ private fun PlaylistPickerDialog(
             ) {
                 Text(
                     if (selectedPlaylistIds.isEmpty()) {
-                        "Selecciona playlist"
+                        stringResource(R.string.discover_select_playlist)
                     } else if (selectedPlaylistIds.size == 1) {
-                        "Agregar"
+                        stringResource(R.string.action_add)
                     } else {
-                        "Agregar a ${selectedPlaylistIds.size}"
+                        stringResource(R.string.discover_add_to_n_playlists, selectedPlaylistIds.size)
                     }
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

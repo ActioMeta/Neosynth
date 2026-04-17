@@ -21,9 +21,9 @@ fun DiscoverSkeleton(brush: Brush) {
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        // Barra de búsqueda
+        // Search Bar Skeleton
         item {
             Box(
                 modifier = Modifier
@@ -34,93 +34,102 @@ fun DiscoverSkeleton(brush: Brush) {
             )
         }
 
-        // Sección "Géneros"
+        // Recent Songs/Albums Section Skeleton
         item {
             Column {
                 Box(
                     modifier = Modifier
-                        .width(100.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .width(160.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(6.dp))
                         .background(brush)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(5) {
-                        Box(
-                            modifier = Modifier
-                                .width(100.dp)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(brush)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Sección "Décadas"
-        item {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .width(100.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(brush)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(5) {
-                        Box(
-                            modifier = Modifier
-                                .width(80.dp)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(brush)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Artistas populares (circular)
-        item {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .width(140.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(brush)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(4) {
-                        Column(
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-                        ) {
+                        Column(modifier = Modifier.width(130.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape)
+                                    .size(130.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(brush)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Box(
                                 modifier = Modifier
-                                    .width(70.dp)
+                                    .fillMaxWidth(0.8f)
                                     .height(16.dp)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(brush)
                             )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.5f)
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
                         }
+                    }
+                }
+            }
+        }
+
+        // Genres Section Skeleton
+        item {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                // Grid of genres
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    repeat(2) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            repeat(2) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(brush)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Decades Section Skeleton
+        item {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .width(100.dp)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(4) {
+                        Box(
+                            modifier = Modifier
+                                .width(110.dp)
+                                .height(70.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(brush)
+                        )
                     }
                 }
             }

@@ -1,8 +1,10 @@
 package com.example.neosynth.ui.home.logic
 
+import android.content.Context
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.example.neosynth.R
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
 import com.example.neosynth.data.local.entities.ServerEntity
@@ -11,6 +13,7 @@ import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.ui.home.HomeViewModel.UiEvent
 import com.example.neosynth.utils.NetworkHelper
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -29,7 +32,8 @@ class HomePlayerHandler @Inject constructor(
     private val musicController: MusicController,
     private val urlInterceptor: DynamicUrlInterceptor,
     private val networkHelper: NetworkHelper,
-    private val settingsPreferences: SettingsPreferences
+    private val settingsPreferences: SettingsPreferences,
+    @ApplicationContext private val context: Context
 ) {
 
     private suspend fun getStreamQuality(): StreamQuality {
@@ -93,7 +97,7 @@ class HomePlayerHandler @Inject constructor(
                 updateRandomCoverArts(randomSongs.take(3).mapNotNull { it.imageUrl })
                 musicController.playQueue(mediaItems, 0)
             } else {
-                uiEvent.emit(UiEvent.ShowSnackbar("No hay canciones descargadas"))
+                uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_no_songs_downloaded)))
             }
         } catch (e: Exception) {
             Log.e("HomePlayerHandler", "Error playing offline shuffle", e)

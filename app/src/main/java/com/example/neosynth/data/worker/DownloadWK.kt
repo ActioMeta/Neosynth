@@ -16,6 +16,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import com.example.neosynth.R
 import com.example.neosynth.data.local.entities.SongEntity
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.data.preferences.SettingsPreferences
@@ -43,7 +44,6 @@ class DownloadWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "DownloadWorker"
         const val CHANNEL_ID = "download_channel"
-        private const val CHANNEL_NAME = "Descargas"
         const val FOREGROUND_NOTIFICATION_ID = 1001
     }
 
@@ -56,11 +56,11 @@ class DownloadWorker @AssistedInject constructor(
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         createNotificationChannel()
-        val title = inputData.getString("title") ?: "Descargando..."
+        val title = inputData.getString("title") ?: applicationContext.getString(R.string.notification_downloading)
         val artist = inputData.getString("artist") ?: ""
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("Descargando")
+            .setContentTitle(applicationContext.getString(R.string.notification_downloading_short))
             .setContentText("$title - $artist")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -73,10 +73,10 @@ class DownloadWorker @AssistedInject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                applicationContext.getString(R.string.downloads),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Notificaciones de descarga de música"
+                description = applicationContext.getString(R.string.notification_channel_downloads)
                 setShowBadge(false)
             }
             val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -115,7 +115,7 @@ class DownloadWorker @AssistedInject constructor(
             }
         } else {
             // Notificación individual para canciones sueltas
-            builder.setContentTitle("Descargando")
+            builder.setContentTitle(applicationContext.getString(R.string.notification_downloading_short))
             builder.setContentText(title)
             if (progress >= 0) {
                 builder.setProgress(100, progress, false)
@@ -153,10 +153,10 @@ class DownloadWorker @AssistedInject constructor(
             .setContentIntent(pendingIntent) // Hacer clickeable
 
         if (playlistName != null && total > 0) {
-            builder.setContentTitle("Descarga completada")
-            builder.setContentText("$playlistName - $total canciones descargadas")
+            builder.setContentTitle(applicationContext.getString(R.string.notification_download_complete))
+            builder.setContentText(applicationContext.getString(R.string.notification_playlist_download_complete, playlistName, total))
         } else {
-            builder.setContentTitle("Descarga completa")
+            builder.setContentTitle(applicationContext.getString(R.string.notification_download_complete))
             builder.setContentText(title)
         }
 
@@ -183,7 +183,7 @@ class DownloadWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle("Error de descarga")
+            .setContentTitle(applicationContext.getString(R.string.notification_download_error))
             .setContentText(title)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)

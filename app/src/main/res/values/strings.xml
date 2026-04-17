@@ -97,7 +97,8 @@
     <string name="action_clear_filter">Clear filter</string>
     <string name="action_play">Play</string>
     <string name="action_fav">Fav</string>
-    <string name="action_playlist">List</string>
+    <string name="action_playlist">Playlist</string>
+    <string name="action_add_to_queue">Add to queue</string>
     <string name="action_del">Del</string>
     <string name="action_queue">Queue</string>
     <string name="action_down">Down</string>
@@ -115,8 +116,7 @@
     <string name="action_clear">Clear</string>
     <string name="save_as_playlist">Save as Playlist</string>
     <string name="new_playlist_name">New playlist name</string>
-    <string name="drag_to_reorder">Drag to reorder</string>
-    <string name="hold_to_reorder">%1$d • Hold to reorder</string>
+
     <string name="action_play_short">Play</string>
     <string name="action_fav_short">Fav</string>
     <string name="action_down_short">Down</string>
@@ -124,7 +124,6 @@
     
     <!-- Added for Menus / Artist / Queue -->
     <string name="action_play_next">Play next</string>
-    <string name="action_add_to_queue">Add to queue</string>
     <string name="action_go_to_artist">Go to artist</string>
     <string name="action_go_to_album">Go to album</string>
     <string name="action_close">Close</string>
@@ -225,4 +224,160 @@
     <string name="lang_spanish">Español</string>
     <string name="lang_english">English</string>
     <string name="lang_system">System</string>
+    <string name="action_accept">Accept</string>
+    <string name="server_registration">Server Registration</string>
+    <string name="server_url_placeholder">https://your_ip:443</string>
+    <string name="subsonic_compatible_server">Server compatible with Subsonic API (Navidrome, Airsonic, etc.)</string>
+    <string name="server_password_optional_hint">Leave blank to keep</string>
+    <string name="my_server_placeholder">My server</string>
+    <string name="no_servers">No servers</string>
+    <string name="stats_title">Statistics</string>
+    <string name="stats_plays">%1$d plays</string>
+    <string name="stats_top_artists">Top Artists</string>
+    <string name="stats_top_songs">Top Songs</string>
+    <string name="stats_recent_history">Recent History</string>
+    <string name="lyrics_editor_title">Lyrics Editor</string>
+    <string name="lyrics_editor_pasted">Paste Lyrics</string>
+    <string name="lyrics_editor_paste_hint">Paste lyrics here...</string>
+    <string name="lyrics_edit_line">Edit Line</string>
+    <string name="lyrics_lyric">Lyric</string>
+    <string name="lyrics_time_format">Time (mm:ss.xx)</string>
+    <string name="lyrics_publish_lrclib">Publish to LRCLib</string>
+    <string name="lyrics_jump_time">Jump to this time</string>
+    <string name="lyrics_assign_time">Assign current time</string>
+    <string name="lyrics_minus_5s">-5s</string>
+    <string name="lyrics_plus_5s">+5s</string>
+    <string name="lyrics_file">File</string>
+    <string name="lyrics_text">Text</string>
+    <string name="lyrics_import_hint">Import lyrics to start syncing.</string>
+    <string name="lyrics_select">Select a lyric</string>
+    <string name="lyrics_no_options">No options available in this category</string>
+    <string name="lyrics_no_lyrics">No lyrics available</string>
+    <string name="lyrics_edit">Edit lyrics</string>
+    <string name="lyrics_web_options">Web options</string>
+    <string name="settings_high_quality">High Quality</string>
+    <string name="settings_high_quality_desc">Stream and download in 320kbps</string>
+    <string name="settings_dynamic_theme">Dynamic Dark Mode</string>
+    <string name="settings_dynamic_theme_desc">Use system colors</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_github">github.com/ActioMeta/NeoSynth</string>
+    <string name="playlist_add_to">Add to playlist</string>
+    <string name="playlist_no_available">No available playlists.</string>
+    <string name="download_delete_playlist">Delete playlist</string>
+    <string name="download_delete_playlist_desc">Delete \"%1$s\" from downloads? Downloaded songs will not be deleted.</string>
+    <string name="playlist_downloaded_desc">%1$s - %2$d songs downloaded</string>
+    <string name="mix_play">Mix</string>
+    <string name="content_desc_logo">Logo</string>
+    <string name="content_desc_selected">Selected</string>
+    <string name="content_desc_more_options">More options</string>
+    <string name="content_desc_audio_quality">Audio Quality</string>
+
+    <string name="lyrics_synced">Synced</string>
+    <string name="lyrics_plain_text">Plain Text</string>
+    <string name="lyrics_synced_lyric">Synced format</string>
+    <string name="lyrics_plain_text_lyric">Plain text format</string>
+    <string name="lyrics_showing_source">Showing %1$s</string>
+    <string name="downloads_songs_not_downloaded">%1$d songs (not downloaded)</string>
+    <string name="downloads_songs_downloaded_count">%1$d/%2$d downloaded</string>
+    <string name="notification_downloading">Downloading...</string>
+    <string name="notification_downloading_short">Downloading</string>
+    <string name="notification_download_error">Download error</string>
+
+    <string name="error_server_unreachable">Server unreachable</string>
+    <string name="error_server_unreachable_desc">We couldn\'t connect to your library. Check your connection or server settings.</string>
+    <string name="download_album_downloading">Downloading album...</string>
+    <string name="action_download_album">Download album</string>
+    <string name="action_settings">Settings</string>
+    <string name="content_desc_show_password">Show password</string>
+    <string name="content_desc_hide_password">Hide password</string>
+    <string name="error_all_fields_required">All fields are required</string>
+    <string name="error_fields_required_edit">Name, URL and username are required</string>
+    <string name="lyrics_apply">Apply</string>
+    <string name="settings_servers">Servers</string>
+
+    <string name="queue_playing_name">Play Queue</string>
+    <string name="playlist_created_success">Playlist created successfully</string>
+    <string name="error_no_active_server">No active server</string>
+    <string name="error_queue_empty">The queue is empty</string>
+    <string name="error_create_playlist_failed">Error creating playlist</string>
+    <string name="error_create_playlist_unknown">Unknown error creating playlist</string>
+    <string name="unknown_title">Unknown Title</string>
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="song_label">Song</string>
+    <string name="drag_to_reorder">Drag to reorder songs</string>
+    <string name="hold_to_reorder">Hold to reorder %1$d songs</string>
+
+    <!-- UI Menus & Actions -->
+    <string name="action_remove_favorite">Remove from favorites</string>
+    <string name="action_add_favorite">Add to favorites</string>
+    <string name="action_add_to_playlist">Add to playlist</string>
+    <string name="action_downloading">Downloading...</string>
+    <string name="action_download_done">Downloaded</string>
+
+    <!-- Settings Qualities & Themes -->
+    <string name="quality_max_mp3">320 kbps MP3 - Maximum Quality</string>
+    <string name="quality_lossless_desc">Lossless (FLAC)</string>
+    <string name="theme_follow_system">Follow system settings</string>
+    <string name="quality_stream_mobile">Streaming quality on mobile data</string>
+    <string name="quality_download_mobile">Download quality on mobile data</string>
+
+    <!-- Sorting Options -->
+    <string name="sort_most_recent">Most recent</string>
+    <string name="sort_oldest">Oldest</string>
+    <string name="sort_title_az">Title A→Z</string>
+    <string name="sort_artist_az">Artist A→Z</string>
+    <string name="sort_album_az">Album A→Z</string>
+    <string name="sort_longest_duration">Longest duration</string>
+
+    <!-- Messages & Errors -->
+    <string name="msg_already_downloaded">\"%1$s\" is already downloaded</string>
+    <string name="msg_no_lyrics_found">No lyrics found for this song</string>
+    <string name="msg_no_song_playing">No song playing</string>
+    <string name="error_invalid_credentials">Invalid credentials</string>
+    <string name="error_connection_failed">Connection failed: %1$s</string>
+    <string name="msg_empty_line">(Empty line)</string>
+    <string name="msg_requesting_challenge">Requesting challenge from LRCLib...</string>
+    <string name="error_lyrics_search_failed">Error searching for lyrics: %1$s</string>
+    <string name="msg_added_to_favorites">Added to favorites</string>
+    <string name="error_setup_gemini">Setup Gemini API Key in Settings.</string>
+    <string name="msg_generating_lyrics_gemini">Generating lyrics with Gemini...</string>
+    <string name="msg_lyrics_generated_success">Lyrics generated successfully.</string>
+    <string name="error_generating_lyrics">Error generating lyrics: %1$s</string>
+    <string name="msg_computing_pow">Computing Proof of Work...</string>
+    <string name="msg_publishing_lrclib">Publishing to LRCLib...</string>
+    <string name="msg_lyrics_published_success">Lyrics published successfully to LRCLib!</string>
+    <string name="error_lyrics_already_exist">Lyrics already exist for this song on LRCLib.</string>
+    <string name="error_publish_failed">Error publishing (HTTP %1$d).</string>
+    <string name="msg_removed_from_favorites">Removed from favorites</string>
+    <string name="error_server_sync_failed">Error syncing with server</string>
+    <string name="error_favorite_toggle_failed">Error toggling favorite</string>
+
+    <!-- Worker & Notifications -->
+    <string name="notification_channel_downloads">Music Download Notifications</string>
+    <string name="error_offline_no_downloads">Offline and no songs downloaded</string>
+    <string name="error_no_songs_downloaded">No songs downloaded</string>
+    <string name="discover_select_playlist">Select playlist</string>
+    <string name="discover_add_to_n_playlists">Add to %1$d</string>
+    <string name="error_rate_limit_reached">Rate limit reached. Please wait a minute and try again.</string>
+    <string name="error_invalid_token_challenge">Error: invalid token/challenge or incorrect data.</string>
+    <string name="playlist_songs_count">%1$d songs</string>
+    <string name="quality_low_desc_stream">128 kbps Opus - Data saver</string>
+    <string name="quality_medium_desc_stream">192 kbps MP3 - Balanced</string>
+    <string name="quality_high_desc_stream">256 kbps AAC - High quality</string>
+    <string name="quality_very_high_desc_stream">320 kbps MP3 - Maximum quality</string>
+    <string name="quality_lossless_desc_stream">Original - No transcoding</string>
+    <string name="quality_low_desc_download">128 kbps Opus - Space saver</string>
+    <string name="quality_medium_desc_download">192 kbps MP3 - Balanced</string>
+    <string name="quality_high_desc_download">256 kbps AAC - High quality</string>
+    <string name="quality_very_high_desc_download">320 kbps MP3 - Maximum quality</string>
+    <string name="quality_lossless_desc_download">Original - No transcoding</string>
+    <string name="theme_light_desc">Always light theme</string>
+    <string name="theme_dark_desc">Always dark theme</string>
+    <string name="theme_system_desc">Follow system settings</string>
+    <string name="notification_download_complete">Download complete</string>
+    <string name="notification_playlist_download_complete">%1$s - %2$d songs downloaded</string>
+    <string name="settings_servers_count">%1$d server(s) configured</string>
+    <string name="settings_version_label">Version %1$s</string>
+    <string name="lang_system_with_name">System (%1$s)</string>
 </resources>

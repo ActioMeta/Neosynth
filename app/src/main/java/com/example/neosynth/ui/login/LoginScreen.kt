@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.neosynth.R
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,12 +63,12 @@ fun LoginScreen(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.logo_app),
-                contentDescription = "Logo",
+                contentDescription = stringResource(R.string.content_desc_logo),
                 modifier = Modifier.size(100.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Neosynth",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -87,7 +88,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Registro de servidor",
+                    text = stringResource(R.string.server_registration),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.align(Alignment.Start).padding(bottom = 20.dp)
@@ -96,7 +97,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nombre del Servidor") },
+                    label = { Text(stringResource(R.string.server_name_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -111,9 +112,9 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL del Servidor") },
+                    label = { Text(stringResource(R.string.server_url_label)) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("https://tu_ip:443") },
+                    placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(
@@ -127,7 +128,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = user,
                     onValueChange = { user = it },
-                    label = { Text("Usuario") },
+                    label = { Text(stringResource(R.string.server_username)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -139,7 +140,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = pass,
                     onValueChange = { pass = it },
-                    label = { Text("Contraseña") },
+                    label = { Text(stringResource(R.string.server_password_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
@@ -171,7 +172,7 @@ fun LoginScreen(
                     if (status is ConnectionStatus.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
                     } else {
-                        Text("Aceptar", fontWeight = FontWeight.ExtraBold)
+                        Text(stringResource(R.string.action_accept), fontWeight = FontWeight.ExtraBold)
                     }
                 }
 

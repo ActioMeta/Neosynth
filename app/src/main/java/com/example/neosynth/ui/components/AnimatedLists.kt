@@ -25,6 +25,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
 import kotlin.math.roundToInt
@@ -156,7 +158,7 @@ fun AnimatedSongRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                contentDescription = "Seleccionado",
+                                contentDescription = stringResource(R.string.content_desc_selected),
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -175,7 +177,7 @@ fun AnimatedSongRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.DownloadDone,
-                                contentDescription = "Descargado",
+                                contentDescription = stringResource(R.string.action_download_done),
                                 modifier = Modifier
                                     .padding(2.dp)
                                     .size(14.dp),
@@ -215,7 +217,7 @@ fun AnimatedSongRow(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = "Más opciones",
+                            contentDescription = stringResource(R.string.content_desc_more_options),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -228,7 +230,7 @@ fun AnimatedSongRow(
                         onToggleFavorite?.let { toggle ->
                             DropdownMenuItem(
                                 text = { 
-                                    Text(if (isFavorite) "Quitar de favoritos" else "Añadir a favoritos")
+                                    Text(if (isFavorite) stringResource(R.string.action_remove_favorite) else stringResource(R.string.action_add_favorite))
                                 },
                                 onClick = {
                                     toggle()
@@ -247,7 +249,7 @@ fun AnimatedSongRow(
                         // Añadir a playlist
                         onAddToPlaylist?.let { add ->
                             DropdownMenuItem(
-                                text = { Text("Añadir a playlist") },
+                                text = { Text(stringResource(R.string.action_add_to_playlist)) },
                                 onClick = {
                                     add()
                                     showMenu = false
@@ -266,7 +268,7 @@ fun AnimatedSongRow(
                             var downloadStarted by remember { mutableStateOf(false) }
                             
                             DropdownMenuItem(
-                                text = { Text(if (downloadStarted) "Descargando..." else "Descargar") },
+                                text = { Text(if (downloadStarted) stringResource(R.string.action_downloading) else stringResource(R.string.action_download)) },
                                 onClick = {
                                     downloadStarted = true
                                     onDownload()

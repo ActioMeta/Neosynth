@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -38,6 +39,7 @@ fun AddServerDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     AlertDialog(
@@ -66,7 +68,7 @@ fun AddServerDialog(
                         errorMessage = null
                     },
                     label = { Text(stringResource(R.string.server_name_label)) },
-                    placeholder = { Text("Mi servidor") },
+                    placeholder = { Text(stringResource(R.string.my_server_placeholder)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Label, contentDescription = null)
                     },
@@ -90,7 +92,7 @@ fun AddServerDialog(
                         errorMessage = null
                     },
                     label = { Text(stringResource(R.string.server_url_label)) },
-                    placeholder = { Text("http://servidor:4533") },
+                    placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Dns, contentDescription = null)
                     },
@@ -144,7 +146,7 @@ fun AddServerDialog(
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                                contentDescription = if (passwordVisible) stringResource(R.string.content_desc_hide_password) else stringResource(R.string.content_desc_show_password)
                             )
                         }
                     },
@@ -184,7 +186,7 @@ fun AddServerDialog(
 
                 // Info sobre Subsonic API
                 Text(
-                    text = "Servidor compatible con Subsonic API (Navidrome, Airsonic, etc.)",
+                    text = stringResource(R.string.subsonic_compatible_server),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -195,7 +197,7 @@ fun AddServerDialog(
                 onClick = {
                     scope.launch {
                         if (serverName.isBlank() || serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-                            errorMessage = "Todos los campos son requeridos"
+                            errorMessage = context.getString(R.string.error_all_fields_required)
                             return@launch
                         }
 

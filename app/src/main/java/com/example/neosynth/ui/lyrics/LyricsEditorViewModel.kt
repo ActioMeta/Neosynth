@@ -1,9 +1,12 @@
 package com.example.neosynth.ui.lyrics
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.neosynth.R
 import com.example.neosynth.data.preferences.SettingsPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -22,6 +25,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LyricsEditorViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsPreferences: SettingsPreferences
 ) : ViewModel() {
 
@@ -126,11 +130,11 @@ class LyricsEditorViewModel @Inject constructor(
         viewModelScope.launch {
             val apiKey = geminiApiKey.first().geminiApiKey
             if (apiKey.isBlank()) {
-                _publishStatus.value = "Configura la API Key de Gemini en Ajustes."
+                _publishStatus.value = context.getString(R.string.error_setup_gemini)
                 return@launch
             }
             
-            _publishStatus.value = "Generando letras con Gemini..."
+            _publishStatus.value = context.getString(R.string.msg_generating_lyrics_gemini)
             try {
                 val result = withContext(Dispatchers.IO) {
                     val client = OkHttpClient()
@@ -171,8 +175,8 @@ class LyricsEditorViewModel @Inject constructor(
                             val errorBody = response.body?.string() ?: ""
                             android.util.Log.e("GeminiAPI", "Error ${response.code}: $errorBody")
                             when (response.code) {
-                                429 -> throw Exception("Límite de peticiones alcanzado. Espera un minuto e intenta de nuevo.")
-                                401, 403 -> throw Exception("API Key inválida. Verifica tu API Key en Ajustes.")
+                                429 -> throw Exception(context.getString(R.string.error_rate_limit_reached))
+                                401, 403 -> throw Exception(context.getString(R.string.error_setup_gemini))
                                 else -> throw Exception("Error ${response.code}: ${response.message}")
                             }
                         }
@@ -195,10 +199,10 @@ class LyricsEditorViewModel @Inject constructor(
                 }
                 
                 updateRawLyrics(result.trim())
-                _publishStatus.value = "Letras generadas exitosamente."
+                _publishStatus.value = context.getString(R.string.msg_lyrics_generated_success)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _publishStatus.value = "Error al generar letras: ${e.message}"
+                _publishStatus.value = context.getString(R.string.error_generating_lyrics, e.message ?: "")
             }
         }
     }
@@ -206,7 +210,7 @@ class LyricsEditorViewModel @Inject constructor(
     fun publishLyrics(track: String, artist: String, album: String, duration: Int) {
         viewModelScope.launch {
             _isPublishing.value = true
-            _publishStatus.value = "Solicitando desafío a LRCLib..."
+            _publishStatus.value = context.getString(R.string.msg_requesting_challenge)
 
             try {
                 val client = OkHttpClient()
@@ -232,7 +236,7 @@ class LyricsEditorViewModel @Inject constructor(
                 val targetHex = challengeJson.getString("target")
 
                 android.util.Log.d("LRCLib", "PoW prefix=$prefix  target=$targetHex")
-                _publishStatus.value = "Calculando Proof of Work..."
+                _publishStatus.value = context.getString(R.string.msg_computing_pow)
 
                 // 2. Compute nonce (in Default dispatcher to avoid blocking IO threadpool)
                 val nonce = withContext(Dispatchers.Default) {
@@ -250,7 +254,7 @@ class LyricsEditorViewModel @Inject constructor(
                     n
                 }
                 android.util.Log.d("LRCLib", "PoW solved: nonce=$nonce")
-                _publishStatus.value = "Publicando en LRCLib..."
+                _publishStatus.value = context.getString(R.string.msg_publishing_lrclib)
 
                 // 3. Build plain lyrics (strip timestamps) and synced lyrics (the LRC raw)
                 val currentLines = _parsedLines.value
@@ -282,16 +286,16 @@ class LyricsEditorViewModel @Inject constructor(
                 }
 
                 _publishStatus.value = when (responseCode) {
-                    201 -> "¡Letras publicadas correctamente en LRCLib!"
-                    400 -> "Error: token/challenge inválido o datos incorrectos."
-                    405 -> "Error: método HTTP no permitido por LRCLib."
-                    409 -> "Ya existen letras para esta canción en LRCLib."
-                    else -> "Error al publicar (HTTP $responseCode)."
+                    201 -> context.getString(R.string.msg_lyrics_published_success)
+                    400 -> context.getString(R.string.error_invalid_token_challenge)
+                    405 -> "Error: method not allowed"
+                    409 -> context.getString(R.string.error_lyrics_already_exist)
+                    else -> context.getString(R.string.error_publish_failed, responseCode)
                 }
 
             } catch (e: Exception) {
                 android.util.Log.e("LRCLib", "Publish failed", e)
-                _publishStatus.value = "Error al publicar: ${e.message}"
+                _publishStatus.value = context.getString(R.string.error_publish_failed, 0) + ": ${e.message}"
             } finally {
                 _isPublishing.value = false
             }

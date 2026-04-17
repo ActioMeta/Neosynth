@@ -497,7 +497,7 @@ fun PlayerScreen(
                 
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = pageSong?.mediaMetadata?.title?.toString() ?: "Sin título",
+                        text = pageSong?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -514,7 +514,7 @@ fun PlayerScreen(
                     )
         
                     Text(
-                        text = pageSong?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
+                        text = pageSong?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
@@ -820,7 +820,7 @@ private fun QueueBottomSheet(
                 ) {
                   Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.queue_title),
+                text = context.getString(R.string.queue_title),
                 style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -843,9 +843,9 @@ private fun QueueBottomSheet(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (draggedIndex >= 0) 
-                        stringResource(R.string.drag_to_reorder)
+                        context.getString(R.string.drag_to_reorder)
                     else
-                        stringResource(R.string.hold_to_reorder, queue.size),
+                        context.getString(R.string.hold_to_reorder, queue.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (draggedIndex >= 0)
                         MaterialTheme.colorScheme.primary
@@ -977,12 +977,12 @@ private fun QueueBottomSheet(
                 actions = listOf(
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_save),
+                        label = context.getString(R.string.action_save),
                         onClick = { showSavePlaylistDialog = true }
                     ),
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_download),
+                        label = context.getString(R.string.action_download),
                         onClick = {
                             val downloadingMsg = context.getString(R.string.queue_downloading)
                             viewModel.downloadQueue()
@@ -991,7 +991,7 @@ private fun QueueBottomSheet(
                     ),
                     com.example.neosynth.ui.components.FabAction(
                         icon = Icons.Rounded.ClearAll,
-                        label = stringResource(R.string.action_clear),
+                        label = context.getString(R.string.action_clear),
                         onClick = {
                             musicController.clearQueue()
                             onDismiss()
@@ -1007,16 +1007,16 @@ private fun QueueBottomSheet(
         if (showSavePlaylistDialog) {
             var playlistName by remember { mutableStateOf("") }
             val isProcessing by viewModel.isProcessingQueueAction.collectAsStateWithLifecycle()
-            val okMessage = stringResource(R.string.playlist_new) // Reusing playlist_new or similar for success? Actually just let it be or extract
+            val okMessage = stringResource(R.string.playlist_created_success)
             
             AlertDialog(
                 onDismissRequest = { if (!isProcessing) showSavePlaylistDialog = false },
-                title = { Text(stringResource(R.string.save_as_playlist)) },
+                title = { Text(context.getString(R.string.save_as_playlist)) },
                 text = {
                     OutlinedTextField(
                         value = playlistName,
                         onValueChange = { playlistName = it },
-                        label = { Text(stringResource(R.string.new_playlist_name)) },
+                        label = { Text(context.getString(R.string.new_playlist_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1029,7 +1029,7 @@ private fun QueueBottomSheet(
                                     name = playlistName,
                                     onComplete = {
                                         showSavePlaylistDialog = false
-                                        onShowSnackbar("Playlist creada correctamente")
+                                        onShowSnackbar(okMessage)
                                     },
                                     onError = { error ->
                                         onShowSnackbar(error)
@@ -1039,7 +1039,7 @@ private fun QueueBottomSheet(
                         },
                         enabled = playlistName.isNotBlank() && !isProcessing
                     ) {
-                        Text(stringResource(R.string.action_save))
+                        Text(context.getString(R.string.action_save))
                     }
                 },
                 dismissButton = {
@@ -1047,7 +1047,7 @@ private fun QueueBottomSheet(
                         onClick = { showSavePlaylistDialog = false },
                         enabled = !isProcessing
                     ) {
-                        Text(stringResource(R.string.action_cancel))
+                        Text(context.getString(R.string.action_cancel))
                     }
                 }
             )
@@ -1148,7 +1148,7 @@ private fun QueueItem(
             // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.mediaMetadata.title?.toString() ?: "Sin título",
+                    text = item.mediaMetadata.title?.toString() ?: stringResource(R.string.unknown_title),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isCurrentSong) FontWeight.Bold else FontWeight.Normal,
                     color = if (isCurrentSong)
@@ -1159,7 +1159,7 @@ private fun QueueItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = item.mediaMetadata.artist?.toString() ?: "Desconocido",
+                    text = item.mediaMetadata.artist?.toString() ?: stringResource(R.string.unknown_artist),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1190,7 +1190,7 @@ private fun QueueItem(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text(stringResource(R.string.queue_remove_title)) },
             text = { 
-                Text(item.mediaMetadata.title?.toString() ?: "Canción") 
+                Text(item.mediaMetadata.title?.toString() ?: stringResource(R.string.song_label)) 
             },
             confirmButton = {
                 TextButton(

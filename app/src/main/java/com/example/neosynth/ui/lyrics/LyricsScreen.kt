@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.components.AnimatedPlayerSlider
 import com.example.neosynth.utils.LrcParser
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -86,6 +88,7 @@ fun LyricsScreen(
         }
     }
     val hasPlainLyrics = plainTextLines.isNotEmpty()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(selectedLyricsOption?.id) {
         val selectedId = selectedLyricsOption?.id ?: return@LaunchedEffect
@@ -94,7 +97,7 @@ fun LyricsScreen(
         }
         if (lastAnnouncedSelectionId != null && lastAnnouncedSelectionId != selectedId) {
             snackbarHostState.showSnackbar(
-                message = "Mostrando ${selectedLyricsOption.source}"
+                message = context.getString(R.string.lyrics_showing_source, selectedLyricsOption.source)
             )
         }
         lastAnnouncedSelectionId = selectedId
@@ -242,7 +245,7 @@ fun LyricsScreen(
                             } else {
                                 Icon(
                                     imageVector = Icons.Rounded.ManageSearch,
-                                    contentDescription = "Opciones web",
+                                    contentDescription = stringResource(R.string.lyrics_web_options),
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -251,14 +254,14 @@ fun LyricsScreen(
                     IconButton(onClick = onEditLyrics) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
-                            contentDescription = "Editar letras",
+                            contentDescription = stringResource(R.string.lyrics_edit),
                             modifier = Modifier.size(24.dp)
                         )
                     }
                     IconButton(onClick = onClose) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Cerrar",
+                            contentDescription = stringResource(R.string.action_close),
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -273,16 +276,17 @@ fun LyricsScreen(
                 horizontalAlignment = Alignment.Start // Alineación Start dinámica
             ) {
                 Text(
-                    text = currentSong?.mediaMetadata?.title?.toString() ?: "Sin título",
+                    text = currentSong?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
                 Text(
-                    text = currentSong?.mediaMetadata?.artist?.toString() ?: "Artista desconocido",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = currentSong?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -410,7 +414,7 @@ fun LyricsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "No hay letras disponibles",
+                                    text = stringResource(R.string.lyrics_no_lyrics),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -449,7 +453,7 @@ fun LyricsScreen(
                     ) { playing ->
                         Icon(
                             imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = if (playing) "Pausar" else "Reproducir",
+                            contentDescription = stringResource(R.string.play_pause),
                             tint = Color.Black,
                             modifier = Modifier.size(32.dp)
                         )

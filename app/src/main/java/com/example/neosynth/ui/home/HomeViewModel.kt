@@ -19,6 +19,7 @@ import com.example.neosynth.ui.home.logic.HomeLyricsHandler
 import com.example.neosynth.ui.home.logic.HomePlayerHandler
 import com.example.neosynth.utils.NetworkHelper
 import com.example.neosynth.data.preferences.SettingsPreferences
+import com.example.neosynth.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -197,7 +198,7 @@ class HomeViewModel @Inject constructor(
             if (recentDownloads.isNotEmpty() || randomDownloaded.isNotEmpty()) {
                 error = null 
             } else {
-                 error = "Sin conexión y sin canciones descargadas"
+                 error = appContext.getString(R.string.error_offline_no_downloads)
             }
             
         } catch (e: Exception) {

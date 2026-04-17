@@ -14,9 +14,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.neosynth.data.local.entities.PlaybackHistoryEntity
+import com.example.neosynth.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,10 +36,10 @@ fun StatsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
-            title = { Text("Estadísticas") },
+            title = { Text(stringResource(R.string.stats_title)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Rounded.ArrowBack, "Volver")
+                    Icon(Icons.Rounded.ArrowBack, stringResource(R.string.action_back))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -51,7 +53,7 @@ fun StatsScreen(
         ) {
             item {
                 Text(
-                    text = "Top Artistas",
+                    text = stringResource(R.string.stats_top_artists),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -64,14 +66,14 @@ fun StatsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(artist.artist, style = MaterialTheme.typography.bodyLarge)
-                    Text("${artist.playCount} plays", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.stats_plays, artist.playCount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
             
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Top Canciones",
+                    text = stringResource(R.string.stats_top_songs),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -87,14 +89,14 @@ fun StatsScreen(
                         Text(song.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                         Text(song.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("${song.playCount} plays", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.stats_plays, song.playCount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Historial Reciente",
+                    text = stringResource(R.string.stats_recent_history),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)

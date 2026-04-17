@@ -213,7 +213,7 @@ fun RecentSongsScreen(
                             ),
                             MultiSelectAction(
                                 icon = Icons.Rounded.QueueMusic,
-                                label = "Add to Queue",
+                                label = stringResource(R.string.action_add_to_queue),
                                 onClick = {
                                     viewModel.addSelectedToQueue()
                                     viewModel.clearSelection()
@@ -280,7 +280,7 @@ private fun RecentSongsTopBar(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        order.label,
+                                        stringResource(order.labelRes),
                                         fontWeight = if (order == currentSort) FontWeight.Bold else FontWeight.Normal,
                                         color = if (order == currentSort) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurface

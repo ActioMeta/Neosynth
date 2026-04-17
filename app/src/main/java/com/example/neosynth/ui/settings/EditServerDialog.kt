@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,6 +40,7 @@ fun EditServerDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     AlertDialog(
@@ -67,7 +69,7 @@ fun EditServerDialog(
                         errorMessage = null
                     },
                     label = { Text(stringResource(R.string.server_name_label)) },
-                    placeholder = { Text("Mi servidor") },
+                    placeholder = { Text(stringResource(R.string.my_server_placeholder)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Label, contentDescription = null)
                     },
@@ -91,7 +93,7 @@ fun EditServerDialog(
                         errorMessage = null
                     },
                     label = { Text(stringResource(R.string.server_url_label)) },
-                    placeholder = { Text("http://servidor:4533") },
+                    placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Dns, contentDescription = null)
                     },
@@ -138,7 +140,7 @@ fun EditServerDialog(
                         errorMessage = null
                     },
                     label = { Text(stringResource(R.string.server_password_optional_label)) },
-                    placeholder = { Text("Dejar en blanco para conservar") },
+                    placeholder = { Text(stringResource(R.string.server_password_optional_hint)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Lock, contentDescription = null)
                     },
@@ -146,7 +148,7 @@ fun EditServerDialog(
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                                contentDescription = if (passwordVisible) stringResource(R.string.content_desc_hide_password) else stringResource(R.string.content_desc_show_password)
                             )
                         }
                     },
@@ -190,7 +192,7 @@ fun EditServerDialog(
                 onClick = {
                     scope.launch {
                         if (serverName.isBlank() || serverUrl.isBlank() || username.isBlank()) {
-                            errorMessage = "El nombre, URL y usuario son requeridos"
+                            errorMessage = context.getString(R.string.error_fields_required_edit)
                             return@launch
                         }
 

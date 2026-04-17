@@ -1,0 +1,56 @@
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:99:                    label = { Text("Nombre del Servidor") },
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:114:                    label = { Text("URL del Servidor") },
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:116:                    placeholder = { Text("https://tu_ip:443") },
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:130:                    label = { Text("Usuario") },
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:142:                    label = { Text("Contraseña") },
+app/src/main/java/com/example/neosynth/ui/login/LoginScreen.kt:174:                        Text("Aceptar", fontWeight = FontWeight.ExtraBold)
+app/src/main/java/com/example/neosynth/ui/components/ServeError.kt:65:                Text("Reintentar")
+app/src/main/java/com/example/neosynth/ui/components/ServeError.kt:76:                    Text("Configuración")
+app/src/main/java/com/example/neosynth/ui/components/PlaylistPickerDialog.kt:24:        title = { Text("Agregar a playlist") },
+app/src/main/java/com/example/neosynth/ui/components/PlaylistPickerDialog.kt:50:                                Text("${playlist.songCount} canciones")
+app/src/main/java/com/example/neosynth/ui/components/PlaylistPickerDialog.kt:71:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/components/AnimatedLists.kt:250:                                text = { Text("Añadir a playlist") },
+app/src/main/java/com/example/neosynth/ui/downloads/DownloadScreen.kt:804:        title = { Text("Agregar a playlist") },
+app/src/main/java/com/example/neosynth/ui/downloads/DownloadScreen.kt:807:                Text("No tienes playlists disponibles.")
+app/src/main/java/com/example/neosynth/ui/downloads/DownloadScreen.kt:857:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/downloads/PlaylistDownloadItem.kt:119:                Text("Eliminar playlist")
+app/src/main/java/com/example/neosynth/ui/downloads/PlaylistDownloadItem.kt:122:                Text("¿Eliminar '${playlistWithSongs.playlist.name}' de las descargas? Las canciones descargadas no se eliminarán.")
+app/src/main/java/com/example/neosynth/ui/downloads/PlaylistDownloadItem.kt:134:                    Text("Eliminar")
+app/src/main/java/com/example/neosynth/ui/downloads/PlaylistDownloadItem.kt:139:                    Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/Settings/SettingScreen.kt:24:            Text("Configuración", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+app/src/main/java/com/example/neosynth/ui/stats/StatsScreen.kt:37:            title = { Text("Estadísticas") },
+app/src/main/java/com/example/neosynth/ui/stats/StatsScreen.kt:67:                    Text("${artist.playCount} plays", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+app/src/main/java/com/example/neosynth/ui/stats/StatsScreen.kt:90:                    Text("${song.playCount} plays", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+app/src/main/java/com/example/neosynth/ui/discover/DiscoverScreen.kt:1687:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/settings/AddServerDialog.kt:69:                    placeholder = { Text("Mi servidor") },
+app/src/main/java/com/example/neosynth/ui/settings/AddServerDialog.kt:93:                    placeholder = { Text("http://servidor:4533") },
+app/src/main/java/com/example/neosynth/ui/settings/EditServerDialog.kt:70:                    placeholder = { Text("Mi servidor") },
+app/src/main/java/com/example/neosynth/ui/settings/EditServerDialog.kt:94:                    placeholder = { Text("http://servidor:4533") },
+app/src/main/java/com/example/neosynth/ui/settings/EditServerDialog.kt:141:                    placeholder = { Text("Dejar en blanco para conservar") },
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:841:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:907:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:981:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:997:            Text("Tema", fontWeight = FontWeight.Bold)
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:1042:                Text("Cerrar")
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:1062:            Text("Servidores", fontWeight = FontWeight.Bold)
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:1176:                    Text("Agregar servidor")
+app/src/main/java/com/example/neosynth/ui/settings/SettingsScreen.kt:1183:                Text("Cerrar")
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:132:                title = { Text("Editor de Letras", fontWeight = FontWeight.Bold) },
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:168:            Text("$artistName • $albumName", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:184:                    Text("Archivo", maxLines = 1)
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:194:                    Text("Gemini", maxLines = 1)
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:204:                    Text("Texto", maxLines = 1)
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:213:                    Text("Importa letras para empezar a sincronizar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:383:        title = { Text("Pegar Letras") },
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:389:                placeholder = { Text("Pega las letras aquí...") }
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:394:                Text("Aplicar")
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:399:                Text("Cancelar")
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:426:        title = { Text("Editar Línea") },
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:432:                    label = { Text("Letra") }
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:437:                    label = { Text("Tiempo (mm:ss.xx)") },
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:438:                    placeholder = { Text("00:00.00") }
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:459:                Text("Guardar")
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:465:                    Text("Eliminar")
+app/src/main/java/com/example/neosynth/ui/lyrics/LyricsEditorScreen.kt:468:                    Text("Cancelar")
+app/src/main/java/com/example/neosynth/data/worker/DownloadWK.kt:64:            .setContentText("$title - $artist")
+app/src/main/java/com/example/neosynth/data/worker/DownloadWK.kt:157:            builder.setContentText("$playlistName - $total canciones descargadas")

@@ -12,8 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.example.neosynth.R
 
 data class ContextMenuAction(
     val icon: ImageVector,
@@ -41,7 +43,7 @@ fun AlbumContextMenu(
     ) {
         ContextMenuItem(
             icon = Icons.Rounded.PlayArrow,
-            label = "Reproducir",
+            label = stringResource(R.string.action_play),
             onClick = {
                 onPlay()
                 onDismiss()
@@ -49,7 +51,7 @@ fun AlbumContextMenu(
         )
         ContextMenuItem(
             icon = Icons.Rounded.Shuffle,
-            label = "Reproducir aleatorio",
+            label = stringResource(R.string.action_shuffle),
             onClick = {
                 onShuffle()
                 onDismiss()
@@ -61,7 +63,7 @@ fun AlbumContextMenu(
         
         ContextMenuItem(
             icon = Icons.Rounded.Download,
-            label = if (downloadStarted) "Descargando álbum..." else "Descargar álbum",
+            label = if (downloadStarted) stringResource(R.string.download_album_downloading) else stringResource(R.string.action_download_album),
             onClick = {
                 downloadStarted = true
                 onDownload()
@@ -71,7 +73,7 @@ fun AlbumContextMenu(
         )
         ContextMenuItem(
             icon = Icons.Rounded.Person,
-            label = "Ir al artista",
+            label = stringResource(R.string.action_go_to_artist),
             onClick = {
                 onGoToArtist()
                 onDismiss()

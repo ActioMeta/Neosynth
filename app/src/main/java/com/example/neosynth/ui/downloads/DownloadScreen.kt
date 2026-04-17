@@ -801,10 +801,10 @@ private fun AddToPlaylistDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Agregar a playlist") },
+        title = { Text(stringResource(R.string.playlist_add_to)) },
         text = {
             if (playlists.isEmpty()) {
-                Text("No tienes playlists disponibles.")
+                Text(stringResource(R.string.playlist_no_available))
             } else {
                 Column(
                     modifier = Modifier
@@ -839,7 +839,7 @@ private fun AddToPlaylistDialog(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = "${playlistWithSongs.playlist.songCount} canciones",
+                                        text = stringResource(R.string.downloads_songs_count, playlistWithSongs.playlist.songCount),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -854,7 +854,7 @@ private fun AddToPlaylistDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -948,7 +948,7 @@ private fun DownloadsFabGroup(
         ) {
             Icon(
                 imageVector = if (expanded) Icons.Rounded.Close else Icons.Rounded.MoreVert,
-                contentDescription = if (expanded) "Cerrar" else "Opciones"
+                contentDescription = if (expanded) stringResource(R.string.action_close) else stringResource(R.string.content_desc_more_options)
             )
         }
     }

@@ -13,13 +13,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.content.Context
+import com.example.neosynth.R
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 class HomeFavoritesHandler @Inject constructor(
     private val api: NavidromeApiService,
     private val serverDao: ServerDao,
     private val musicRepository: MusicRepository,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    @ApplicationContext private val appContext: Context
 ) {
 
     private val _isCurrentSongFavorite = MutableStateFlow(false)
@@ -40,13 +44,13 @@ class HomeFavoritesHandler @Inject constructor(
         scope.launch {
             val server = serverDao.getActiveServer() ?: run {
                 Log.e("HomeFavoritesHandler", "No active server found")
-                uiEvent.emit(UiEvent.ShowSnackbar("No hay servidor activo"))
+                uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.error_no_active_server)))
                 return@launch
             }
             
             val currentItem = musicController.currentMediaItem.value ?: run {
                 Log.e("HomeFavoritesHandler", "No current song")
-                uiEvent.emit(UiEvent.ShowSnackbar("No hay canción reproduciéndose"))
+                uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.msg_no_song_playing)))
                 return@launch
             }
             
@@ -65,10 +69,10 @@ class HomeFavoritesHandler @Inject constructor(
                             s = server.salt
                         )
                         Log.d("HomeFavoritesHandler", "Removed from favorites: $songId")
-                        uiEvent.emit(UiEvent.ShowSnackbar("Eliminado de favoritos"))
+                        uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.msg_removed_from_favorites)))
                     } catch (e: Exception) {
                         Log.e("HomeFavoritesHandler", "Failed to unstar on server: $songId", e)
-                        uiEvent.emit(UiEvent.ShowSnackbar("Error al sincronizar con servidor"))
+                        uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.error_server_sync_failed)))
                     }
                 } else {
                     val existingSong = musicRepository.getSongById(songId)
@@ -103,10 +107,10 @@ class HomeFavoritesHandler @Inject constructor(
                             s = server.salt
                         )
                         Log.d("HomeFavoritesHandler", "Added to favorites: $songId")
-                        uiEvent.emit(UiEvent.ShowSnackbar("Agregado a favoritos"))
+                        uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.msg_added_to_favorites)))
                     } catch (e: Exception) {
                         Log.e("HomeFavoritesHandler", "Failed to star on server: $songId", e)
-                        uiEvent.emit(UiEvent.ShowSnackbar("Error al sincronizar con servidor"))
+                        uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.error_server_sync_failed)))
                     }
                 }
                 
@@ -114,7 +118,7 @@ class HomeFavoritesHandler @Inject constructor(
                 
             } catch (e: Exception) {
                 Log.e("HomeFavoritesHandler", "Error toggling favorite for $songId", e)
-                uiEvent.emit(UiEvent.ShowSnackbar("Error al cambiar favorito"))
+                uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.error_favorite_toggle_failed)))
             }
         }
     }

@@ -22,6 +22,7 @@ import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.player.MusicController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.neosynth.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -146,7 +147,7 @@ class DiscoverViewModel @Inject constructor(
         error = null
         try {
             val server = serverDao.getActiveServer() ?: run {
-                error = "No hay servidor configurado"
+                error = appContext.getString(R.string.error_no_active_server)
                 isSearching = false
                 return
             }
@@ -197,7 +198,7 @@ class DiscoverViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             e.printStackTrace()
-            error = e.localizedMessage ?: "Error de conexión"
+            error = e.localizedMessage ?: appContext.getString(R.string.error_connection_failed_generic)
         } finally {
             isSearching = false
         }
@@ -215,7 +216,7 @@ class DiscoverViewModel @Inject constructor(
         error = null
         try {
             val server = serverDao.getActiveServer() ?: run {
-                error = "No hay servidor configurado"
+                error = appContext.getString(R.string.error_no_active_server)
                 isLoadingGenres = false
                 return
             }
@@ -234,7 +235,7 @@ class DiscoverViewModel @Inject constructor(
                 ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
-            error = e.localizedMessage ?: "Error de conexión"
+            error = e.localizedMessage ?: appContext.getString(R.string.error_connection_failed_generic)
         } finally {
             isLoadingGenres = false
         }
@@ -322,16 +323,17 @@ class DiscoverViewModel @Inject constructor(
             val allSongs = response.response.randomSongs?.song ?: emptyList()
             val years = allSongs.mapNotNull { it.year }.distinct().sorted()
 
+            val suffix = appContext.getString(R.string.decade_suffix)
             if (years.isEmpty()) {
                 // Si no hay años, usar décadas predeterminadas
                 decades = listOf(
-                    "2020s" to 2020..2029,
-                    "2010s" to 2010..2019,
-                    "2000s" to 2000..2009,
-                    "90s" to 1990..1999,
-                    "80s" to 1980..1989,
-                    "70s" to 1970..1979,
-                    "60s" to 1960..1969
+                    "2020$suffix" to 2020..2029,
+                    "2010$suffix" to 2010..2019,
+                    "2000$suffix" to 2000..2009,
+                    "90$suffix" to 1990..1999,
+                    "80$suffix" to 1980..1989,
+                    "70$suffix" to 1970..1979,
+                    "60$suffix" to 1960..1969
                 )
             } else {
                 // Generar décadas dinámicamente basadas en los años disponibles
@@ -346,11 +348,13 @@ class DiscoverViewModel @Inject constructor(
 
                 for (decadeStart in currentDecade downTo oldestDecade step 10) {
                     val decadeEnd = decadeStart + 9
-                    val label = if (decadeStart >= 2000) {
-                        "${decadeStart}s"
+                    val decadeLabel = if (decadeStart >= 2000) {
+                        decadeStart.toString()
                     } else {
-                        "${decadeStart % 100}s"
+                        (decadeStart % 100).toString()
                     }
+                    val suffix = appContext.getString(R.string.decade_suffix)
+                    val label = "$decadeLabel$suffix"
                     decadesList.add(label to decadeStart..decadeEnd)
                 }
 
@@ -358,15 +362,16 @@ class DiscoverViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            val suffix = appContext.getString(R.string.decade_suffix)
             // En caso de error, usar décadas predeterminadas
             decades = listOf(
-                "2020s" to 2020..2029,
-                "2010s" to 2010..2019,
-                "2000s" to 2000..2009,
-                "90s" to 1990..1999,
-                "80s" to 1980..1989,
-                "70s" to 1970..1979,
-                "60s" to 1960..1969
+                "2020$suffix" to 2020..2029,
+                "2010$suffix" to 2010..2019,
+                "2000$suffix" to 2000..2009,
+                "90$suffix" to 1990..1999,
+                "80$suffix" to 1980..1989,
+                "70$suffix" to 1970..1979,
+                "60$suffix" to 1960..1969
             )
         } finally {
             isLoadingDecades = false

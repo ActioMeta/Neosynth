@@ -43,6 +43,9 @@ import com.example.neosynth.utils.LrcParser
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
 import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -410,7 +413,10 @@ fun LyricsScreen(
                             ) {
                                 Text(
                                     text = "🎵",
-                                    style = MaterialTheme.typography.displayLarge
+                                    style = MaterialTheme.typography.displayLarge,
+                                    modifier = Modifier.clearAndSetSemantics { 
+                                        contentDescription = context.getString(R.string.content_desc_music_note) 
+                                    }
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(

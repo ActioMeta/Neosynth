@@ -734,7 +734,7 @@ private fun BrowseContent(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(((genres.size / 2 + 1) * 60).coerceAtMost(300).dp)
+                        .height(((minOf(genres.size, 10) + 1) / 2 * 68).dp)
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -812,11 +812,11 @@ private fun GenreChip(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-        border = BorderStroke(1.dp, genreColor.copy(alpha = 0.3f)),
+        shape = CircleShape,
+        color = genreColor.copy(alpha = 0.35f),
         modifier = Modifier
             .fillMaxWidth()
+            .height(56.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -824,38 +824,32 @@ private fun GenreChip(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 14.dp),
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Indicador de color vertical
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(genreColor)
-            )
-
             Text(
                 text = genre.value,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
             
-            // Badge con número de canciones (sutil)
+            // Badge con número de canciones
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = genreColor.copy(alpha = 0.15f)
+                shape = CircleShape,
+                color = genreColor.copy(alpha = 0.2f)
             ) {
                 Text(
                     text = "${genre.songCount ?: 0}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = genreColor,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
         }
@@ -908,50 +902,28 @@ private fun DecadeCard(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+        shape = RoundedCornerShape(24.dp),
+        color = decadeColor.copy(alpha = 0.35f),
         modifier = Modifier
-            .size(width = 120.dp, height = 80.dp)
+            .size(width = 120.dp, height = 90.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.BottomStart
         ) {
-            // Fondo sutil con gradiente desvanecido (sin brillo blanco)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                decadeColor.copy(alpha = 0.25f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+            Text(
+                text = decade,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.sp,
+                color = decadeColor
             )
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = decade,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Box(
-                    modifier = Modifier
-                        .width(20.dp)
-                        .height(2.dp)
-                        .clip(CircleShape)
-                        .background(decadeColor.copy(alpha = 0.6f))
-                )
-            }
         }
     }
 }
@@ -1150,6 +1122,9 @@ private fun GenreSongsSheet(
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = {
             selectedSongIds = emptySet()
@@ -1159,7 +1134,11 @@ private fun GenreSongsSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1303,6 +1282,7 @@ private fun GenreSongsSheet(
         }
     }
 }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1324,6 +1304,9 @@ private fun DecadeSongsSheet(
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = {
             selectedSongIds = emptySet()
@@ -1333,7 +1316,11 @@ private fun DecadeSongsSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1476,6 +1463,7 @@ private fun DecadeSongsSheet(
         }
     }
 }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1485,13 +1473,20 @@ private fun AllGenresSheet(
     onDismiss: () -> Unit,
     onGenreClick: (String) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Column(
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
@@ -1528,6 +1523,7 @@ private fun AllGenresSheet(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
 }
 
 private fun formatDuration(seconds: Int): String {

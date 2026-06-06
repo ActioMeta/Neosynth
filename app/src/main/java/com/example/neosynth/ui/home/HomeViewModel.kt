@@ -56,6 +56,8 @@ class HomeViewModel @Inject constructor(
     var isLoading by mutableStateOf(false)
     var isRefreshing by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var isOfflineMode by mutableStateOf(false)
+        private set
     
     // --- Delegated State ---
     
@@ -128,6 +130,7 @@ class HomeViewModel @Inject constructor(
             error = null
             
             if (!forceRetry && networkHelper.isCurrentConnectionOffline) {
+                isOfflineMode = true
                 loadOfflineData()
                 isLoading = false
                 return@launch
@@ -135,6 +138,7 @@ class HomeViewModel @Inject constructor(
             
             val server = serverDao.getActiveServer()
             if (server == null) {
+                isOfflineMode = true
                 loadOfflineData()
                 isLoading = false
                 return@launch
@@ -151,6 +155,8 @@ class HomeViewModel @Inject constructor(
                     )
                 }
                 
+                isOfflineMode = false
+                
                 if (!albumsLoaded) {
                     loadRecentAlbums(server)
                     albumsLoaded = true
@@ -163,6 +169,7 @@ class HomeViewModel @Inject constructor(
                 
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "Ping failed: ${e.message}")
+                isOfflineMode = true
                 loadOfflineData()
             } finally {
                 isLoading = false
@@ -198,12 +205,12 @@ class HomeViewModel @Inject constructor(
             if (recentDownloads.isNotEmpty() || randomDownloaded.isNotEmpty()) {
                 error = null 
             } else {
-                 error = appContext.getString(R.string.error_offline_no_downloads)
+                 error = appContext.getString(R.string.error_loading_offline_mode)
             }
             
         } catch (e: Exception) {
             e.printStackTrace()
-            if (error == null) error = "Error cargando modo offline"
+            if (error == null) error = appContext.getString(R.string.error_loading_offline_mode)
         }
     }
     
@@ -263,6 +270,7 @@ class HomeViewModel @Inject constructor(
             
             val server = serverDao.getActiveServer()
             if (server == null) {
+                isOfflineMode = true
                 loadOfflineData()
                 isRefreshing = false
                 return@launch
@@ -279,12 +287,14 @@ class HomeViewModel @Inject constructor(
                     )
                 }
 
+                isOfflineMode = false
                 loadRecentAlbums(server)
                 loadRandomSongs(server)
                 randomSongsLoaded = true
                 albumsLoaded = true
                     
             } catch (e: Exception) {
+                isOfflineMode = true
                 loadOfflineData()
             } finally {
                 isRefreshing = false
@@ -295,7 +305,7 @@ class HomeViewModel @Inject constructor(
     // --- Delegated Actions ---
 
     fun playShuffle() {
-        playerHandler.playShuffle(viewModelScope, _uiEvent) { covers ->
+        playerHandler.playShuffle(viewModelScope, _uiEvent, isOfflineMode) { covers ->
             randomCoverArts = covers
         }
     }

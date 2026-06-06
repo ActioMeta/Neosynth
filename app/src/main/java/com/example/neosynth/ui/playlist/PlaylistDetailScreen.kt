@@ -446,7 +446,7 @@ private fun PlaylistSongRow(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = "Descargada",
+                            contentDescription = stringResource(R.string.content_desc_downloaded),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )

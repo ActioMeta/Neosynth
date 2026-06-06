@@ -49,11 +49,23 @@
     <string name="duration_mins">%1$d min</string>
     
     <!-- Home Screen -->
+    <string name="home_title_random">Random</string>
+    <string name="home_title_mix">Mix</string>
     <string name="home_recently_added">Recién agregados</string>
     <string name="error_no_downloaded_songs">Sin canciones descargadas</string>
-    <string name="error_no_songs_title">Sin Canciones</string>
-    <string name="error_connection_title">Error de Conexión</string>
-    <string name="error_connection_message">No se pudo conectar al servidor.</string>
+    <string name="error_no_songs_title">Sin canciones</string>
+    <string name="error_connection_title">Error de conexión</string>
+    <string name="error_connection_message">No se pudo conectar con el servidor.</string>
+    <string name="error_no_active_server">No hay un servidor activo</string>
+    <string name="error_connection_failed_generic">Error de conexión</string>
+    <string name="error_loading_offline_mode">Error cargando modo offline</string>
+    <string name="error_no_songs_found">No se encontraron canciones</string>
+    <string name="error_invalid_url">La URL debe empezar con http:// o https://</string>
+    <string name="error_invalid_credentials">Credenciales inválidas</string>
+    <string name="error_connection_failed">Fallo de conexión: %s</string>
+    <string name="error_decades_load_failed">Error al cargar décadas</string>
+    <string name="feedback_playing_next">Reprod. siguiente: %1$s</string>
+    <string name="feedback_added_to_queue">Añadido a la cola: %1$s</string>
     
     <!-- Downloads Screen -->
     <string name="search_artists_hint">Buscar artistas...</string>
@@ -81,6 +93,7 @@
     <string name="discover_songs_count">%1$d canciones</string>
     <string name="discover_random">Aleatorio</string>
     <string name="discover_decade_of">Década de los %1$s</string>
+    <string name="decade_suffix">s</string>
     <string name="discover_all_genres">Todos los géneros</string>
     <string name="discover_genres_count">%1$d géneros</string>
     <string name="discover_add_to_playlist">Agregar a playlist</string>
@@ -96,7 +109,8 @@
     <string name="action_collapse">Colapsar</string>
     <string name="action_expand">Expandir</string>
     <string name="action_clear_filter">Limpiar filtro</string>
-    <string name="action_play">Play</string>
+    <string name="action_play">Reproducir</string>
+    <string name="action_pause">Pausar</string>
     <string name="action_fav">Fav</string>
     <string name="action_playlist">Playlist</string>
     <string name="action_add_to_queue">Añadir a la cola</string>
@@ -271,7 +285,13 @@
     <string name="content_desc_logo">Logo</string>
     <string name="content_desc_selected">Seleccionado</string>
     <string name="content_desc_more_options">Más opciones</string>
-    <string name="content_desc_audio_quality">Calidad de Audio</string>
+    <string name="content_desc_audio_quality">Calidad de audio</string>
+    <string name="content_desc_music_note">Nota musical</string>
+    <string name="lyrics_offset_minus">-100ms</string>
+    <string name="lyrics_offset_plus">+100ms</string>
+    <string name="lyrics_offset_100ms">100ms</string>
+    <string name="lyrics_gemini_ai">Gemini AI</string>
+    <string name="lyrics_blank_line">(Línea en blanco)</string>
 
     <string name="lyrics_synced">Sincronizadas</string>
     <string name="lyrics_plain_text">Texto Plano</string>
@@ -297,8 +317,7 @@
     <string name="settings_servers">Servidores</string>
 
     <string name="queue_playing_name">Cola de reproducción</string>
-    <string name="playlist_created_success">Playlist creada correctamente</string>
-    <string name="error_no_active_server">No hay un servidor activo</string>
+    <string name="playlist_created_success">Lista creada con éxito</string>
     <string name="error_queue_empty">La cola está vacía</string>
     <string name="error_create_playlist_failed">Error al crear la playlist</string>
     <string name="error_create_playlist_unknown">Error desconocido al crear playlist</string>
@@ -335,8 +354,6 @@
     <string name="msg_already_downloaded">\"%1$s\" ya está descargada</string>
     <string name="msg_no_lyrics_found">No se encontraron letras para esta canción</string>
     <string name="msg_no_song_playing">No hay canción reproduciéndose</string>
-    <string name="error_invalid_credentials">Credenciales inválidas</string>
-    <string name="error_connection_failed">Fallo de conexión: %1$s</string>
     <string name="msg_empty_line">(Línea en blanco)</string>
     <string name="msg_requesting_challenge">Solicitando desafío a LRCLib...</string>
     <string name="error_lyrics_search_failed">Error al buscar letras: %1$s</string>

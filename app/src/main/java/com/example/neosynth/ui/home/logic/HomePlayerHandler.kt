@@ -45,9 +45,9 @@ class HomePlayerHandler @Inject constructor(
         }
     }
 
-    fun playShuffle(scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>, updateRandomCoverArts: (List<String>) -> Unit) {
+    fun playShuffle(scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>, isOffline: Boolean = false, updateRandomCoverArts: (List<String>) -> Unit) {
         scope.launch {
-            if (networkHelper.isCurrentConnectionOffline) {
+            if (isOffline || networkHelper.isCurrentConnectionOffline) {
                 playOfflineShuffle(uiEvent, updateRandomCoverArts)
                 return@launch
             }

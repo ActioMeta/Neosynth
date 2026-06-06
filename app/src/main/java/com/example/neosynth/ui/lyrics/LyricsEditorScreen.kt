@@ -211,7 +211,7 @@ fun LyricsEditorScreen(
                 
                 AssistChip(
                     onClick = { viewModel.generateWithGemini(trackTitle, artistName) },
-                    label = { Text("Gemini AI", style = MaterialTheme.typography.labelMedium) },
+                    label = { Text(stringResource(R.string.lyrics_gemini_ai), style = MaterialTheme.typography.labelMedium) },
                     leadingIcon = { Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(18.dp)) },
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.weight(1f)
@@ -403,7 +403,7 @@ fun LyricLineItem(
                 
                 // 2. Text Content (Clickable)
                 Text(
-                    text = line.text.ifEmpty { "(Línea en blanco)" },
+                    text = line.text.ifEmpty { stringResource(R.string.lyrics_blank_line) },
                     style = if (isCurrentLine) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold) else MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
@@ -455,14 +455,14 @@ fun LyricLineItem(
                     ) {
                         Icon(
                             Icons.Rounded.FastRewind, 
-                            contentDescription = "-100ms", 
+                            contentDescription = stringResource(R.string.lyrics_offset_minus), 
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                         )
                     }
                     
                     Text(
-                        "100ms", 
+                        stringResource(R.string.lyrics_offset_100ms), 
                         style = MaterialTheme.typography.labelSmall, 
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
@@ -473,7 +473,7 @@ fun LyricLineItem(
                     ) {
                         Icon(
                             Icons.Rounded.FastForward, 
-                            contentDescription = "+100ms", 
+                            contentDescription = stringResource(R.string.lyrics_offset_plus), 
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                         )

@@ -12,4 +12,6 @@ class StatsViewModel @Inject constructor(
     val topArtists = statsRepository.getTopArtists(limit = 10)
     val topSongs = statsRepository.getTopSongs(limit = 10)
     val recentHistory = statsRepository.getRecentHistory(limit = 20)
+    val topGenres = statsRepository.getTopGenres(limit = 5)
+    val recommendedSongs = statsRepository.getRecommendationsByTopGenres(limit = 10)
 }

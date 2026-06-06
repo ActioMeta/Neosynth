@@ -48,11 +48,20 @@
     <string name="duration_mins">%1$d min</string>
     
     <!-- Home Screen -->
+    <string name="home_title_random">Random</string>
+    <string name="home_title_mix">Mix</string>
     <string name="home_recently_added">Recently added</string>
     <string name="error_no_downloaded_songs">No downloaded songs</string>
     <string name="error_no_songs_title">No Songs</string>
     <string name="error_connection_title">Connection Error</string>
     <string name="error_connection_message">Could not connect to server.</string>
+    <string name="error_no_active_server">No active server</string>
+    <string name="error_connection_failed_generic">Connection error</string>
+    <string name="error_loading_offline_mode">Error loading offline mode</string>
+    <string name="error_no_songs_found">No songs found</string>
+    <string name="error_fetching_songs_failed">Error fetching songs</string>
+    <string name="feedback_playing_next">Playing next: %1$s</string>
+    <string name="feedback_added_to_queue">Added to queue: %1$s</string>
     
     <!-- Downloads Screen -->
     <string name="search_artists_hint">Search artists...</string>
@@ -80,6 +89,7 @@
     <string name="discover_songs_count">%1$d songs</string>
     <string name="discover_random">Random</string>
     <string name="discover_decade_of">Decade of the %1$s</string>
+    <string name="decade_suffix">s</string>
     <string name="discover_all_genres">All genres</string>
     <string name="discover_genres_count">%1$d genres</string>
     <string name="discover_add_to_playlist">Add to playlist</string>
@@ -96,6 +106,7 @@
     <string name="action_expand">Expand</string>
     <string name="action_clear_filter">Clear filter</string>
     <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
     <string name="action_fav">Fav</string>
     <string name="action_playlist">Playlist</string>
     <string name="action_add_to_queue">Add to queue</string>
@@ -271,6 +282,12 @@
     <string name="content_desc_selected">Selected</string>
     <string name="content_desc_more_options">More options</string>
     <string name="content_desc_audio_quality">Audio Quality</string>
+    <string name="content_desc_music_note">Music note</string>
+    <string name="lyrics_offset_minus">-100ms</string>
+    <string name="lyrics_offset_plus">+100ms</string>
+    <string name="lyrics_offset_100ms">100ms</string>
+    <string name="lyrics_gemini_ai">Gemini AI</string>
+    <string name="lyrics_blank_line">(Blank line)</string>
 
     <string name="lyrics_synced">Synced</string>
     <string name="lyrics_plain_text">Plain Text</string>
@@ -297,7 +314,6 @@
 
     <string name="queue_playing_name">Play Queue</string>
     <string name="playlist_created_success">Playlist created successfully</string>
-    <string name="error_no_active_server">No active server</string>
     <string name="error_queue_empty">The queue is empty</string>
     <string name="error_create_playlist_failed">Error creating playlist</string>
     <string name="error_create_playlist_unknown">Unknown error creating playlist</string>
@@ -335,7 +351,9 @@
     <string name="msg_no_lyrics_found">No lyrics found for this song</string>
     <string name="msg_no_song_playing">No song playing</string>
     <string name="error_invalid_credentials">Invalid credentials</string>
-    <string name="error_connection_failed">Connection failed: %1$s</string>
+    <string name="error_invalid_url">The URL must start with http:// or https://</string>
+    <string name="error_connection_failed">Connection failed: %s</string>
+    <string name="error_decades_load_failed">Failed to load decades</string>
     <string name="msg_empty_line">(Empty line)</string>
     <string name="msg_requesting_challenge">Requesting challenge from LRCLib...</string>
     <string name="error_lyrics_search_failed">Error searching for lyrics: %1$s</string>

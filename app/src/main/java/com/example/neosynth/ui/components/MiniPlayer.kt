@@ -42,6 +42,8 @@ import coil.compose.AsyncImage
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @Composable
 fun MiniPlayer(
@@ -148,7 +150,7 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.previous),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -201,7 +203,7 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.next),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

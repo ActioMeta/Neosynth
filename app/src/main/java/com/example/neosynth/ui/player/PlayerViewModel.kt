@@ -153,4 +153,16 @@ class PlayerViewModel @Inject constructor(
             )
         }
     }
+
+    fun startSleepTimer(durationMs: Long) {
+        musicController.startSleepTimer(durationMs)
+    }
+
+    fun startSleepTimerAtEndOfSong() {
+        musicController.startSleepTimerAtEndOfSong()
+    }
+
+    fun cancelSleepTimer() {
+        musicController.cancelSleepTimer()
+    }
 }

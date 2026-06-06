@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -146,12 +147,12 @@ fun HomeScreen(
                         title = {
                             Column {
                                 Text(
-                                    text = "Random",
+                                    text = stringResource(R.string.home_title_random),
                                     style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
-                                    text = "Mix",
+                                    text = stringResource(R.string.home_title_mix),
                                     style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.primary
@@ -159,6 +160,12 @@ fun HomeScreen(
                             }
                         },
                         actions = {
+                            IconButton(onClick = onNavigateToStats) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Equalizer,
+                                    contentDescription = stringResource(R.string.stats_title)
+                                )
+                            }
                             IconButton(onClick = onNavigateToLibrary) {
                                 Icon(
                                     imageVector = Icons.Rounded.LibraryMusic,
@@ -210,12 +217,15 @@ fun HomeScreen(
                 }
             } else if (errorMsg != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val isOfflineEmpty = errorMsg == "Sin canciones descargadas" || errorMsg == "No downloaded songs"
+                    val isOfflineEmpty = errorMsg == stringResource(R.string.error_no_downloaded_songs) || 
+                                         errorMsg == stringResource(R.string.error_offline_no_downloads) ||
+                                         errorMsg == "Sin canciones descargadas" || 
+                                         errorMsg == "No downloaded songs"
                     ServerErrorScreen(
                         onRetry = { viewModel.loadHomeData(forceRetry = true) },
                         onSettings = onNavigateToSettings,
                         title = if (isOfflineEmpty) stringResource(R.string.error_no_songs_title) else stringResource(R.string.error_connection_title),
-                        message = if (errorMsg == "Sin canciones descargadas") stringResource(R.string.error_no_downloaded_songs) else (errorMsg ?: stringResource(R.string.error_connection_message))
+                        message = if (isOfflineEmpty) stringResource(R.string.error_no_downloaded_songs) else (errorMsg ?: stringResource(R.string.error_connection_message))
                     )
                 }
             } else {
@@ -260,7 +270,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Shuffle,
-                                    contentDescription = "Shuffle",
+                                    contentDescription = stringResource(R.string.action_shuffle),
                                     tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(32.dp)
                                 )

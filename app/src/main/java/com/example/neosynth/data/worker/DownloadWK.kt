@@ -44,11 +44,12 @@ class DownloadWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "DownloadWorker"
         const val CHANNEL_ID = "download_channel"
-        const val FOREGROUND_NOTIFICATION_ID = 1001
     }
 
     private val notificationManager = NotificationManagerCompat.from(applicationContext)
     private var notificationId = id.hashCode()
+
+    private fun getTerminalNotificationId(): Int = ("terminal_" + notificationId).hashCode()
 
     init {
         createNotificationChannel()
@@ -66,7 +67,7 @@ class DownloadWorker @AssistedInject constructor(
             .setOngoing(true)
             .setProgress(0, 0, true)
             .build()
-        return ForegroundInfo(FOREGROUND_NOTIFICATION_ID, notification)
+        return ForegroundInfo(notificationId, notification)
     }
 
     private fun createNotificationChannel() {
@@ -130,9 +131,9 @@ class DownloadWorker @AssistedInject constructor(
     private fun showCompleteNotification(title: String, playlistName: String? = null, total: Int = 0) {
         if (!hasNotificationPermission()) return
 
-        // Cancelar tanto la notificación de progreso como la del foreground service
+        // WorkManager limpia la notificación foreground al finalizar, por eso usamos otro ID para el estado final.
         notificationManager.cancel(notificationId)
-        notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
+        val terminalNotificationId = getTerminalNotificationId()
 
         // Crear PendingIntent para abrir MainActivity al hacer click
         val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
@@ -140,7 +141,7 @@ class DownloadWorker @AssistedInject constructor(
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
-            notificationId,
+            terminalNotificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -160,15 +161,15 @@ class DownloadWorker @AssistedInject constructor(
             builder.setContentText(title)
         }
 
-        notificationManager.notify(notificationId, builder.build())
+        notificationManager.notify(terminalNotificationId, builder.build())
     }
 
     private fun showErrorNotification(title: String) {
         if (!hasNotificationPermission()) return
 
-        // Cancelar tanto la notificación de progreso como la del foreground service
+        // Mantener visible el error final con un ID distinto al foreground.
         notificationManager.cancel(notificationId)
-        notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
+        val terminalNotificationId = getTerminalNotificationId()
 
         // Crear PendingIntent para abrir MainActivity al hacer click
         val intent = Intent(applicationContext, com.example.neosynth.MainActivity::class.java).apply {
@@ -176,7 +177,7 @@ class DownloadWorker @AssistedInject constructor(
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
-            notificationId,
+            terminalNotificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -190,7 +191,7 @@ class DownloadWorker @AssistedInject constructor(
             .setContentIntent(pendingIntent) // Hacer clickeable
             .build()
 
-        notificationManager.notify(notificationId, notification)
+        notificationManager.notify(terminalNotificationId, notification)
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {

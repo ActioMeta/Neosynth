@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.BottomMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
@@ -62,6 +62,14 @@ fun AlbumDetailScreen(
     var selectedSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelectionMode = selectedSongIds.isNotEmpty()
     var showPlaylistPicker by remember { mutableStateOf(false) }
+
+    val currentSong by viewModel.musicController.currentMediaItem
+    val isMiniPlayerVisible = currentSong != null
+    val listBottomPadding = if (isSelectionMode) {
+        if (isMiniPlayerVisible) 260.dp else 180.dp
+    } else {
+        if (isMiniPlayerVisible) 180.dp else 100.dp
+    }
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -96,7 +104,7 @@ fun AlbumDetailScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 180.dp)
+                contentPadding = PaddingValues(bottom = listBottomPadding)
             ) {
                 // Header con cover del álbum (con parallax)
                 item {
@@ -280,26 +288,16 @@ fun AlbumDetailScreen(
         }
         
         // Barra lateral de selección
-        SideMultiSelectBar(
+        val bottomPaddingOffset = if (isMiniPlayerVisible) 180.dp else 100.dp
+        BottomMultiSelectBar(
             visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            actions = listOf(
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = stringResource(R.string.action_play),
-                    onClick = {
-                        viewModel.playSongs(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.Favorite,
-                    label = stringResource(R.string.action_fav),
-                    onClick = {
-                        viewModel.addToFavorites(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
+            onClearSelection = { selectedSongIds = emptySet() },
+            onPlaySelected = {
+                viewModel.playSongs(selectedSongIds)
+                selectedSongIds = emptySet()
+            },
+            menuActions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
                     label = stringResource(R.string.action_download),
@@ -312,12 +310,39 @@ fun AlbumDetailScreen(
                     icon = Icons.Rounded.PlaylistAdd,
                     label = stringResource(R.string.action_playlist),
                     onClick = {
+                        viewModel.loadPlaylists()
                         showPlaylistPicker = true
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = stringResource(R.string.action_play_next),
+                    onClick = {
+                        viewModel.playSongsNext(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.QueueMusic,
+                    label = stringResource(R.string.action_add_to_queue),
+                    onClick = {
+                        viewModel.addSongsToQueue(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = stringResource(R.string.action_add_favorite),
+                    onClick = {
+                        viewModel.addToFavorites(selectedSongIds)
+                        selectedSongIds = emptySet()
                     }
                 )
             ),
-            onClose = { selectedSongIds = emptySet() },
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = bottomPaddingOffset)
         )
 
         // Normal Top App Bar (solo visible cuando no hay selección)

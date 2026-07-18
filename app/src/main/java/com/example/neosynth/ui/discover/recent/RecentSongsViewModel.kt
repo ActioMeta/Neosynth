@@ -322,8 +322,29 @@ class RecentSongsViewModel @Inject constructor(
         }
     }
 
+    fun playSelectedNext() {
+        val selected = songs.filter { it.id in selectedSongIds }
+        if (selected.isEmpty()) return
+        
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val mediaItems = buildMediaItems(selected, server)
+            if (mediaItems.isNotEmpty()) {
+                musicController.addAfterCurrent(mediaItems)
+            }
+        }
+    }
+
     fun addSelectedToPlaylist() {
         // Opción actualmente stub debido a que la funcionalidad requiere un sheet para seleccionar playlists.
+    }
+
+    fun addSelectedToFavorites() {
+        viewModelScope.launch {
+            selectedSongIds.forEach { songId ->
+                musicRepository.addToFavorites(songId)
+            }
+        }
     }
 
     // ---------- Reproducción ----------

@@ -247,6 +247,24 @@
     <string name="stats_top_artists">Top Artists</string>
     <string name="stats_top_songs">Top Songs</string>
     <string name="stats_recent_history">Recent History</string>
+    <string name="filter_today">Today</string>
+    <string name="filter_week">Week</string>
+    <string name="filter_month">Month</string>
+    <string name="filter_year">Year</string>
+    <string name="filter_period_all">All-Time</string>
+    <string name="stats_top_genres">Top Genres</string>
+    <string name="stats_view_details">View Details</string>
+    <string name="stats_minutes">%1$d min</string>
+    <string name="stats_no_data">No data available for this period</string>
+    <string name="stats_listen_time">Listen Time</string>
+    <string name="tab_favorites">Favorites</string>
+    <string name="tab_songs">Songs</string>
+    <string name="sort_ascending">Ascending</string>
+    <string name="sort_descending">Descending</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_artist">Artist</string>
+    <string name="sort_album">Album</string>
+    <string name="sort_recent">Recent</string>
     <string name="lyrics_editor_title">Lyrics Editor</string>
     <string name="lyrics_editor_pasted">Paste Lyrics</string>
     <string name="lyrics_editor_paste_hint">Paste lyrics here...</string>
@@ -398,4 +416,8 @@
     <string name="settings_servers_count">%1$d server(s) configured</string>
     <string name="settings_version_label">Version %1$s</string>
     <string name="lang_system_with_name">System (%1$s)</string>
+    <string name="action_menu">Menu</string>
+    <string name="pinned_items">Pinned</string>
+    <string name="action_pin">Pin to top</string>
+    <string name="action_unpin">Unpin</string>
 </resources>

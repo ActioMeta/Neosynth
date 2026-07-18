@@ -57,6 +57,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -77,6 +78,7 @@ import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.components.AlphabetScrollbar
 import com.example.neosynth.ui.components.AnimatedPlayerSlider
 import com.example.neosynth.ui.components.bounceClick
+import com.example.neosynth.ui.stats.rememberBounceScale
 import kotlinx.coroutines.launch
 import androidx.media3.common.Player
 import androidx.compose.ui.res.stringResource
@@ -448,34 +450,6 @@ fun PlayerScreen(
                                             isPressed = true
                                             tryAwaitRelease()
                                             isPressed = false
-                                        },
-                                        onDoubleTap = { offset ->
-                                            val width = size.width
-                                            val x = offset.x
-                                            if (x < width * 0.4f) {
-                                                // Double tap on left side -> seek backward 10s
-                                                val newPos = (musicController.currentPosition.value - 10000L).coerceAtLeast(0L)
-                                                musicController.seekTo(newPos)
-                                                showSkipBackward = true
-                                                showSkipForward = false
-                                                coroutineScope.launch {
-                                                    kotlinx.coroutines.delay(650)
-                                                    showSkipBackward = false
-                                                }
-                                            } else if (x > width * 0.6f) {
-                                                // Double tap on right side -> seek forward 10s
-                                                val newPos = (musicController.currentPosition.value + 10000L).coerceAtMost(musicController.duration.value)
-                                                musicController.seekTo(newPos)
-                                                showSkipForward = true
-                                                showSkipBackward = false
-                                                coroutineScope.launch {
-                                                    kotlinx.coroutines.delay(650)
-                                                    showSkipForward = false
-                                                }
-                                            } else {
-                                                // Double tap on center -> toggle play/pause
-                                                musicController.togglePlayPause()
-                                            }
                                         }
                                     )
                                 }
@@ -1144,38 +1118,201 @@ private fun QueueBottomSheet(
         
         // FAB Group overlay
         var showSavePlaylistDialog by remember { mutableStateOf(false) }
-        
+        var showQueueOptionsSheet by remember { mutableStateOf(false) }
         if (queue.isNotEmpty()) {
-            com.example.neosynth.ui.components.FabGroup(
-                mainIcon = Icons.Rounded.MoreVert,
-                actions = listOf(
-                    com.example.neosynth.ui.components.FabAction(
-                        icon = Icons.Rounded.PlaylistAdd,
-                        label = context.getString(R.string.action_save),
-                        onClick = { showSavePlaylistDialog = true }
-                    ),
-                    com.example.neosynth.ui.components.FabAction(
-                        icon = Icons.Rounded.Download,
-                        label = context.getString(R.string.action_download),
-                        onClick = {
-                            val downloadingMsg = context.getString(R.string.queue_downloading)
-                            viewModel.downloadQueue()
-                            onShowSnackbar(downloadingMsg)
-                        }
-                    ),
-                    com.example.neosynth.ui.components.FabAction(
-                        icon = Icons.Rounded.ClearAll,
-                        label = context.getString(R.string.action_clear),
-                        onClick = {
-                            musicController.clearQueue()
-                            onDismiss()
-                        }
-                    )
-                ),
+            Row(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 32.dp, end = 24.dp)
-            )
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Button 1: Clear Queue
+                val clearInteraction = remember { MutableInteractionSource() }
+                val clearScale by rememberBounceScale(clearInteraction)
+                IconButton(
+                    onClick = {
+                        musicController.clearQueue()
+                        onDismiss()
+                    },
+                    interactionSource = clearInteraction,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f))
+                        .graphicsLayer {
+                            scaleX = clearScale
+                            scaleY = clearScale
+                         }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ClearAll,
+                        contentDescription = context.getString(R.string.action_clear),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+
+                // Button 2: Shuffle
+                val shuffleInteraction = remember { MutableInteractionSource() }
+                val shuffleScale by rememberBounceScale(shuffleInteraction)
+                IconButton(
+                    onClick = {
+                        musicController.toggleShuffle()
+                        onShowSnackbar(context.getString(R.string.action_shuffle))
+                    },
+                    interactionSource = shuffleInteraction,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
+                        .graphicsLayer {
+                            scaleX = shuffleScale
+                            scaleY = shuffleScale
+                        }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Shuffle,
+                        contentDescription = context.getString(R.string.action_shuffle),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+
+                // Button 3: Options (More options bottom sheet)
+                val moreInteraction = remember { MutableInteractionSource() }
+                val moreScale by rememberBounceScale(moreInteraction)
+                IconButton(
+                    onClick = { showQueueOptionsSheet = true },
+                    interactionSource = moreInteraction,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+                        .graphicsLayer {
+                            scaleX = moreScale
+                            scaleY = moreScale
+                        }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Menu,
+                        contentDescription = context.getString(R.string.action_options),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        if (showQueueOptionsSheet) {
+            val qSheetState = rememberModalBottomSheetState()
+            ModalBottomSheet(
+                onDismissRequest = { showQueueOptionsSheet = false },
+                sheetState = qSheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = context.getString(R.string.action_options),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Option 1: Download Queue
+                        val dlInteraction = remember { MutableInteractionSource() }
+                        val dlScale by rememberBounceScale(dlInteraction)
+                        Surface(
+                            onClick = {
+                                showQueueOptionsSheet = false
+                                viewModel.downloadQueue()
+                                onShowSnackbar(context.getString(R.string.queue_downloading))
+                            },
+                            interactionSource = dlInteraction,
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(88.dp)
+                                .graphicsLayer {
+                                    scaleX = dlScale
+                                    scaleY = dlScale
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Download,
+                                    contentDescription = context.getString(R.string.action_download),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = context.getString(R.string.action_download),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Option 2: Save to Playlist
+                        val saveInteraction = remember { MutableInteractionSource() }
+                        val saveScale by rememberBounceScale(saveInteraction)
+                        Surface(
+                            onClick = {
+                                showQueueOptionsSheet = false
+                                showSavePlaylistDialog = true
+                            },
+                            interactionSource = saveInteraction,
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(88.dp)
+                                .graphicsLayer {
+                                    scaleX = saveScale
+                                    scaleY = saveScale
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.PlaylistAdd,
+                                    contentDescription = context.getString(R.string.action_save),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = context.getString(R.string.action_save),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         if (showSavePlaylistDialog) {

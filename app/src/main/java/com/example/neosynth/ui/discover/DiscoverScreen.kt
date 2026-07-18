@@ -52,8 +52,10 @@ import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.GenreDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.BottomMultiSelectBar
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.components.MultiSelectAction
+import com.example.neosynth.ui.stats.rememberBounceScale
 import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 import com.example.neosynth.ui.components.ServerErrorScreen
 import androidx.compose.ui.res.stringResource
@@ -83,6 +85,9 @@ fun DiscoverScreen(
     val errorMsg = viewModel.error
     val isRefreshing = viewModel.isRefreshing
     val pullToRefreshState = rememberPullToRefreshState()
+    
+    val currentSong by viewModel.musicController.currentMediaItem
+    val isMiniPlayerVisible = currentSong != null
 
     val focusRequester = remember { FocusRequester() }
 
@@ -108,6 +113,8 @@ fun DiscoverScreen(
             downloadedIds = downloadedIds,
             onDownload = { song -> viewModel.downloadSong(song) },
             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
         )
@@ -142,6 +149,8 @@ fun DiscoverScreen(
             downloadedIds = downloadedIds,
             onDownload = { song -> viewModel.downloadSong(song) },
             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
         )
@@ -229,6 +238,8 @@ fun DiscoverScreen(
                             downloadedIds = downloadedIds,
                             onDownload = { song -> viewModel.downloadSong(song) },
                             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+                            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+                            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
                             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
                             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
                         )
@@ -342,16 +353,25 @@ private fun SearchResultsContent(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
-    onAddToFavorites: (List<SongDto>) -> Unit = {}
+    onAddToFavorites: (List<SongDto>) -> Unit = {},
+    isMiniPlayerVisible: Boolean = false
 ) {
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = results.songs.filter { it.id in selectedSongIds }
     
+    val listBottomPadding = if (selectedSongIds.isNotEmpty()) {
+        if (isMiniPlayerVisible) 260.dp else 180.dp
+    } else {
+        if (isMiniPlayerVisible) 180.dp else 100.dp
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 200.dp else 180.dp)
+            contentPadding = PaddingValues(bottom = listBottomPadding)
         ) {
         // Artists
         if (results.artists.isNotEmpty()) {
@@ -545,30 +565,20 @@ private fun SearchResultsContent(
         }
         }
         
-        // Barra lateral de selección
-        SideMultiSelectBar(
+        // Barra inferior de selección
+        val bottomPaddingOffset = if (isMiniPlayerVisible) 225.dp else 145.dp
+        BottomMultiSelectBar(
             visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            actions = listOf(
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = stringResource(R.string.action_play),
-                    onClick = {
-                        onPlaySongs(selectedSongs)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.Favorite,
-                    label = stringResource(R.string.action_fav),
-                    onClick = {
-                        onAddToFavorites(selectedSongs)
-                        selectedSongIds = emptySet()
-                    }
-                ),
+            onClearSelection = { selectedSongIds = emptySet() },
+            onPlaySelected = {
+                onPlaySongs(selectedSongs)
+                selectedSongIds = emptySet()
+            },
+            menuActions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
-                    label = stringResource(R.string.action_down),
+                    label = stringResource(R.string.action_download),
                     onClick = {
                         selectedSongs.forEach { onDownload(it) }
                         selectedSongIds = emptySet()
@@ -581,10 +591,36 @@ private fun SearchResultsContent(
                         onAddToPlaylist(selectedSongs)
                         selectedSongIds = emptySet()
                     }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = stringResource(R.string.action_play_next),
+                    onClick = {
+                        onPlaySongsNext(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.QueueMusic,
+                    label = stringResource(R.string.action_add_to_queue),
+                    onClick = {
+                        onAddSongsToQueue(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = stringResource(R.string.action_add_favorite),
+                    onClick = {
+                        onAddToFavorites(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
                 )
             ),
-            onClose = { selectedSongIds = emptySet() },
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = bottomPaddingOffset)
         )
     }
 }
@@ -1116,6 +1152,8 @@ private fun GenreSongsSheet(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
     onAddToFavorites: (List<SongDto>) -> Unit = {}
 ) {
@@ -1238,30 +1276,19 @@ private fun GenreSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Barra lateral de selección (Genres)
-            SideMultiSelectBar(
+            // Barra inferior de selección (Genres)
+            BottomMultiSelectBar(
                 visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
-                actions = listOf(
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlayArrow,
-                        label = stringResource(R.string.action_play_short),
-                        onClick = {
-                            onPlaySongs(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.Favorite,
-                        label = stringResource(R.string.action_fav_short),
-                        onClick = {
-                            onAddToFavorites(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
+                onClearSelection = { selectedSongIds = emptySet() },
+                onPlaySelected = {
+                    onPlaySongs(selectedSongs)
+                    selectedSongIds = emptySet()
+                },
+                menuActions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_down_short),
+                        label = stringResource(R.string.action_download),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1269,15 +1296,41 @@ private fun GenreSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_list_short),
+                        label = stringResource(R.string.action_playlist),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
                         }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = stringResource(R.string.action_play_next),
+                        onClick = {
+                            onPlaySongsNext(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.QueueMusic,
+                        label = stringResource(R.string.action_add_to_queue),
+                        onClick = {
+                            onAddSongsToQueue(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = stringResource(R.string.action_add_favorite),
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
                     )
                 ),
-                onClose = { selectedSongIds = emptySet() },
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 36.dp)
             )
         }
     }
@@ -1298,6 +1351,8 @@ private fun DecadeSongsSheet(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
     onAddToFavorites: (List<SongDto>) -> Unit = {}
 ) {
@@ -1419,30 +1474,19 @@ private fun DecadeSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Barra lateral de selección (Decades)
-            SideMultiSelectBar(
+            // Barra inferior de selección (Decades)
+            BottomMultiSelectBar(
                 visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
-                actions = listOf(
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlayArrow,
-                        label = stringResource(R.string.action_play_short),
-                        onClick = {
-                            onPlaySongs(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.Favorite,
-                        label = stringResource(R.string.action_fav_short),
-                        onClick = {
-                            onAddToFavorites(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
+                onClearSelection = { selectedSongIds = emptySet() },
+                onPlaySelected = {
+                    onPlaySongs(selectedSongs)
+                    selectedSongIds = emptySet()
+                },
+                menuActions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_down_short),
+                        label = stringResource(R.string.action_download),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1450,15 +1494,41 @@ private fun DecadeSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_list_short),
+                        label = stringResource(R.string.action_playlist),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
                         }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = stringResource(R.string.action_play_next),
+                        onClick = {
+                            onPlaySongsNext(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.QueueMusic,
+                        label = stringResource(R.string.action_add_to_queue),
+                        onClick = {
+                            onAddSongsToQueue(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = stringResource(R.string.action_add_favorite),
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
                     )
                 ),
-                onClose = { selectedSongIds = emptySet() },
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 36.dp)
             )
         }
     }

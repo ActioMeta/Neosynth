@@ -79,8 +79,45 @@ interface PlaybackHistoryDao {
         LIMIT :limit
     """)
     fun getRecommendationsByTopArtists(limit: Int): Flow<List<com.example.neosynth.data.local.entities.SongEntity>>
+
+    @Query("SELECT SUM(durationListened) FROM playback_history WHERE timestamp >= :sinceTimestamp")
+    fun getMinutesListened(sinceTimestamp: Long): Flow<Long?>
+
+    @Query("""
+        SELECT artist, SUM(durationListened) as totalTimeMs, COUNT(*) as playCount 
+        FROM playback_history 
+        WHERE timestamp >= :sinceTimestamp 
+        GROUP BY artist 
+        ORDER BY totalTimeMs DESC 
+        LIMIT :limit
+    """)
+    fun getTopArtistsWithTime(sinceTimestamp: Long, limit: Int): Flow<List<ArtistTimeCount>>
+
+    @Query("""
+        SELECT s.genre, SUM(ph.durationListened) as totalTimeMs, COUNT(ph.id) as playCount 
+        FROM playback_history ph
+        INNER JOIN songs s ON ph.songId = s.id
+        WHERE s.genre IS NOT NULL AND s.genre != '' AND ph.timestamp >= :sinceTimestamp
+        GROUP BY s.genre 
+        ORDER BY totalTimeMs DESC 
+        LIMIT :limit
+    """)
+    fun getTopGenresWithTime(sinceTimestamp: Long, limit: Int): Flow<List<GenreTimeCount>>
+
+    @Query("""
+        SELECT songId, title, artist, SUM(durationListened) as totalTimeMs, COUNT(*) as playCount 
+        FROM playback_history 
+        WHERE timestamp >= :sinceTimestamp 
+        GROUP BY songId 
+        ORDER BY totalTimeMs DESC 
+        LIMIT :limit
+    """)
+    fun getTopSongsWithTime(sinceTimestamp: Long, limit: Int): Flow<List<SongTimeCount>>
 }
 
 data class ArtistPlayCount(val artist: String, val playCount: Int)
 data class SongPlayCount(val songId: String, val title: String, val artist: String, val playCount: Int)
 data class GenrePlayCount(val genre: String, val playCount: Int)
+data class ArtistTimeCount(val artist: String, val totalTimeMs: Long, val playCount: Int)
+data class GenreTimeCount(val genre: String, val totalTimeMs: Long, val playCount: Int)
+data class SongTimeCount(val songId: String, val title: String, val artist: String, val totalTimeMs: Long, val playCount: Int)

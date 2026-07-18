@@ -150,6 +150,28 @@ class AlbumDetailViewModel @Inject constructor(
         )
     }
 
+    fun playSongsNext(songIds: Set<String>) {
+        playerHandler.playSongsNext(
+            songIds = songIds,
+            allSongs = _songs.value,
+            albumName = _album.value?.name,
+            albumCoverArt = _album.value?.coverArt,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
+    }
+
+    fun addSongsToQueue(songIds: Set<String>) {
+        playerHandler.addSongsToQueue(
+            songIds = songIds,
+            allSongs = _songs.value,
+            albumName = _album.value?.name,
+            albumCoverArt = _album.value?.coverArt,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
+    }
+
     fun downloadSongs(songIds: Set<String>) {
         viewModelScope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch

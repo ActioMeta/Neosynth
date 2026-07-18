@@ -20,6 +20,9 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.example.neosynth.ui.stats.rememberBounceScale
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -41,6 +44,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -160,12 +164,6 @@ fun HomeScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = onNavigateToStats) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Equalizer,
-                                    contentDescription = stringResource(R.string.stats_title)
-                                )
-                            }
                             IconButton(onClick = onNavigateToLibrary) {
                                 Icon(
                                     imageVector = Icons.Rounded.LibraryMusic,
@@ -328,7 +326,7 @@ fun HomeScreen(
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { viewModel.playAlbum(it) },
+                            onClick = { onNavigateToAlbum(it.id) },
                             onPlay = { viewModel.playAlbum(it) },
                             onShuffle = { viewModel.playAlbum(it, shuffle = true) },
                             onDownload = { viewModel.downloadAlbum(it.id) },
@@ -343,8 +341,135 @@ fun HomeScreen(
                         )
                     }
 
+                    val topSongs = viewModel.topSongsThisWeek
+                    if (topSongs.isNotEmpty()) {
+                        item { Spacer(modifier = Modifier.height(24.dp)) }
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                ),
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.stats_top_songs),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Rounded.Equalizer,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        val arrowInteraction = remember { MutableInteractionSource() }
+                                        val arrowScale by rememberBounceScale(arrowInteraction)
+                                        IconButton(
+                                            onClick = onNavigateToStats,
+                                            interactionSource = arrowInteraction,
+                                            modifier = Modifier.graphicsLayer {
+                                                scaleX = arrowScale
+                                                scaleY = arrowScale
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.ChevronRight,
+                                                contentDescription = stringResource(R.string.stats_title),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
 
-                        } // LazyColumn
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        topSongs.forEachIndexed { index, song ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(
+                                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                                        shape = RoundedCornerShape(12.dp)
+                                                    )
+                                                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                val badgeColor = when (index + 1) {
+                                                    1 -> Color(0xFFFFD700)
+                                                    2 -> Color(0xFFC0C0C0)
+                                                    3 -> Color(0xFFCD7F32)
+                                                    else -> MaterialTheme.colorScheme.secondaryContainer
+                                                }
+                                                val textColor = when (index + 1) {
+                                                    1, 2, 3 -> Color.Black
+                                                    else -> MaterialTheme.colorScheme.onSecondaryContainer
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(24.dp)
+                                                        .background(badgeColor, CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "${index + 1}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = textColor
+                                                    )
+                                                }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = song.title,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = song.artist,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                                Text(
+                                                    text = stringResource(R.string.stats_minutes, song.totalTimeMs / 60000),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                } // LazyColumn
                     } // PullToRefreshBox
 
 

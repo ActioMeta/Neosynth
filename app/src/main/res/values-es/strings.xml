@@ -251,6 +251,24 @@
     <string name="stats_top_artists">Top Artistas</string>
     <string name="stats_top_songs">Top Canciones</string>
     <string name="stats_recent_history">Historial Reciente</string>
+    <string name="filter_today">Hoy</string>
+    <string name="filter_week">Semana</string>
+    <string name="filter_month">Mes</string>
+    <string name="filter_year">Año</string>
+    <string name="filter_period_all">Todo</string>
+    <string name="stats_top_genres">Top Géneros</string>
+    <string name="stats_view_details">Ver detalles</string>
+    <string name="stats_minutes">%1$d min</string>
+    <string name="stats_no_data">Sin datos disponibles en este periodo</string>
+    <string name="stats_listen_time">Tiempo de Escucha</string>
+    <string name="tab_favorites">Favoritos</string>
+    <string name="tab_songs">Canciones</string>
+    <string name="sort_ascending">Ascendente</string>
+    <string name="sort_descending">Descendente</string>
+    <string name="sort_title">Por título</string>
+    <string name="sort_artist">Por artista</string>
+    <string name="sort_album">Por álbum</string>
+    <string name="sort_recent">Recientes</string>
     <string name="lyrics_editor_title">Editor de Letras</string>
     <string name="lyrics_editor_pasted">Pegar Letras</string>
     <string name="lyrics_editor_paste_hint">Pega las letras aquí...</string>
@@ -398,4 +416,8 @@
     <string name="settings_servers_count">%1$d servidor(es) configurado(s)</string>
     <string name="settings_version_label">Versión %1$s</string>
     <string name="lang_system_with_name">Sistema (%1$s)</string>
+    <string name="action_menu">Menú</string>
+    <string name="pinned_items">Fijados</string>
+    <string name="action_pin">Fijar al principio</string>
+    <string name="action_unpin">Desfijar</string>
 </resources>

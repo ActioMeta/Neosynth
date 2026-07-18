@@ -26,6 +26,7 @@ import com.example.neosynth.data.preferences.ThemeMode
 import com.example.neosynth.data.repository.ServerRepository
 import com.example.neosynth.ui.components.SkeletonLoader
 import com.example.neosynth.ui.navigation.FloatingNavBar
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.navigation.NeosynthNavGraph
 import com.example.neosynth.ui.navigation.Screen
 import com.example.neosynth.ui.theme.NeoSynth_androidTheme

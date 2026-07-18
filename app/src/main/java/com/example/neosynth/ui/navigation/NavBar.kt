@@ -69,6 +69,17 @@ fun FloatingNavBar(navController: NavController) {
                     items.forEach { screen ->
                         val selected = currentRoute == screen.route
                         
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
+                        val scale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.85f else if (selected) 1.15f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "nav_item_scale"
+                        )
+
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -82,11 +93,17 @@ fun FloatingNavBar(navController: NavController) {
                                     }
                                 }
                             },
+                            interactionSource = interactionSource,
                             icon = {
                                 Icon(
                                     imageVector = screen.icon,
                                     contentDescription = stringResource(screen.titleResId),
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .graphicsLayer {
+                                            scaleX = scale
+                                            scaleY = scale
+                                        }
                                 )
                             },
                             label = null,

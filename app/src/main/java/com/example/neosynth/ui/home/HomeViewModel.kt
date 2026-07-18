@@ -12,6 +12,7 @@ import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.domain.model.Album
+import com.example.neosynth.data.local.dao.SongTimeCount
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.home.logic.HomeDownloadHandler
 import com.example.neosynth.ui.home.logic.HomeFavoritesHandler
@@ -41,6 +42,7 @@ class HomeViewModel @Inject constructor(
     private val urlInterceptor: DynamicUrlInterceptor,
     private val networkHelper: NetworkHelper,
     private val settingsPreferences: SettingsPreferences,
+    private val statsRepository: com.example.neosynth.data.repository.StatsRepository,
     @ApplicationContext private val appContext: Context,
     // Handlers
     private val lyricsHandler: HomeLyricsHandler,
@@ -57,6 +59,8 @@ class HomeViewModel @Inject constructor(
     var isRefreshing by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     var isOfflineMode by mutableStateOf(false)
+        private set
+    var topSongsThisWeek by mutableStateOf<List<SongTimeCount>>(emptyList())
         private set
     
     // --- Delegated State ---
@@ -99,6 +103,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadHomeData()
+        loadStatsData()
         // Initialize other components if needed
         favoritesHandler.updateCurrentSongFavoriteStatus(viewModelScope)
     }
@@ -179,22 +184,25 @@ class HomeViewModel @Inject constructor(
     
     private suspend fun loadOfflineData() {
         try {
-            val recentDownloads = musicRepository.getRecentlyDownloadedSongs(20).first()
+            val recentDownloads = musicRepository.getRecentlyDownloadedSongs(60).first()
             if (recentDownloads.isNotEmpty()) {
-                recentlyAdded = recentDownloads.map { song ->
-                    com.example.neosynth.domain.model.Album(
-                        id = song.albumID.ifEmpty { song.id },
-                        name = song.title,
-                        artistId = song.artistID,
-                        artistName = song.artist,
-                        coverArtUrl = song.imageUrl,
-                        sourceType = com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES,
-                        sourceId = "local",
-                        year = 0,
-                        songCount = 1,
-                        genre = null
-                    )
-                }
+                recentlyAdded = recentDownloads
+                    .distinctBy { it.albumID.ifEmpty { it.id } }
+                    .take(15)
+                    .map { song ->
+                        com.example.neosynth.domain.model.Album(
+                            id = song.albumID.ifEmpty { song.id },
+                            name = song.album.ifEmpty { song.title },
+                            artistId = song.artistID,
+                            artistName = song.artist,
+                            coverArtUrl = song.imageUrl,
+                            sourceType = com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES,
+                            sourceId = "local",
+                            year = song.year ?: 0,
+                            songCount = 1,
+                            genre = song.genre
+                        )
+                    }
             }
             
             val randomDownloaded = musicRepository.getRandomDownloadedSongs(3)
@@ -359,5 +367,26 @@ class HomeViewModel @Inject constructor(
 
     fun onContextAddToQueue(album: Album) {
         contextMenuHandler.onAddToQueue(album, viewModelScope, _uiEvent)
+    }
+
+    private fun loadStatsData() {
+        viewModelScope.launch {
+            try {
+                // Get Monday of this week timestamp
+                val now = java.time.LocalDateTime.now()
+                val daysToSubtract = now.dayOfWeek.value - 1
+                val sinceTimestamp = now.minusDays(daysToSubtract.toLong())
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+
+                statsRepository.getTopSongsWithTime(sinceTimestamp, limit = 5).collect { list ->
+                    topSongsThisWeek = list
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

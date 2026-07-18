@@ -37,6 +37,7 @@ import com.example.neosynth.ui.home.HomeScreen
 import com.example.neosynth.ui.home.HomeViewModel
 import com.example.neosynth.ui.login.LoginScreen
 import com.example.neosynth.ui.components.MiniPlayer
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.discover.DiscoverScreen
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
@@ -172,7 +173,11 @@ fun NeosynthNavGraph(
                         navController.navigate("artist/$artistId/$encodedName")
                     },
                     onNavigateToPlaylist = { playlistId ->
-                        navController.navigate("playlist/$playlistId")
+                        if (playlistId == "favorites") {
+                            navController.navigate("downloads")
+                        } else {
+                            navController.navigate("playlist/$playlistId")
+                        }
                     },
                     onNavigateToAlbum = { albumId ->
                         navController.navigate("album/$albumId")

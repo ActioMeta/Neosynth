@@ -38,7 +38,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.R
-import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.BottomMultiSelectBar
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.components.MultiSelectAction
 import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 import com.example.neosynth.data.remote.responses.SongDto
@@ -125,7 +126,7 @@ fun RecentSongsScreen(
                         }
                         else -> {
                             val bottomPadding = if (viewModel.isSelectionMode) {
-                                if (isMiniPlayerVisible) 280.dp else 200.dp
+                                if (isMiniPlayerVisible) 260.dp else 180.dp
                             } else {
                                 if (isMiniPlayerVisible) 100.dp else 16.dp
                             }
@@ -183,18 +184,16 @@ fun RecentSongsScreen(
                         }
                     }
 
-                    SideMultiSelectBar(
+                    val bottomPaddingOffset = if (isMiniPlayerVisible) 180.dp else 100.dp
+                    BottomMultiSelectBar(
                         visible = viewModel.isSelectionMode,
                         selectedCount = viewModel.selectedSongIds.size,
-                        actions = listOf(
-                            MultiSelectAction(
-                                icon = Icons.Rounded.PlayArrow,
-                                label = stringResource(R.string.action_play),
-                                onClick = {
-                                    viewModel.playSelected()
-                                    viewModel.clearSelection()
-                                }
-                            ),
+                        onClearSelection = { viewModel.clearSelection() },
+                        onPlaySelected = {
+                            viewModel.playSelected()
+                            viewModel.clearSelection()
+                        },
+                        menuActions = listOf(
                             MultiSelectAction(
                                 icon = Icons.Rounded.Download,
                                 label = stringResource(R.string.action_download),
@@ -212,16 +211,34 @@ fun RecentSongsScreen(
                                 }
                             ),
                             MultiSelectAction(
+                                icon = Icons.Rounded.PlayArrow,
+                                label = stringResource(R.string.action_play_next),
+                                onClick = {
+                                    viewModel.playSelectedNext()
+                                    viewModel.clearSelection()
+                                }
+                            ),
+                            MultiSelectAction(
                                 icon = Icons.Rounded.QueueMusic,
                                 label = stringResource(R.string.action_add_to_queue),
                                 onClick = {
                                     viewModel.addSelectedToQueue()
                                     viewModel.clearSelection()
                                 }
+                            ),
+                            MultiSelectAction(
+                                icon = Icons.Rounded.Favorite,
+                                label = stringResource(R.string.action_add_favorite),
+                                onClick = {
+                                    viewModel.addSelectedToFavorites()
+                                    viewModel.clearSelection()
+                                }
                             )
                         ),
-                        onClose = { viewModel.clearSelection() },
-                        modifier = Modifier.align(Alignment.CenterEnd)
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = bottomPaddingOffset)
                     )
                 }
             }

@@ -2,8 +2,11 @@ package com.example.neosynth.data.repository
 
 import com.example.neosynth.data.local.dao.ArtistPlayCount
 import com.example.neosynth.data.local.dao.GenrePlayCount
+import com.example.neosynth.data.local.dao.ArtistTimeCount
+import com.example.neosynth.data.local.dao.GenreTimeCount
 import com.example.neosynth.data.local.dao.PlaybackHistoryDao
 import com.example.neosynth.data.local.dao.SongPlayCount
+import com.example.neosynth.data.local.dao.SongTimeCount
 import com.example.neosynth.data.local.entities.PlaybackHistoryEntity
 import com.example.neosynth.data.mappers.toDomain
 import com.example.neosynth.domain.model.Song
@@ -64,5 +67,21 @@ class StatsRepository @Inject constructor(
         return playbackHistoryDao.getRecommendationsByTopArtists(limit).map { entities ->
             entities.map { it.toDomain() }
         }
+    }
+
+    fun getMinutesListened(sinceTimestamp: Long): Flow<Long?> {
+        return playbackHistoryDao.getMinutesListened(sinceTimestamp)
+    }
+
+    fun getTopArtistsWithTime(sinceTimestamp: Long, limit: Int = 10): Flow<List<ArtistTimeCount>> {
+        return playbackHistoryDao.getTopArtistsWithTime(sinceTimestamp, limit)
+    }
+
+    fun getTopGenresWithTime(sinceTimestamp: Long, limit: Int = 10): Flow<List<GenreTimeCount>> {
+        return playbackHistoryDao.getTopGenresWithTime(sinceTimestamp, limit)
+    }
+
+    fun getTopSongsWithTime(sinceTimestamp: Long, limit: Int = 10): Flow<List<SongTimeCount>> {
+        return playbackHistoryDao.getTopSongsWithTime(sinceTimestamp, limit)
     }
 }

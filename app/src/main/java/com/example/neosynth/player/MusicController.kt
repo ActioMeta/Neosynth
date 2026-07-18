@@ -77,6 +77,7 @@ class MusicController @Inject constructor(
         get() = if (browserFuture?.isDone == true) browserFuture?.get() else null
 
     private var originalQueue: List<MediaItem>? = null
+    private var pendingRestorePosition: Pair<String, Long>? = null
 
     fun startSleepTimer(durationMs: Long) {
         cancelSleepTimer()
@@ -150,6 +151,12 @@ class MusicController @Inject constructor(
                     updateNavStates()
                     updateDominantColor(mediaItem)
                     
+                    val restore = pendingRestorePosition
+                    if (restore != null && mediaItem?.mediaId == restore.first) {
+                        pendingRestorePosition = null
+                        player.seekTo(restore.second)
+                    }
+                    
                     if (_sleepTimerRemaining.value == -1L) {
                         player.pause()
                         cancelSleepTimer()
@@ -177,6 +184,12 @@ class MusicController @Inject constructor(
                 override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
                     updateQueue()
                     updateNavStates()
+                    
+                    val restore = pendingRestorePosition
+                    if (restore != null && player.currentMediaItem?.mediaId == restore.first) {
+                        pendingRestorePosition = null
+                        player.seekTo(restore.second)
+                    }
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -350,6 +363,13 @@ class MusicController @Inject constructor(
             if (fromIndex in 0 until player.mediaItemCount && 
                 toIndex in 0 until player.mediaItemCount &&
                 fromIndex != toIndex) {
+                
+                val activeItem = player.currentMediaItem
+                if (activeItem != null) {
+                    val currentPos = player.currentPosition
+                    pendingRestorePosition = Pair(activeItem.mediaId, currentPos)
+                }
+                
                 player.moveMediaItem(fromIndex, toIndex)
                 updateQueue()
             }

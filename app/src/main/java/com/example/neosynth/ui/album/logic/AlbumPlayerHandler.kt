@@ -152,7 +152,8 @@ class AlbumPlayerHandler @Inject constructor(
     ) {
         scope.launch {
             val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
-            val selectedSongs = allSongs.filter { it.id in songIds }
+            val songsMap = allSongs.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { id -> songsMap[id] }
             if (selectedSongs.isEmpty()) return@launch
 
             val mediaItems = selectedSongs.map { s ->
@@ -160,6 +161,50 @@ class AlbumPlayerHandler @Inject constructor(
             }
 
             musicController.playQueue(mediaItems, 0)
+        }
+    }
+
+    fun playSongsNext(
+        songIds: Set<String>,
+        allSongs: List<SongDto>,
+        albumName: String?,
+        albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val songsMap = allSongs.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { id -> songsMap[id] }
+            if (selectedSongs.isEmpty()) return@launch
+
+            val mediaItems = selectedSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            musicController.addAfterCurrent(mediaItems)
+        }
+    }
+
+    fun addSongsToQueue(
+        songIds: Set<String>,
+        allSongs: List<SongDto>,
+        albumName: String?,
+        albumCoverArt: String?,
+        cachedServer: ServerEntity?,
+        scope: CoroutineScope
+    ) {
+        scope.launch {
+            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val songsMap = allSongs.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { id -> songsMap[id] }
+            if (selectedSongs.isEmpty()) return@launch
+
+            val mediaItems = selectedSongs.map { s ->
+                buildMediaItem(s, server, albumName, albumCoverArt)
+            }
+
+            musicController.addToQueue(mediaItems)
         }
     }
 }

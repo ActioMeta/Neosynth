@@ -559,6 +559,84 @@ class DiscoverViewModel @Inject constructor(
         }
     }
 
+    fun playNext(songs: List<SongDto>) {
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val connectionType = networkHelper.getConnectionType()
+            val audioSettings = settingsPreferences.audioSettings.first()
+            val streamQuality = when (connectionType) {
+                ConnectionType.WIFI -> audioSettings.streamWifiQuality
+                ConnectionType.MOBILE -> audioSettings.streamMobileQuality
+                ConnectionType.NONE -> StreamQuality.MEDIUM
+            }
+            val mediaItems = songs.map { s ->
+                val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) streamQuality.bitrate else s.bitRate ?: 0
+                val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) streamQuality.format.uppercase() else s.suffix?.uppercase() ?: "MP3"
+                val streamUrl = StreamUrlBuilder.buildStreamUrl(server, s.id, streamQuality)
+                val coverUrl = buildCoverArtUrl(server, s.coverArt)
+                MediaItem.Builder()
+                    .setMediaId(s.id)
+                    .setUri(streamUrl)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(s.title)
+                            .setArtist(s.artist)
+                            .setAlbumTitle(s.album)
+                            .setArtworkUri(coverUrl?.toUri())
+                            .setExtras(
+                                android.os.Bundle().apply {
+                                    putInt("bitRate", effectiveBitrate)
+                                    putString("suffix", effectiveFormat)
+                                    putLong("duration", s.duration * 1000L)
+                                }
+                            )
+                            .build()
+                    )
+                    .build()
+            }
+            musicController.addAfterCurrent(mediaItems)
+        }
+    }
+
+    fun addToQueue(songs: List<SongDto>) {
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val connectionType = networkHelper.getConnectionType()
+            val audioSettings = settingsPreferences.audioSettings.first()
+            val streamQuality = when (connectionType) {
+                ConnectionType.WIFI -> audioSettings.streamWifiQuality
+                ConnectionType.MOBILE -> audioSettings.streamMobileQuality
+                ConnectionType.NONE -> StreamQuality.MEDIUM
+            }
+            val mediaItems = songs.map { s ->
+                val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) streamQuality.bitrate else s.bitRate ?: 0
+                val effectiveFormat = if (streamQuality != StreamQuality.LOSSLESS) streamQuality.format.uppercase() else s.suffix?.uppercase() ?: "MP3"
+                val streamUrl = StreamUrlBuilder.buildStreamUrl(server, s.id, streamQuality)
+                val coverUrl = buildCoverArtUrl(server, s.coverArt)
+                MediaItem.Builder()
+                    .setMediaId(s.id)
+                    .setUri(streamUrl)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(s.title)
+                            .setArtist(s.artist)
+                            .setAlbumTitle(s.album)
+                            .setArtworkUri(coverUrl?.toUri())
+                            .setExtras(
+                                android.os.Bundle().apply {
+                                    putInt("bitRate", effectiveBitrate)
+                                    putString("suffix", effectiveFormat)
+                                    putLong("duration", s.duration * 1000L)
+                                }
+                            )
+                            .build()
+                    )
+                    .build()
+            }
+            musicController.addToQueue(mediaItems)
+        }
+    }
+
     fun getCoverUrl(coverArt: String?): String? {
         val server = cachedServer ?: return null
         return buildCoverArtUrl(server, coverArt)

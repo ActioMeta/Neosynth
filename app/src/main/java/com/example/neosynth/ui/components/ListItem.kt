@@ -55,6 +55,7 @@ fun RowListItem(
                 text = song.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -92,7 +93,7 @@ fun RowListItem(
         },
         colors = androidx.compose.material3.ListItemDefaults.colors(
             containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
             else 
                 Color.Transparent
         )

@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Shuffle
@@ -42,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.BottomMultiSelectBar
 import com.example.neosynth.ui.components.MultiSelectAction
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
@@ -72,6 +75,14 @@ fun PlaylistDetailScreen(
     var selectedSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelectionMode = selectedSongIds.isNotEmpty()
 
+    val currentSong by viewModel.musicController.currentMediaItem
+    val isMiniPlayerVisible = currentSong != null
+    val listBottomPadding = if (isSelectionMode) {
+        if (isMiniPlayerVisible) 260.dp else 180.dp
+    } else {
+        if (isMiniPlayerVisible) 180.dp else 100.dp
+    }
+
     val backgroundColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
 
@@ -85,7 +96,7 @@ fun PlaylistDetailScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 180.dp)
+                contentPadding = PaddingValues(bottom = listBottomPadding)
             ) {
                 // Header
                 item {
@@ -298,27 +309,18 @@ fun PlaylistDetailScreen(
             }
         }
 
-        // Barra lateral de selección
-        SideMultiSelectBar(
+        var showPlaylistPicker by remember { mutableStateOf(false) }
+        val bottomPaddingOffset = if (isMiniPlayerVisible) 180.dp else 100.dp
+
+        BottomMultiSelectBar(
             visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            actions = listOf(
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = stringResource(R.string.action_play),
-                    onClick = {
-                        viewModel.playSongs(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.Favorite,
-                    label = stringResource(R.string.action_fav),
-                    onClick = {
-                        viewModel.addToFavorites(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
+            onClearSelection = { selectedSongIds = emptySet() },
+            onPlaySelected = {
+                viewModel.playSongs(selectedSongIds)
+                selectedSongIds = emptySet()
+            },
+            menuActions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
                     label = stringResource(R.string.action_download),
@@ -326,11 +328,58 @@ fun PlaylistDetailScreen(
                         viewModel.downloadSongs(selectedSongIds)
                         selectedSongIds = emptySet()
                     }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlaylistAdd,
+                    label = stringResource(R.string.action_playlist),
+                    onClick = {
+                        viewModel.loadAllPlaylists()
+                        showPlaylistPicker = true
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = stringResource(R.string.action_play_next),
+                    onClick = {
+                        viewModel.playSongsNext(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.QueueMusic,
+                    label = stringResource(R.string.action_add_to_queue),
+                    onClick = {
+                        viewModel.addSongsToQueue(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = stringResource(R.string.action_add_favorite),
+                    onClick = {
+                        viewModel.addToFavorites(selectedSongIds)
+                        selectedSongIds = emptySet()
+                    }
                 )
             ),
-            onClose = { selectedSongIds = emptySet() },
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = bottomPaddingOffset)
         )
+
+        if (showPlaylistPicker) {
+            val allPlaylists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+            PlaylistPickerDialog(
+                playlists = allPlaylists,
+                onDismiss = { showPlaylistPicker = false },
+                onPlaylistSelected = { targetPlaylistId ->
+                    viewModel.addToPlaylist(selectedSongIds, targetPlaylistId)
+                    showPlaylistPicker = false
+                    selectedSongIds = emptySet()
+                }
+            )
+        }
 
         // Top bar (solo visible cuando no hay selección)
         if (!isSelectionMode) {
@@ -550,4 +599,62 @@ private fun formatDuration(seconds: Int): String {
     val mins = seconds / 60
     val secs = seconds % 60
     return "$mins:${secs.toString().padStart(2, '0')}"
+}
+
+@Composable
+private fun PlaylistPickerDialog(
+    playlists: List<com.example.neosynth.data.remote.responses.PlaylistDto>,
+    onDismiss: () -> Unit,
+    onPlaylistSelected: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.playlist_add_to)) },
+        text = {
+            if (playlists.isEmpty()) {
+                Text(stringResource(R.string.playlist_no_available))
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    playlists.forEach { playlist ->
+                        Surface(
+                            onClick = { onPlaylistSelected(playlist.id) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = androidx.compose.ui.graphics.Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.QueueMusic,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }

@@ -76,6 +76,7 @@
     <string name="downloads_empty">No hay descargas</string>
     <string name="downloads_playlists_count">Playlists (%1$d)</string>
     <string name="downloads_filtering">Filtrando: %1$s</string>
+    <string name="shuffle_play">Reproducción aleatoria</string>
     
     <!-- Discover Screen -->
     <string name="discover_search_hint">Buscar canciones, artistas, álbumes...</string>

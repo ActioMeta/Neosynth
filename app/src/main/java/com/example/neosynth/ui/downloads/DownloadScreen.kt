@@ -66,6 +66,7 @@ fun DownloadsScreen(
     val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsStateWithLifecycle()
     val activeFilterCategory by viewModel.activeFilterCategory.collectAsStateWithLifecycle()
     val activeSortOrder by viewModel.activeSortOrder.collectAsStateWithLifecycle()
+    val isShuffleActive = viewModel.musicController.shuffleModeEnabled.value
 
     var showSortDropdown by remember { mutableStateOf(false) }
 
@@ -558,6 +559,27 @@ fun DownloadsScreen(
                                 }
                             }
 
+                            // Botón de Reproducción Aleatoria
+                            item {
+                                val songsToPlay = remember(filteredSongs) { filteredSongs.values.flatten() }
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    ShuffleHeaderButton(
+                                        onClick = { viewModel.shufflePlayAll(songsToPlay) }
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.downloads_songs_count, songsToPlay.size),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
+                                }
+                            }
+
                             // Sección de Canciones
                             filteredSongs.forEach { (initial, songsInGroup) ->
                                 stickyHeader(key = initial) {
@@ -766,7 +788,7 @@ fun DownloadsScreen(
                 }
                 
                 // Alphabet Scrollbar
-                if (allSongs.size > 15 && !isSearchVisible) {
+                if (allSongs.size > 15 && !isSearchVisible && activeFilterCategory != FilterCategory.PLAYLISTS) {
                     AlphabetScrollbar(
                         availableLetters = availableLetters,
                         currentLetter = null,
@@ -778,15 +800,12 @@ fun DownloadsScreen(
                                 // Calcular el índice real en la lista (headers + items)
                                 var itemIndex = 0
                                 
-                                // Agregar offset por playlists si existen
-                                if (allPlaylists.isNotEmpty() && searchQuery.isEmpty()) {
-                                    itemIndex += 1 // Header de playlists
-                                    itemIndex += allPlaylists.size // Items de playlists
-                                    if (selectedPlaylistId != null) {
-                                        itemIndex += 1 // Chip de filtro
-                                    }
-                                    itemIndex += 1 // Spacer
+                                // Agregar offset por el chip de filtro si está activo
+                                if (selectedPlaylistId != null) {
+                                    itemIndex += 1
                                 }
+                                // Agregar offset por el botón de reproducción aleatoria
+                                itemIndex += 1
                                 
                                 // Calcular índices para las secciones anteriores
                                 for (i in 0 until targetKeyIndex) {
@@ -952,4 +971,67 @@ private fun AddToPlaylistDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ShuffleHeaderButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberBounceScale(interactionSource)
+
+    // Trigger local rotation on click (360-degree spin)
+    var clickRotation by remember { mutableStateOf(0f) }
+    val rotation by animateFloatAsState(
+        targetValue = clickRotation,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "shuffle_rotation"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            onClick = {
+                clickRotation += 360f
+                onClick()
+            },
+            interactionSource = interactionSource,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            ),
+            tonalElevation = 2.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .width(96.dp)
+                .height(48.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Shuffle,
+                    contentDescription = stringResource(R.string.shuffle_play),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .graphicsLayer {
+                            rotationZ = rotation
+                        }
+                )
+            }
+        }
+    }
 }

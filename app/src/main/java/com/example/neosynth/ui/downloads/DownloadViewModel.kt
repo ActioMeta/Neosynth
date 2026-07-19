@@ -156,6 +156,22 @@ class DownloadsViewModel @Inject constructor(
         musicController.playQueue(mediaItems, startIndex)
     }
 
+    // Reproducir todas en aleatorio
+    fun shufflePlayAll(songs: List<SongEntity>) {
+        if (songs.isEmpty()) return
+        
+        // Desactivar modo aleatorio del controlador si está activo para evitar bucles de reordenamiento de ExoPlayer
+        if (musicController.shuffleModeEnabled.value) {
+            musicController.toggleShuffle()
+        }
+        
+        // Mezclar la lista de canciones en memoria
+        val shuffledSongs = songs.shuffled()
+        
+        // Reproducir la lista mezclada desde el inicio (índice 0)
+        playAll(shuffledSongs, 0)
+    }
+
     // 3. Reproducir solo la selección múltiple (Bug 2 Fix)
     fun playSelected(selectedIds: Set<String>, allSongs: List<SongEntity>) {
         if (selectedIds.isEmpty()) return

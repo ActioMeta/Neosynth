@@ -72,6 +72,7 @@
     <string name="downloads_empty">No downloads</string>
     <string name="downloads_playlists_count">Playlists (%1$d)</string>
     <string name="downloads_filtering">Filtering: %1$s</string>
+    <string name="shuffle_play">Shuffle play</string>
     
     <!-- Discover Screen -->
     <string name="discover_search_hint">Search songs, artists, albums...</string>

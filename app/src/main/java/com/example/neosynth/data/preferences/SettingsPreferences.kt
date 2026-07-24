@@ -34,6 +34,12 @@ enum class ThemeMode {
     SYSTEM
 }
 
+enum class AppColorPalette {
+    MATERIAL_YOU,
+    NEOSYNTH,
+    TOKYO_NIGHT
+}
+
 data class AudioSettings(
     val crossfadeEnabled: Boolean = false,
     val crossfadeDuration: Int = 5, // segundos
@@ -51,6 +57,7 @@ data class AudioSettings(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val colorPalette: AppColorPalette = AppColorPalette.NEOSYNTH,
     val dynamicColor: Boolean = false,
     val visualizerEnabled: Boolean = false,
     val geminiApiKey: String = "",
@@ -75,6 +82,7 @@ class SettingsPreferences @Inject constructor(
         val DOWNLOAD_MOBILE_QUALITY = stringPreferencesKey("download_mobile_quality")
         // Apariencia
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val COLOR_PALETTE = stringPreferencesKey("color_palette")
         val VISUALIZER_ENABLED = booleanPreferencesKey("visualizer_enabled")
         val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors")
         val CROSSFEED_ENABLED = booleanPreferencesKey("crossfeed_enabled")
@@ -103,8 +111,14 @@ class SettingsPreferences @Inject constructor(
 
     // App Settings Flow
     val appSettings: Flow<AppSettings> = dataStore.data.map { prefs ->
+        val rawPalette = prefs[Keys.COLOR_PALETTE] ?: AppColorPalette.NEOSYNTH.name
+        val palette = try { 
+            if (rawPalette == "NEOSYNTH_VIBRANT") AppColorPalette.NEOSYNTH 
+            else AppColorPalette.valueOf(rawPalette) 
+        } catch (e: Exception) { AppColorPalette.NEOSYNTH }
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
+            colorPalette = palette,
             dynamicColor = prefs[Keys.DYNAMIC_COLORS] ?: false,
             visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false,
             geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: "",
@@ -143,6 +157,10 @@ class SettingsPreferences @Inject constructor(
 
     suspend fun updateThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    suspend fun updateColorPalette(palette: AppColorPalette) {
+        dataStore.edit { it[Keys.COLOR_PALETTE] = palette.name }
     }
 
     suspend fun updateDynamicColor(enabled: Boolean) {

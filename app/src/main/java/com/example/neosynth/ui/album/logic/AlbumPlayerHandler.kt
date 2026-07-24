@@ -24,7 +24,8 @@ class AlbumPlayerHandler @Inject constructor(
     private val serverDao: ServerDao,
     private val musicController: MusicController,
     private val settingsPreferences: SettingsPreferences,
-    private val networkHelper: NetworkHelper
+    private val networkHelper: NetworkHelper,
+    private val musicRepository: com.example.neosynth.data.repository.MusicRepository
 ) {
 
     private suspend fun getStreamQuality(): StreamQuality {
@@ -38,10 +39,48 @@ class AlbumPlayerHandler @Inject constructor(
 
     private suspend fun buildMediaItem(
         song: SongDto,
-        server: ServerEntity,
+        server: ServerEntity?,
         albumName: String?,
         albumCoverArt: String?
     ): MediaItem {
+        val localSong = musicRepository.getSongById(song.id)
+        val isLocal = (localSong != null && localSong.isDownloaded && localSong.path.isNotBlank()) ||
+                (song.path != null && (song.path.startsWith("/") || song.path.startsWith("file:") || song.path.startsWith("content:"))) ||
+                networkHelper.isCurrentConnectionOffline ||
+                server == null
+
+        if (isLocal) {
+            val uriPath = localSong?.path ?: song.path ?: ""
+            val coverArtUri = song.coverArt?.takeIf { it.isNotBlank() } ?: albumCoverArt ?: localSong?.imageUrl
+            val artworkUri = if (!coverArtUri.isNullOrBlank()) {
+                if (coverArtUri.startsWith("http") && server != null) {
+                    buildCoverArtUrl(server, coverArtUri)?.toUri()
+                } else {
+                    coverArtUri.toUri()
+                }
+            } else null
+
+            return MediaItem.Builder()
+                .setMediaId(song.id)
+                .setUri(uriPath.toUri())
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artist)
+                        .setAlbumTitle(albumName ?: song.album)
+                        .setArtworkUri(artworkUri)
+                        .setExtras(
+                            android.os.Bundle().apply {
+                                putString("path", uriPath)
+                                putLong("duration", song.duration * 1000L)
+                                putBoolean("isDownloaded", true)
+                            }
+                        )
+                        .build()
+                )
+                .build()
+        }
+
         val streamQuality = getStreamQuality()
         
         val effectiveBitrate = if (streamQuality != StreamQuality.LOSSLESS) {
@@ -92,7 +131,7 @@ class AlbumPlayerHandler @Inject constructor(
         scope: CoroutineScope
     ) {
         scope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer()
 
             val mediaItems = allSongs.map { s ->
                 buildMediaItem(s, server, albumName, albumCoverArt)
@@ -111,7 +150,7 @@ class AlbumPlayerHandler @Inject constructor(
         scope: CoroutineScope
     ) {
         scope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer()
             if (allSongs.isEmpty()) return@launch
 
             val mediaItems = allSongs.map { s ->
@@ -125,12 +164,12 @@ class AlbumPlayerHandler @Inject constructor(
     fun shufflePlay(
         allSongs: List<SongDto>,
         albumName: String?,
-       albumCoverArt: String?,
+        albumCoverArt: String?,
         cachedServer: ServerEntity?,
         scope: CoroutineScope
     ) {
         scope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer()
             val shuffledSongs = allSongs.shuffled()
             if (shuffledSongs.isEmpty()) return@launch
 
@@ -151,7 +190,7 @@ class AlbumPlayerHandler @Inject constructor(
         scope: CoroutineScope
     ) {
         scope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer()
             val songsMap = allSongs.associateBy { it.id }
             val selectedSongs = songIds.mapNotNull { id -> songsMap[id] }
             if (selectedSongs.isEmpty()) return@launch
@@ -173,7 +212,7 @@ class AlbumPlayerHandler @Inject constructor(
         scope: CoroutineScope
     ) {
         scope.launch {
-            val server = cachedServer ?: serverDao.getActiveServer() ?: return@launch
+            val server = cachedServer ?: serverDao.getActiveServer()
             val songsMap = allSongs.associateBy { it.id }
             val selectedSongs = songIds.mapNotNull { id -> songsMap[id] }
             if (selectedSongs.isEmpty()) return@launch

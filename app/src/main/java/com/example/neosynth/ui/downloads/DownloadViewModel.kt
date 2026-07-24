@@ -199,15 +199,31 @@ class DownloadsViewModel @Inject constructor(
             android.util.Log.e("DownloadViewModel", "Error parsing metadata for offline song", e)
         }
 
+        val cleanPath = this.path.removePrefix("file://")
+        val mediaUri = if (this.path.startsWith("/") || this.path.startsWith("file:/")) {
+            android.net.Uri.fromFile(java.io.File(cleanPath))
+        } else {
+            android.net.Uri.parse(this.path)
+        }
+
+        val artworkUri = if (!this.imageUrl.isNullOrBlank()) {
+            val cleanImgPath = this.imageUrl.removePrefix("file://")
+            if (this.imageUrl.startsWith("/") || this.imageUrl.startsWith("file:/")) {
+                android.net.Uri.fromFile(java.io.File(cleanImgPath))
+            } else {
+                android.net.Uri.parse(this.imageUrl)
+            }
+        } else null
+
         return MediaItem.Builder()
             .setMediaId(this.id)
-            .setUri(this.path.toUri()) // Usamos el path local porque es "Downloads"
+            .setUri(mediaUri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(this.title)
                     .setArtist(this.artist)
                     .setAlbumTitle(this.album)
-                    .setArtworkUri(this.imageUrl?.toUri())
+                    .setArtworkUri(artworkUri)
                     .setExtras(
                         android.os.Bundle().apply {
                             putString("path", this@toMediaItem.path)

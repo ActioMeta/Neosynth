@@ -203,25 +203,36 @@ fun LyricsEditorScreen(
             ) {
                 AssistChip(
                     onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
-                    label = { Text(stringResource(R.string.lyrics_file), style = MaterialTheme.typography.labelMedium) },
+                    label = { Text(stringResource(R.string.lyrics_file), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
                     leadingIcon = { Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp)) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
                     modifier = Modifier.weight(1f)
                 )
                 
                 AssistChip(
                     onClick = { viewModel.generateWithGemini(trackTitle, artistName) },
-                    label = { Text(stringResource(R.string.lyrics_gemini_ai), style = MaterialTheme.typography.labelMedium) },
+                    label = { Text(stringResource(R.string.lyrics_gemini_ai), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
                     leadingIcon = { Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(18.dp)) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        leadingIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
                     modifier = Modifier.weight(1f)
                 )
                 
                 AssistChip(
                     onClick = { showTextInputDialog = true },
-                    label = { Text(stringResource(R.string.lyrics_text), style = MaterialTheme.typography.labelMedium) },
+                    label = { Text(stringResource(R.string.lyrics_text), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
                     leadingIcon = { Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp)) },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -372,7 +383,7 @@ fun LyricLineItem(
             isSynced -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {

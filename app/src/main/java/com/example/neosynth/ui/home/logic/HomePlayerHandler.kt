@@ -214,6 +214,68 @@ class HomePlayerHandler @Inject constructor(
             .build()
     }
 
+    fun playPreloadedRandomSongs(
+        scope: CoroutineScope,
+        onlineSongs: List<SongDto>,
+        offlineSongs: List<SongEntity>,
+        isOffline: Boolean,
+        startIndex: Int = 0
+    ) {
+        scope.launch {
+            if (isOffline || networkHelper.isCurrentConnectionOffline || onlineSongs.isEmpty()) {
+                if (offlineSongs.isNotEmpty()) {
+                    val mediaItems = offlineSongs.map { songEntityToMediaItem(it) }
+                    val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+                    musicController.playQueue(mediaItems, safeIndex)
+                }
+                return@launch
+            }
+
+            val server = serverDao.getActiveServer() ?: return@launch
+            urlInterceptor.setBaseUrl(server.url)
+            val quality = getStreamQuality()
+
+            val mediaItems = onlineSongs.map { songDtoToMediaItem(it, server, quality) }
+            if (mediaItems.isNotEmpty()) {
+                val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+                musicController.playQueue(mediaItems, safeIndex)
+            }
+        }
+    }
+
+    fun playSongById(songId: String, scope: CoroutineScope) {
+        scope.launch {
+            val localSong = musicRepository.getSongById(songId)
+            if (localSong != null) {
+                val mediaItem = songEntityToMediaItem(localSong)
+                musicController.playQueue(listOf(mediaItem), 0)
+                return@launch
+            }
+
+            val server = serverDao.getActiveServer() ?: return@launch
+            urlInterceptor.setBaseUrl(server.url)
+            val quality = getStreamQuality()
+
+            try {
+                val response = kotlinx.coroutines.withTimeout(3000L) {
+                    api.getSong(
+                        id = songId,
+                        u = server.username,
+                        t = server.token,
+                        s = server.salt
+                    )
+                }
+                val dto = response.response.song
+                if (dto != null) {
+                    val mediaItem = songDtoToMediaItem(dto, server, quality)
+                    musicController.playQueue(listOf(mediaItem), 0)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun songDtoToMediaItem(songDto: SongDto, server: ServerEntity, quality: StreamQuality): MediaItem {
         val streamUrl = com.example.neosynth.utils.StreamUrlBuilder.buildStreamUrl(server, songDto.id, quality)
         val coverUrl = buildCoverArtUrl(server, songDto.coverArt)

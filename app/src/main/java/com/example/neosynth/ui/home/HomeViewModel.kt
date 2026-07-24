@@ -55,6 +55,9 @@ class HomeViewModel @Inject constructor(
     // --- Core Home State ---
     var recentlyAdded by mutableStateOf<List<Album>>(emptyList())
     var randomCoverArts by mutableStateOf<List<String>>(emptyList())
+    var randomSongsDto by mutableStateOf<List<com.example.neosynth.data.remote.responses.SongDto>>(emptyList())
+    var randomDownloadedSongs by mutableStateOf<List<com.example.neosynth.data.local.entities.SongEntity>>(emptyList())
+    var isFirstRandomPlay by mutableStateOf(true)
     var isLoading by mutableStateOf(false)
     var isRefreshing by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
@@ -207,7 +210,9 @@ class HomeViewModel @Inject constructor(
             
             val randomDownloaded = musicRepository.getRandomDownloadedSongs(3)
             if (randomDownloaded.isNotEmpty()) {
+                randomDownloadedSongs = randomDownloaded
                 randomCoverArts = randomDownloaded.mapNotNull { it.imageUrl }
+                isFirstRandomPlay = true
             }
             
             if (recentDownloads.isNotEmpty() || randomDownloaded.isNotEmpty()) {
@@ -254,7 +259,7 @@ class HomeViewModel @Inject constructor(
     
     private suspend fun loadRandomSongs(server: com.example.neosynth.data.local.entities.ServerEntity) {
         val resposeRandom = api.getRandomSongs(
-            size = 3,
+            size = 25,
             u = server.username,
             t = server.token,
             s = server.salt,
@@ -263,9 +268,11 @@ class HomeViewModel @Inject constructor(
             f = "json"
         )
         val randomSongs = resposeRandom.response.randomSongs?.song.orEmpty()
-        randomCoverArts = randomSongs.mapNotNull { songDto ->
+        randomSongsDto = randomSongs
+        randomCoverArts = randomSongs.take(3).mapNotNull { songDto ->
             buildCoverArtUrl(server, songDto.coverArt)
         }
+        isFirstRandomPlay = true
     }
 
     fun refresh() {
@@ -298,10 +305,8 @@ class HomeViewModel @Inject constructor(
                 isOfflineMode = false
                 loadRecentAlbums(server)
                 loadRandomSongs(server)
-                randomSongsLoaded = true
-                albumsLoaded = true
-                    
             } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Refresh failed: ${e.message}")
                 isOfflineMode = true
                 loadOfflineData()
             } finally {
@@ -313,9 +318,36 @@ class HomeViewModel @Inject constructor(
     // --- Delegated Actions ---
 
     fun playShuffle() {
-        playerHandler.playShuffle(viewModelScope, _uiEvent, isOfflineMode) { covers ->
-            randomCoverArts = covers
+        if (isFirstRandomPlay && (randomSongsDto.isNotEmpty() || randomDownloadedSongs.isNotEmpty())) {
+            isFirstRandomPlay = false
+            playerHandler.playPreloadedRandomSongs(
+                scope = viewModelScope,
+                onlineSongs = randomSongsDto,
+                offlineSongs = randomDownloadedSongs,
+                isOffline = isOfflineMode,
+                startIndex = 0
+            )
+        } else {
+            isFirstRandomPlay = false
+            playerHandler.playShuffle(viewModelScope, _uiEvent, isOfflineMode) { covers ->
+                randomCoverArts = covers
+            }
         }
+    }
+
+    fun playRandomMixSongAt(index: Int) {
+        isFirstRandomPlay = false
+        playerHandler.playPreloadedRandomSongs(
+            scope = viewModelScope,
+            onlineSongs = randomSongsDto,
+            offlineSongs = randomDownloadedSongs,
+            isOffline = isOfflineMode,
+            startIndex = index
+        )
+    }
+
+    fun playTopSong(songId: String) {
+        playerHandler.playSongById(songId, viewModelScope)
     }
     
     fun playAlbum(album: Album, shuffle: Boolean = false) {

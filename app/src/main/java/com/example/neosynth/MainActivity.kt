@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 NeoSynth_androidTheme(
                     darkTheme = useDarkTheme,
+                    colorPalette = appSettings.colorPalette,
                     dynamicColor = useDynamicColor
                 ) {
                     val navController = rememberNavController()

@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PlaybackHistoryDao {
     @Insert
-    suspend fun insert(playbackHistory: PlaybackHistoryEntity)
+    suspend fun insert(playbackHistory: PlaybackHistoryEntity): Long
+
+    @Query("UPDATE playback_history SET durationListened = :durationListened WHERE id = :historyId")
+    suspend fun updateDurationListened(historyId: Long, durationListened: Long)
 
     @Query("SELECT * FROM playback_history ORDER BY timestamp DESC")
     fun getAllHistory(): Flow<List<PlaybackHistoryEntity>>

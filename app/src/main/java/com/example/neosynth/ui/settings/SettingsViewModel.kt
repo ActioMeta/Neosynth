@@ -214,6 +214,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateColorPalette(palette: AppColorPalette) {
+        viewModelScope.launch {
+            settingsPreferences.updateColorPalette(palette)
+        }
+    }
+
     fun updateVisualizerEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsPreferences.updateVisualizerEnabled(enabled)

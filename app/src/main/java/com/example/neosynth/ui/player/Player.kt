@@ -425,17 +425,22 @@ fun PlayerScreen(
                         label = "cover_spring"
                     )
 
-                    val coverShape = RoundedCornerShape(24.dp)
+                    val coverShape = RoundedCornerShape(20.dp)
                     with(sharedTransitionScope) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(
                                     if (pageSong != null) {
-                                        Modifier.sharedBounds(
-                                            sharedContentState = rememberSharedContentState(key = "cover_${pageSong.mediaId}"),
+                                        Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState(key = "cover_${pageSong.mediaId ?: "current"}"),
                                             animatedVisibilityScope = animatedVisibilityScope,
-                                            clipInOverlayDuringTransition = OverlayClip(coverShape)
+                                            boundsTransform = { _, _ ->
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessLow
+                                                )
+                                            }
                                         )
                                     } else Modifier
                                 )
@@ -653,6 +658,9 @@ fun PlayerScreen(
              }
         }
         
+        val activeCoverUrl = song?.mediaMetadata?.artworkUri?.toString()
+        val coverPalette = com.example.neosynth.ui.album.rememberAlbumPalette(activeCoverUrl)
+
         if (visualizerEnabled && hasAudioPermission) {
             val audioSessionId by musicController.audioSessionId
             com.example.neosynth.ui.components.AudioVisualizerSlider(
@@ -664,11 +672,12 @@ fun PlayerScreen(
                 onProgressChange = { newProgress ->
                     musicController.seekTo((newProgress * duration).toLong())
                 },
-                color = MaterialTheme.colorScheme.primary
+                color = coverPalette.accent
             )
         } else {
              AnimatedPlayerSlider(
-                musicController = musicController
+                musicController = musicController,
+                accentColor = coverPalette.accent
             )
         }
         
@@ -686,7 +695,7 @@ fun PlayerScreen(
                 Icon(
                     imageVector = Icons.Rounded.Shuffle,
                     contentDescription = "Aleatorio",
-                    tint = if (shuffleActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    tint = if (shuffleActive) coverPalette.accent else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -721,7 +730,7 @@ fun PlayerScreen(
                     Icons.Rounded.SkipPrevious, 
                     stringResource(R.string.previous), 
                     modifier = Modifier.size(46.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = coverPalette.accent
                 )
             }
 
@@ -753,7 +762,7 @@ fun PlayerScreen(
                         scaleY = scalePlay
                     },
                 shape = RoundedCornerShape(percent = cornerRadiusPercent.coerceIn(0, 100)), // Using percent for square->circle
-                color = MaterialTheme.colorScheme.primary,
+                color = coverPalette.accent,
                 shadowElevation = if (isPressedPlay) 4.dp else 12.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -768,7 +777,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = if (playing) stringResource(R.string.action_pause) else stringResource(R.string.action_play),
-                            tint = Color.Black,
+                            tint = coverPalette.onAccent,
                             modifier = Modifier.size(40.dp)
                         )
                     }
@@ -804,7 +813,7 @@ fun PlayerScreen(
                     Icons.Rounded.SkipNext, 
                     stringResource(R.string.next), 
                     modifier = Modifier.size(46.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = coverPalette.accent
                 )
             }
 
@@ -879,6 +888,8 @@ private fun QueueBottomSheet(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
+    var showQueueOptionsSheet by remember { mutableStateOf(false) }
+    var showSavePlaylistDialog by remember { mutableStateOf(false) }
     
     // Estado para drag & drop
     var displayQueue by remember { mutableStateOf(queue) }
@@ -958,49 +969,83 @@ private fun QueueBottomSheet(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
-                // Header con título
+                // Action Controls Bar sobre la cola de reproducción (M3 Expressive)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp),
+                        .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                  Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = context.getString(R.string.queue_title),
-                style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    // Botón Aleatorio / Shuffle (Píldora oscura)
+                    val isShuffleOn = musicController.shuffleModeEnabled.value
+                    Surface(
+                        onClick = { musicController.toggleShuffle() },
+                        shape = CircleShape,
+                        color = if (isShuffleOn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.height(38.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = "Aleatorio",
+                                tint = if (isShuffleOn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Aleatorio",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isShuffleOn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Contador / Hint de reordenar
+                    Text(
+                        text = if (draggedIndex >= 0) "Soltar para reordenar" else "${queue.size} canciones",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = if (draggedIndex >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // Botones Limpiar Queue y Opciones
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                musicController.clearQueue()
+                                onShowSnackbar("Cola de reproducción limpiada")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteSweep,
+                                contentDescription = "Limpiar cola",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                showQueueOptionsSheet = true
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = "Opciones",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
-                }
-                
-                Row(
-                    modifier = Modifier.padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    tint = if (draggedIndex >= 0)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (draggedIndex >= 0) 
-                        context.getString(R.string.drag_to_reorder)
-                    else
-                        context.getString(R.string.hold_to_reorder, queue.size),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (draggedIndex >= 0)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
 
             LazyColumn(
                 state = listState,
@@ -1008,7 +1053,7 @@ private fun QueueBottomSheet(
                     .fillMaxWidth()
                     .weight(1f, fill = true), // Take all space above FAB
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(bottom = 88.dp) // Space for FAB
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 itemsIndexed(
                     items = displayQueue,
@@ -1113,95 +1158,7 @@ private fun QueueBottomSheet(
                     }
                 }
             }
-            // ---------------------------
         } // End of Column inner content
-        
-        // FAB Group overlay
-        var showSavePlaylistDialog by remember { mutableStateOf(false) }
-        var showQueueOptionsSheet by remember { mutableStateOf(false) }
-        if (queue.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Button 1: Clear Queue
-                val clearInteraction = remember { MutableInteractionSource() }
-                val clearScale by rememberBounceScale(clearInteraction)
-                IconButton(
-                    onClick = {
-                        musicController.clearQueue()
-                        onDismiss()
-                    },
-                    interactionSource = clearInteraction,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f))
-                        .graphicsLayer {
-                            scaleX = clearScale
-                            scaleY = clearScale
-                         }
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.ClearAll,
-                        contentDescription = context.getString(R.string.action_clear),
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
-
-                // Button 2: Shuffle
-                val shuffleInteraction = remember { MutableInteractionSource() }
-                val shuffleScale by rememberBounceScale(shuffleInteraction)
-                IconButton(
-                    onClick = {
-                        musicController.toggleShuffle()
-                        onShowSnackbar(context.getString(R.string.action_shuffle))
-                    },
-                    interactionSource = shuffleInteraction,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
-                        .graphicsLayer {
-                            scaleX = shuffleScale
-                            scaleY = shuffleScale
-                        }
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Shuffle,
-                        contentDescription = context.getString(R.string.action_shuffle),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
-                // Button 3: Options (More options bottom sheet)
-                val moreInteraction = remember { MutableInteractionSource() }
-                val moreScale by rememberBounceScale(moreInteraction)
-                IconButton(
-                    onClick = { showQueueOptionsSheet = true },
-                    interactionSource = moreInteraction,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
-                        .graphicsLayer {
-                            scaleX = moreScale
-                            scaleY = moreScale
-                        }
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Menu,
-                        contentDescription = context.getString(R.string.action_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
 
         if (showQueueOptionsSheet) {
             val qSheetState = rememberModalBottomSheetState()

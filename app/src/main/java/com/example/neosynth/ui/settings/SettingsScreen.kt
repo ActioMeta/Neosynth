@@ -69,6 +69,7 @@ fun SettingsScreen(
     
     var showQualityDialog by remember { mutableStateOf<QualityDialogType?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showPaletteDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
     var showServersListDialog by remember { mutableStateOf(false) }
@@ -112,7 +113,7 @@ fun SettingsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 180.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Server Section
+            // 1. Server Section
             item {
                 SettingsSection(title = stringResource(R.string.server_title)) {
                     SettingsCard {
@@ -138,7 +139,112 @@ fun SettingsScreen(
                 }
             }
 
-            // Storage Section
+            // 2. Appearance Section
+            item {
+                SettingsSection(title = stringResource(R.string.settings_appearance)) {
+                    SettingsCard {
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Palette,
+                            title = stringResource(R.string.settings_theme),
+                            subtitle = getThemeLabel(appSettings.themeMode),
+                            onClick = { showThemeDialog = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.ColorLens,
+                            title = "Paleta de colores",
+                            subtitle = when (appSettings.colorPalette) {
+                                AppColorPalette.MATERIAL_YOU -> "Material You (Dinámico)"
+                                AppColorPalette.NEOSYNTH -> "NeoSynth (Púrpura suave / Lila)"
+                                AppColorPalette.TOKYO_NIGHT -> "Tokyo Night (Azul Slate / Pastel)"
+                            },
+                            onClick = { showPaletteDialog = true }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Language,
+                            title = stringResource(R.string.settings_language),
+                            subtitle = currentLanguageStr,
+                            onClick = { showLanguageDialog = true }
+                        )
+                    }
+                }
+            }
+
+            // 3. Playback & Audio Section
+            item {
+                SettingsSection(title = stringResource(R.string.settings_playback)) {
+                    SettingsCard {
+                        SettingsSwitchItem(
+                            icon = Icons.Rounded.GraphicEq,
+                            title = stringResource(R.string.settings_playback_fade_in),
+                            subtitle = stringResource(R.string.settings_playback_fade_in_desc),
+                            checked = audioSettings.crossfadeEnabled,
+                            onCheckedChange = { viewModel.updateCrossfadeEnabled(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchItem(
+                            icon = Icons.Rounded.Headphones,
+                            title = stringResource(R.string.settings_playback_crossfeed),
+                            subtitle = stringResource(R.string.settings_playback_crossfeed_desc),
+                            checked = audioSettings.crossfeedEnabled,
+                            onCheckedChange = { viewModel.updateCrossfeedEnabled(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsSwitchItem(
+                            icon = Icons.Rounded.VolumeUp,
+                            title = stringResource(R.string.settings_playback_normalize),
+                            subtitle = stringResource(R.string.settings_playback_normalize_desc),
+                            checked = audioSettings.normalizeVolume,
+                            onCheckedChange = { viewModel.updateNormalizeVolume(it) }
+                        )
+                    }
+                }
+            }
+
+            // 4. Streaming Quality Section
+            item {
+                SettingsSection(title = stringResource(R.string.settings_audio_streaming)) {
+                    SettingsCard {
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Wifi,
+                            title = stringResource(R.string.settings_stream_wifi),
+                            subtitle = getStreamQualityLabel(audioSettings.streamWifiQuality),
+                            onClick = { showQualityDialog = QualityDialogType.STREAM_WIFI }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.SignalCellularAlt,
+                            title = stringResource(R.string.settings_stream_mobile),
+                            subtitle = getStreamQualityLabel(audioSettings.streamMobileQuality),
+                            onClick = { showQualityDialog = QualityDialogType.STREAM_MOBILE }
+                        )
+                    }
+                }
+            }
+
+            // 5. Download Quality Section
+            item {
+                SettingsSection(title = stringResource(R.string.settings_audio_download)) {
+                    SettingsCard {
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Wifi,
+                            title = stringResource(R.string.settings_download_wifi),
+                            subtitle = getDownloadQualityLabel(audioSettings.downloadWifiQuality),
+                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_WIFI }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.SignalCellularAlt,
+                            title = stringResource(R.string.settings_download_mobile),
+                            subtitle = getDownloadQualityLabel(audioSettings.downloadMobileQuality),
+                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_MOBILE }
+                        )
+                    }
+                }
+            }
+
+            // 6. Storage Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_storage)) {
                     SettingsCard {
@@ -172,102 +278,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Playback Section
-            item {
-                SettingsSection(title = stringResource(R.string.settings_playback)) {
-                    SettingsCard {
-                        SettingsSwitchItem(
-                            icon = Icons.Rounded.GraphicEq,
-                            title = stringResource(R.string.settings_playback_fade_in),
-                            subtitle = stringResource(R.string.settings_playback_fade_in_desc),
-                            checked = audioSettings.crossfadeEnabled,
-                            onCheckedChange = { viewModel.updateCrossfadeEnabled(it) }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsSwitchItem(
-                            icon = Icons.Rounded.Headphones,
-                            title = stringResource(R.string.settings_playback_crossfeed),
-                            subtitle = stringResource(R.string.settings_playback_crossfeed_desc),
-                            checked = audioSettings.crossfeedEnabled,
-                            onCheckedChange = { viewModel.updateCrossfeedEnabled(it) }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsSwitchItem(
-                            icon = Icons.Rounded.VolumeUp,
-                            title = stringResource(R.string.settings_playback_normalize),
-                            subtitle = stringResource(R.string.settings_playback_normalize_desc),
-                            checked = audioSettings.normalizeVolume,
-                            onCheckedChange = { viewModel.updateNormalizeVolume(it) }
-                        )
-                    }
-                }
-            }
-
-            // Quality Section
-            item {
-                SettingsSection(title = stringResource(R.string.settings_audio_streaming)) {
-                    SettingsCard {
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.Wifi,
-                            title = stringResource(R.string.settings_stream_wifi),
-                            subtitle = getStreamQualityLabel(audioSettings.streamWifiQuality),
-                            onClick = { showQualityDialog = QualityDialogType.STREAM_WIFI }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.SignalCellularAlt,
-                            title = stringResource(R.string.settings_stream_mobile),
-                            subtitle = getStreamQualityLabel(audioSettings.streamMobileQuality),
-                            onClick = { showQualityDialog = QualityDialogType.STREAM_MOBILE }
-                        )
-                    }
-                }
-            }
-
-            // Download Quality Section
-            item {
-                SettingsSection(title = stringResource(R.string.settings_audio_download)) {
-                    SettingsCard {
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.Wifi,
-                            title = stringResource(R.string.settings_download_wifi),
-                            subtitle = getDownloadQualityLabel(audioSettings.downloadWifiQuality),
-                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_WIFI }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.SignalCellularAlt,
-                            title = stringResource(R.string.settings_download_mobile),
-                            subtitle = getDownloadQualityLabel(audioSettings.downloadMobileQuality),
-                            onClick = { showQualityDialog = QualityDialogType.DOWNLOAD_MOBILE }
-                        )
-                    }
-                }
-            }
-
-            // Appearance Section
-            item {
-                SettingsSection(title = stringResource(R.string.settings_appearance)) {
-                    SettingsCard {
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.Palette,
-                            title = stringResource(R.string.settings_theme),
-                            subtitle = getThemeLabel(appSettings.themeMode),
-                            onClick = { showThemeDialog = true }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.Language,
-                            title = stringResource(R.string.settings_language),
-                            subtitle = currentLanguageStr,
-                            onClick = { showLanguageDialog = true }
-                        )
-                        // Dynamic Colors removed
-                    }
-                }
-            }
-
-            // External Services Section
+            // 7. External Services & IA Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_services)) {
                     SettingsCard {
@@ -281,7 +292,7 @@ fun SettingsScreen(
                 }
             }
 
-            // About Section
+            // 8. About Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_about)) {
                     SettingsCard {
@@ -367,6 +378,17 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showPaletteDialog) {
+        PalettePickerDialog(
+            currentPalette = appSettings.colorPalette,
+            onPaletteSelected = {
+                viewModel.updateColorPalette(it)
+                showPaletteDialog = false
+            },
+            onDismiss = { showPaletteDialog = false }
         )
     }
     
@@ -1184,6 +1206,76 @@ private fun ServersListDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_close))
+            }
+        }
+    )
+}
+
+@Composable
+private fun PalettePickerDialog(
+    currentPalette: AppColorPalette,
+    onPaletteSelected: (AppColorPalette) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ColorLens,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Paleta de Colores", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    AppColorPalette.MATERIAL_YOU to ("Material You" to "Colores dinámicos del sistema (Android 12+)"),
+                    AppColorPalette.NEOSYNTH to ("NeoSynth" to "Púrpura real elegante con fondo negro profundo"),
+                    AppColorPalette.TOKYO_NIGHT to ("Tokyo Night" to "Fondo slate oscuro con azul pastel y cian neón")
+                ).forEach { (palette, info) ->
+                    val isSelected = palette == currentPalette
+                    Surface(
+                        onClick = { onPaletteSelected(palette) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onPaletteSelected(palette) }
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = info.first,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = info.second,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

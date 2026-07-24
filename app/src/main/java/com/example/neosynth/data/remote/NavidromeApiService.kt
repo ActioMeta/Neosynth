@@ -75,6 +75,17 @@ interface NavidromeApiService {
         @Query("f") f: String = "json"
     ): SubsonicResponse
 
+    @GET("rest/getSong")
+    suspend fun getSong(
+        @Query("id") id: String,
+        @Query("u") u: String,
+        @Query("t") t: String,
+        @Query("s") s: String,
+        @Query("v") v: String = "1.16.1",
+        @Query("c") c: String = "NeoSynth",
+        @Query("f") f: String = "json"
+    ): SubsonicResponse
+
     @GET("rest/getGenres")
     suspend fun getGenres(
         @Query("u") u: String,

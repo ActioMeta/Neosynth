@@ -102,7 +102,17 @@ fun NeosynthNavGraph(
 
             composable("downloads") {
                 DownloadsScreen(
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onAlbumClick = { albumId ->
+                        navController.navigate("album/$albumId")
+                    },
+                    onArtistClick = { artistId, artistName ->
+                        val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                        navController.navigate("artist/$artistId/$encodedName")
+                    },
+                    onPlaylistClick = { playlistId ->
+                        navController.navigate("playlist/$playlistId")
+                    }
                 )
             }
 

@@ -61,7 +61,11 @@ fun LibraryScreen(
     val favoriteSongsCount by viewModel.favoriteSongsCount.collectAsStateWithLifecycle()
     
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf(stringResource(R.string.tab_playlists), stringResource(R.string.tab_albums), stringResource(R.string.tab_artists))
+    val tabs = listOf(
+        Pair(stringResource(R.string.tab_playlists), Icons.Rounded.QueueMusic),
+        Pair(stringResource(R.string.tab_albums), Icons.Rounded.Album),
+        Pair(stringResource(R.string.tab_artists), Icons.Rounded.Person)
+    )
     
     // Dialogs
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -111,30 +115,91 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tabs with Segmented Buttons
-            SingleChoiceSegmentedButtonRow(
+            // Hero Stats Summary Card M3 Expressive
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
             ) {
-                tabs.forEachIndexed { index, title ->
-                    val tabInteraction = remember { MutableInteractionSource() }
-                    val tabScale by rememberBounceScale(tabInteraction)
-                    SegmentedButton(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
-                        interactionSource = tabInteraction,
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = tabScale
-                            scaleY = tabScale
-                        }
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Text(
-                            text = title,
-                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                            text = "${playlists.size} playlists • ${albums.size} álbumes • ${artists.size} artistas",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
                         )
                     }
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "$favoriteSongsCount ♥",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Tabs con Filter Chips Expressive
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tabs.forEachIndexed { index, (title, icon) ->
+                    val selected = selectedTab == index
+                    val chipInteraction = remember { MutableInteractionSource() }
+                    val chipScale by rememberBounceScale(chipInteraction)
+                    
+                    FilterChip(
+                        selected = selected,
+                        onClick = { selectedTab = index },
+                        label = {
+                            Text(
+                                text = title,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        shape = CircleShape,
+                        interactionSource = chipInteraction,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = chipScale
+                            scaleY = chipScale
+                        }
+                    )
                 }
             }
 
@@ -214,6 +279,7 @@ private fun PlaylistsTab(
     playlists: List<PlaylistDto>,
     pinnedPlaylistIds: Set<String>,
     favoriteSongsCount: Int,
+
     onTogglePinPlaylist: (String) -> Unit,
     getCoverUrl: (String?) -> String?,
     onPlaylistClick: (String) -> Unit,
@@ -382,6 +448,7 @@ private fun PlaylistsTab(
 private fun AlbumsTab(
     albums: List<AlbumDto>,
     pinnedAlbumIds: Set<String>,
+
     onTogglePinAlbum: (String) -> Unit,
     isLoadingMoreAlbums: Boolean,
     getCoverUrl: (String?) -> String?,
@@ -688,6 +755,7 @@ private fun AlbumRow(
 private fun ArtistsTab(
     artists: List<ArtistDto>,
     pinnedArtistIds: Set<String>,
+
     onTogglePinArtist: (String) -> Unit,
     onArtistClick: (String, String) -> Unit
 ) {

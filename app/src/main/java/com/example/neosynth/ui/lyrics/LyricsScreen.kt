@@ -22,6 +22,8 @@ import androidx.compose.material.icons.rounded.ManageSearch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.*
@@ -215,8 +217,6 @@ fun LyricsScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
-                .animateContentSize(animationSpec = tween(durationMillis = 600))
-                // Child clickable handlers win over this in Compose's gesture arena
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -225,8 +225,8 @@ fun LyricsScreen(
             // Header con botón cerrar
             AnimatedVisibility(
                 visible = showUi,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn(animationSpec = tween(300)) + slideInVertically(animationSpec = tween(300)) { fullHeight -> -fullHeight / 2 },
+                exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(animationSpec = tween(300)) { fullHeight -> -fullHeight / 2 }
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

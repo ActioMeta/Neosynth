@@ -161,25 +161,33 @@ class PlaybackService : MediaSessionService() {
                         
                         var elapsedMs = 0L
                         val checkIntervalMs = 1000L
+                        var historyId: Long? = null
                         
-                        while (elapsedMs < targetTimeMs) {
-                            kotlinx.coroutines.delay(checkIntervalMs)
-                            if (exoPlayer.isPlaying && exoPlayer.currentMediaItem?.mediaId == songId) {
-                                elapsedMs += checkIntervalMs
+                        try {
+                            while (exoPlayer.currentMediaItem?.mediaId == songId) {
+                                kotlinx.coroutines.delay(checkIntervalMs)
+                                if (exoPlayer.isPlaying && exoPlayer.currentMediaItem?.mediaId == songId) {
+                                    elapsedMs += checkIntervalMs
+                                    
+                                    if (elapsedMs >= targetTimeMs && historyId == null) {
+                                        historyId = statsRepository.recordPlayback(
+                                            songId = songId,
+                                            title = title,
+                                            artist = artist,
+                                            durationListened = elapsedMs
+                                        )
+                                        currentTrackLogged = true
+                                    } else if (historyId != null && elapsedMs % 5000L == 0L) {
+                                        statsRepository.updateDurationListened(historyId, elapsedMs)
+                                    }
+                                }
                             }
-                            if (exoPlayer.currentMediaItem?.mediaId != songId) {
-                                break
+                        } finally {
+                            historyId?.let { id ->
+                                if (elapsedMs > 0) {
+                                    statsRepository.updateDurationListened(id, elapsedMs)
+                                }
                             }
-                        }
-                        
-                        if (exoPlayer.currentMediaItem?.mediaId == songId && !currentTrackLogged) {
-                            statsRepository.recordPlayback(
-                                songId = songId,
-                                title = title,
-                                artist = artist,
-                                durationListened = elapsedMs
-                            )
-                            currentTrackLogged = true
                         }
                     }
                 }

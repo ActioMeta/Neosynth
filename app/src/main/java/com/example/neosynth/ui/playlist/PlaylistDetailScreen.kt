@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
+import com.example.neosynth.ui.stats.rememberBounceScale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +75,8 @@ fun PlaylistDetailScreen(
     // Multi-selection state
     var selectedSongIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelectionMode = selectedSongIds.isNotEmpty()
+    var showMultiSelectGridBottomSheet by remember { mutableStateOf(false) }
+    var showPlaylistPicker by remember { mutableStateOf(false) }
 
     val currentSong by viewModel.musicController.currentMediaItem
     val isMiniPlayerVisible = currentSong != null
@@ -98,275 +101,319 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = listBottomPadding)
             ) {
-                // Header
+                // Header Hero con cover de playlist y difuminado hacia abajo (Visible desde el frame 0)
                 item {
+                    val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
+                    val coverShape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+                    val palette = com.example.neosynth.ui.album.rememberAlbumPalette(coverUrl)
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(530.dp)
+                            .height(370.dp)
                     ) {
-                        // Background gradient
+                        // Imagen de portada Hero
+                        if (coverUrl != null) {
+                            AsyncImage(
+                                model = coverUrl,
+                                contentDescription = playlist?.name,
+                                modifier = Modifier
+                                    .clip(coverShape)
+                                    .fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(coverShape)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.QueueMusic,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(90.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Gradiente difuminado hacia abajo usando el color del Palette
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    brush = Brush.verticalGradient(
+                                    Brush.verticalGradient(
                                         colorStops = arrayOf(
-                                            0.0f to primaryColor.copy(alpha = 0.35f),
-                                            0.35f to primaryColor.copy(alpha = 0.2f),
-                                            0.55f to primaryColor.copy(alpha = 0.1f),
-                                            0.75f to backgroundColor.copy(alpha = 0.9f),
+                                            0.0f to androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.25f),
+                                            0.35f to androidx.compose.ui.graphics.Color.Transparent,
+                                            0.75f to palette.accent.copy(alpha = 0.5f),
                                             1.0f to backgroundColor
                                         )
                                     )
                                 )
                         )
 
+                        // Título de la Playlist sobre el cover en la esquina inferior izquierda
                         Column(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .statusBarsPadding()
-                                .padding(top = 56.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .align(Alignment.BottomStart)
+                                .padding(start = 20.dp, bottom = 16.dp, end = 170.dp)
                         ) {
-                            // Playlist Cover
-                            val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
-                            if (coverUrl != null) {
-                                Card(
-                                    modifier = Modifier.size(160.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
-                                ) {
-                                    AsyncImage(
-                                        model = coverUrl,
-                                        contentDescription = playlist?.name,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
-                            } else {
-                                Card(
-                                    modifier = Modifier.size(160.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                    )
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                            Text(
+                                text = playlist?.name ?: "",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = androidx.compose.ui.graphics.Color.White,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Botones juntos (Play 68dp + Random 52dp + Sync 46dp) con Palette en la esquina inferior derecha
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 20.dp, bottom = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Botón de sincronizar (más pequeño 46dp)
+                            val syncInteraction = remember { MutableInteractionSource() }
+                            val syncScale by rememberBounceScale(syncInteraction)
+                            val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+                            Surface(
+                                onClick = { viewModel.syncPlaylist() },
+                                interactionSource = syncInteraction,
+                                enabled = !isSyncing,
+                                shape = CircleShape,
+                                color = palette.container,
+                                tonalElevation = 6.dp,
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .graphicsLayer {
+                                        scaleX = syncScale
+                                        scaleY = syncScale
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (isSyncing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = palette.accent
+                                        )
+                                    } else {
                                         Icon(
-                                            imageVector = Icons.Rounded.QueueMusic,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            imageVector = Icons.Rounded.Sync,
+                                            contentDescription = stringResource(R.string.action_sync_playlist),
+                                            tint = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Playlist name
-                            Text(
-                                text = playlist?.name ?: "",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Song count
-                            Text(
-                                text = stringResource(R.string.library_songs_count, songs.size),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            // Botones compactos (solo iconos) como en AlbumDetail
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 24.dp)
+                            // Botón de aleatorio (52dp, icono gris claro)
+                            val shuffleInteraction = remember { MutableInteractionSource() }
+                            val shuffleScale by rememberBounceScale(shuffleInteraction)
+                            Surface(
+                                onClick = { viewModel.shufflePlay() },
+                                interactionSource = shuffleInteraction,
+                                shape = CircleShape,
+                                color = palette.container,
+                                tonalElevation = 6.dp,
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .graphicsLayer {
+                                        scaleX = shuffleScale
+                                        scaleY = shuffleScale
+                                    }
                             ) {
-                                // Botón Play (grande y prominente)
-                                AnimatedIconButton(
-                                    onClick = { viewModel.playPlaylist() },
-                                    icon = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(R.string.action_play),
-                                    isPrimary = true,
-                                    size = 64.dp,
-                                    iconSize = 36.dp
-                                )
-                                
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // Botones secundarios más pequeños
-                                AnimatedIconButton(
-                                    onClick = { viewModel.shufflePlay() },
-                                    icon = Icons.Rounded.Shuffle,
-                                    contentDescription = stringResource(R.string.action_shuffle),
-                                    size = 48.dp,
-                                    iconSize = 24.dp
-                                )
-
-                                val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
-                                AnimatedIconButton(
-                                    onClick = { viewModel.syncPlaylist() },
-                                    icon = if (isSyncing) Icons.Rounded.Sync else Icons.Rounded.CloudSync,
-                                    contentDescription = stringResource(R.string.action_sync_playlist),
-                                    size = 48.dp,
-                                    iconSize = 24.dp
-                                )
-
-                                AnimatedIconButton(
-                                    onClick = { viewModel.downloadPlaylist() },
-                                    icon = Icons.Rounded.Download,
-                                    contentDescription = stringResource(R.string.action_download_playlist),
-                                    size = 48.dp,
-                                    iconSize = 24.dp
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Shuffle,
+                                        contentDescription = stringResource(R.string.action_shuffle),
+                                        tint = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            // Botón de reproducir (más grande 68dp, M3 Expressive shape)
+                            val playInteraction = remember { MutableInteractionSource() }
+                            val playScale by rememberBounceScale(playInteraction)
+                            val playExpressiveShape = RoundedCornerShape(
+                                topStart = 28.dp,
+                                topEnd = 12.dp,
+                                bottomEnd = 28.dp,
+                                bottomStart = 12.dp
+                            )
+
+                            Surface(
+                                onClick = { viewModel.playPlaylist() },
+                                interactionSource = playInteraction,
+                                shape = playExpressiveShape,
+                                color = palette.accent,
+                                tonalElevation = 8.dp,
+                                shadowElevation = 8.dp,
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .graphicsLayer {
+                                        scaleX = playScale
+                                        scaleY = playScale
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = stringResource(R.string.action_play),
+                                        tint = palette.onAccent,
+                                        modifier = Modifier.size(38.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
-                // Songs header
-                item {
-                    Text(
-                        text = stringResource(R.string.discover_songs),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-                    )
-                }
+            // Fila debajo del cover: Chips de información o Control de Selección animado (AnimatedSelectionRow)
+            item {
+                val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
+                val palette = com.example.neosynth.ui.album.rememberAlbumPalette(coverUrl)
 
-                // Songs list
-                if (songs.isEmpty()) {
-                    item {
-                        Box(
+                com.example.neosynth.ui.components.AnimatedSelectionRow(
+                    isSelectionMode = isSelectionMode,
+                    selectedCount = selectedSongIds.size,
+                    totalCount = songs.size,
+                    onSelectAll = { selectedSongIds = songs.map { it.id }.toSet() },
+                    onClearSelection = { selectedSongIds = emptySet() },
+                    onOpenOptionsGrid = { showMultiSelectGridBottomSheet = true },
+                    accentColor = palette.accent,
+                    infoContent = {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MusicNote,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = palette.accent.copy(alpha = 0.22f)
+                            ) {
                                 Text(
-                                    text = stringResource(R.string.playlist_empty),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = stringResource(R.string.library_songs_count, songs.size),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                                 )
                             }
                         }
                     }
-                } else {
-                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                        PlaylistSongRow(
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            index = index + 1,
-                            song = song,
-                            isDownloaded = song.id in downloadedIds,
-                            isSelected = song.id in selectedSongIds,
-                            isSelectionMode = isSelectionMode,
-                            coverUrl = viewModel.getCoverUrl(song.coverArt),
-                            onClick = {
-                                if (isSelectionMode) {
-                                    selectedSongIds = if (song.id in selectedSongIds) {
-                                        selectedSongIds - song.id
-                                    } else {
-                                        selectedSongIds + song.id
-                                    }
-                                } else {
-                                    viewModel.playSong(song)
-                                }
-                            },
-                            onLongClick = {
-                                if (!isSelectionMode) {
-                                    selectedSongIds = setOf(song.id)
-                                }
-                            },
-                            onRemove = { showDeleteSongDialog = index to song }
-                        )
+                )
+            }
+
+            // Lista de canciones
+            if (songs.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.playlist_empty),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                }
+            } else {
+                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                    PlaylistSongRow(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        index = index + 1,
+                        song = song,
+                        isDownloaded = song.id in downloadedIds,
+                        isSelected = song.id in selectedSongIds,
+                        isSelectionMode = isSelectionMode,
+                        coverUrl = viewModel.getCoverUrl(song.coverArt),
+                        onClick = {
+                            if (isSelectionMode) {
+                                selectedSongIds = if (song.id in selectedSongIds) {
+                                    selectedSongIds - song.id
+                                } else {
+                                    selectedSongIds + song.id
+                                }
+                            } else {
+                                viewModel.playSong(song)
+                            }
+                        },
+                        onLongClick = {
+                            if (!isSelectionMode) {
+                                selectedSongIds = setOf(song.id)
+                            }
+                        },
+                        onRemove = { showDeleteSongDialog = index to song }
+                    )
                 }
             }
         }
+        }
 
-        var showPlaylistPicker by remember { mutableStateOf(false) }
-        val bottomPaddingOffset = if (isMiniPlayerVisible) 180.dp else 100.dp
-
-        BottomMultiSelectBar(
-            visible = selectedSongIds.isNotEmpty(),
-            selectedCount = selectedSongIds.size,
-            onClearSelection = { selectedSongIds = emptySet() },
-            onPlaySelected = {
-                viewModel.playSongs(selectedSongIds)
-                selectedSongIds = emptySet()
-            },
-            menuActions = listOf(
-                MultiSelectAction(
-                    icon = Icons.Rounded.Download,
-                    label = stringResource(R.string.action_download),
-                    onClick = {
-                        viewModel.downloadSongs(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlaylistAdd,
-                    label = stringResource(R.string.action_playlist),
-                    onClick = {
-                        viewModel.loadAllPlaylists()
-                        showPlaylistPicker = true
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = stringResource(R.string.action_play_next),
-                    onClick = {
-                        viewModel.playSongsNext(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.QueueMusic,
-                    label = stringResource(R.string.action_add_to_queue),
-                    onClick = {
-                        viewModel.addSongsToQueue(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.Favorite,
-                    label = stringResource(R.string.action_add_favorite),
-                    onClick = {
-                        viewModel.addToFavorites(selectedSongIds)
-                        selectedSongIds = emptySet()
-                    }
-                )
-            ),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = bottomPaddingOffset)
-        )
+        // MultiSelectGridBottomSheet
+        if (showMultiSelectGridBottomSheet) {
+            com.example.neosynth.ui.components.MultiSelectGridBottomSheet(
+                selectedCount = selectedSongIds.size,
+                onDismiss = { showMultiSelectGridBottomSheet = false },
+                onPlay = {
+                    viewModel.playSongs(selectedSongIds)
+                    selectedSongIds = emptySet()
+                    showMultiSelectGridBottomSheet = false
+                },
+                onDownload = {
+                    viewModel.downloadSongs(selectedSongIds)
+                    selectedSongIds = emptySet()
+                    showMultiSelectGridBottomSheet = false
+                },
+                onAddToPlaylist = {
+                    viewModel.loadAllPlaylists()
+                    showPlaylistPicker = true
+                    showMultiSelectGridBottomSheet = false
+                },
+                onPlayNext = {
+                    viewModel.playSongsNext(selectedSongIds)
+                    selectedSongIds = emptySet()
+                    showMultiSelectGridBottomSheet = false
+                },
+                onAddToQueue = {
+                    viewModel.addSongsToQueue(selectedSongIds)
+                    selectedSongIds = emptySet()
+                    showMultiSelectGridBottomSheet = false
+                },
+                onFavorite = {
+                    viewModel.addToFavorites(selectedSongIds)
+                    selectedSongIds = emptySet()
+                    showMultiSelectGridBottomSheet = false
+                }
+            )
+        }
 
         if (showPlaylistPicker) {
             val allPlaylists by viewModel.allPlaylists.collectAsStateWithLifecycle()
@@ -441,23 +488,32 @@ private fun PlaylistSongRow(
     onLongClick: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberBounceScale(interactionSource)
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .padding(horizontal = 16.dp, vertical = 3.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
         } else {
-            androidx.compose.ui.graphics.Color.Transparent
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f)
         }
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Cover
@@ -468,11 +524,11 @@ private fun PlaylistSongRow(
                         contentDescription = null,
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "artwork-${song.id}"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    ),
+                                sharedContentState = rememberSharedContentState(key = "artwork-${song.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            ),
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -485,14 +541,14 @@ private fun PlaylistSongRow(
                     Text(
                         text = song.title,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     
                     if (isDownloaded) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.DownloadDone,
                             contentDescription = stringResource(R.string.content_desc_downloaded),
@@ -511,20 +567,16 @@ private fun PlaylistSongRow(
                 )
             }
 
-            // Duration
-            Text(
-                text = formatDuration(song.duration),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Botón Remove (solo visible cuando no hay selección)
             if (!isSelectionMode) {
-                IconButton(onClick = onRemove) {
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Rounded.Remove,
                         contentDescription = stringResource(R.string.playlist_remove_song_title),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

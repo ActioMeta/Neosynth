@@ -24,7 +24,7 @@ class StatsRepository @Inject constructor(
         title: String,
         artist: String,
         durationListened: Long
-    ) {
+    ): Long {
         val history = PlaybackHistoryEntity(
             songId = songId,
             title = title,
@@ -32,7 +32,11 @@ class StatsRepository @Inject constructor(
             timestamp = System.currentTimeMillis(),
             durationListened = durationListened
         )
-        playbackHistoryDao.insert(history)
+        return playbackHistoryDao.insert(history)
+    }
+
+    suspend fun updateDurationListened(historyId: Long, durationListened: Long) {
+        playbackHistoryDao.updateDurationListened(historyId, durationListened)
     }
 
     fun getRecentHistory(limit: Int = 20): Flow<List<PlaybackHistoryEntity>> {

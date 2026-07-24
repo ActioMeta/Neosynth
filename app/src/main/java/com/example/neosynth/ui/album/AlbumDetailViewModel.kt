@@ -17,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +32,7 @@ class AlbumDetailViewModel @Inject constructor(
     private val downloadHandler: com.example.neosynth.ui.album.logic.AlbumDownloadHandler,
     private val favoritesHandler: com.example.neosynth.ui.album.logic.AlbumFavoritesHandler,
     private val playlistHandler: com.example.neosynth.ui.album.logic.AlbumPlaylistHandler,
+    private val networkHelper: com.example.neosynth.utils.NetworkHelper,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
@@ -51,26 +53,93 @@ class AlbumDetailViewModel @Inject constructor(
     fun loadAlbum(albumId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            try {
-                val server = serverDao.getActiveServer() ?: return@launch
-                cachedServer = server
-                urlInterceptor.setBaseUrl(server.url)
+            var loadedFromNetwork = false
+            
+            if (!networkHelper.isCurrentConnectionOffline) {
+                try {
+                    val server = serverDao.getActiveServer()
+                    if (server != null) {
+                        cachedServer = server
+                        urlInterceptor.setBaseUrl(server.url)
 
-                val response = api.getAlbum(
-                    albumId = albumId,
-                    u = server.username,
-                    t = server.token,
-                    s = server.salt
-                )
+                        val response = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                            api.getAlbum(
+                                albumId = albumId,
+                                u = server.username,
+                                t = server.token,
+                                s = server.salt
+                            )
+                        }
 
-                _album.value = response.response.albumDetails
-                _songs.value = response.response.albumDetails?.song ?: emptyList()
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _isLoading.value = false
+                        val details = response?.response?.albumDetails
+                        if (details != null) {
+                            _album.value = details
+                            _songs.value = details.song ?: emptyList()
+                            loadedFromNetwork = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
+
+            if (!loadedFromNetwork) {
+                loadOfflineAlbum(albumId)
+            }
+            _isLoading.value = false
+        }
+    }
+
+    private suspend fun loadOfflineAlbum(albumId: String) {
+        try {
+            var localSongs = musicRepository.getDownloadedSongsByAlbum(albumId)
+            if (localSongs.isEmpty()) {
+                val allDownloaded = musicRepository.getDownloadedSongs().first()
+                localSongs = allDownloaded.filter { song ->
+                    song.albumID == albumId || song.id == albumId || song.album.equals(albumId, ignoreCase = true)
+                }
+            }
+
+            if (localSongs.isNotEmpty()) {
+                val firstSong = localSongs.first()
+                val songDtos = localSongs.map { songEntity ->
+                    val durationSec = if (songEntity.duration > 10_000L) {
+                        (songEntity.duration / 1000L).toInt()
+                    } else {
+                        songEntity.duration.toInt()
+                    }
+
+                    SongDto(
+                        id = songEntity.id,
+                        title = songEntity.title,
+                        artist = songEntity.artist,
+                        artistId = songEntity.artistID,
+                        album = songEntity.album,
+                        albumId = songEntity.albumID.ifEmpty { albumId },
+                        duration = durationSec,
+                        coverArt = songEntity.imageUrl ?: songEntity.path,
+                        path = songEntity.path,
+                        year = songEntity.year
+                    )
+                }
+                val totalDurationSec = songDtos.sumOf { it.duration }
+                val albumDetails = AlbumDetails(
+                    id = firstSong.albumID.ifEmpty { albumId },
+                    name = firstSong.album.ifEmpty { firstSong.title },
+                    artist = firstSong.artist,
+                    artistId = firstSong.artistID,
+                    coverArt = firstSong.imageUrl ?: firstSong.path,
+                    year = firstSong.year,
+                    genre = firstSong.genre,
+                    songCount = localSongs.size,
+                    duration = totalDurationSec,
+                    song = songDtos
+                )
+                _album.value = albumDetails
+                _songs.value = songDtos
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -106,8 +175,12 @@ class AlbumDetailViewModel @Inject constructor(
     }
 
     fun getCoverUrl(coverArt: String?): String? {
-        val server = cachedServer ?: return null
-        return buildCoverArtUrl(server, coverArt)
+        if (coverArt.isNullOrBlank()) return null
+        if (coverArt.startsWith("/") || coverArt.startsWith("file:") || coverArt.startsWith("content:")) {
+            return coverArt
+        }
+        val server = cachedServer ?: return coverArt
+        return buildCoverArtUrl(server, coverArt) ?: coverArt
     }
 
     fun downloadSong(song: SongDto) {

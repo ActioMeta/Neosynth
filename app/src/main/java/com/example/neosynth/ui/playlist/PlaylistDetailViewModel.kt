@@ -209,6 +209,24 @@ class PlaylistDetailViewModel @Inject constructor(
         )
     }
 
+    fun playSongsNext(songIds: Set<String>) {
+        playerHandler.playSongsNext(
+            songIds = songIds,
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
+    }
+
+    fun addSongsToQueue(songIds: Set<String>) {
+        playerHandler.addSongsToQueue(
+            songIds = songIds,
+            allSongs = _songs.value,
+            cachedServer = cachedServer,
+            scope = viewModelScope
+        )
+    }
+
     fun downloadSongs(songIds: Set<String>) {
         val server = cachedServer ?: return
         downloadHandler.downloadSongs(

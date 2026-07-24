@@ -16,8 +16,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 data class FabAction(
     val icon: ImageVector,
@@ -82,7 +83,7 @@ fun FabGroup(
         ) {
             Icon(
                 imageVector = if (expanded) expandedIcon else mainIcon,
-                contentDescription = if (expanded) "Cerrar" else "Opciones",
+                contentDescription = if (expanded) stringResource(R.string.action_close) else stringResource(R.string.content_desc_more_options),
                 modifier = if (mainIcon == Icons.Rounded.Add) Modifier.rotate(rotation) else Modifier
             )
         }

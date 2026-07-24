@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.neosynth.R
 import javax.inject.Inject
 
 class HomeDownloadHandler @Inject constructor(
@@ -74,24 +75,24 @@ class HomeDownloadHandler @Inject constructor(
                 val server = serverDao.getActiveServer()
                 if (server == null) {
                     Log.e("HomeDownloadHandler", "No active server found")
-                    uiEvent.emit(UiEvent.ShowSnackbar("No hay servidor activo"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.error_no_active_server)))
                     return@launch
                 }
                 
                 val currentItem = musicController.currentMediaItem.value
                 if (currentItem == null) {
                     Log.e("HomeDownloadHandler", "No current song playing")
-                    uiEvent.emit(UiEvent.ShowSnackbar("No hay canción reproduciéndose"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.msg_no_song_playing)))
                     return@launch
                 }
 
                 val songId = currentItem.mediaId
-                val songTitle = currentItem.mediaMetadata.title?.toString() ?: "canción"
+                val songTitle = currentItem.mediaMetadata.title?.toString() ?: appContext.getString(R.string.song_label)
                 
                 val existingSong = musicRepository.getSongById(songId)
                 if (existingSong != null && existingSong.isDownloaded) {
                     Log.d("HomeDownloadHandler", "Song already downloaded: $songTitle")
-                    uiEvent.emit(UiEvent.ShowSnackbar("$songTitle ya está descargada"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(appContext.getString(R.string.msg_already_downloaded, songTitle)))
                     return@launch
                 }
 
@@ -145,11 +146,11 @@ class HomeDownloadHandler @Inject constructor(
                     musicRepository.insertSong(newSong)
                 }
                 
-                uiEvent.emit(UiEvent.ShowSnackbar("Descargando: $songTitle"))
+                uiEvent.emit(UiEvent.ShowSnackbar("${appContext.getString(R.string.action_downloading)} $songTitle"))
                 
             } catch (e: Exception) {
                 Log.e("HomeDownloadHandler", "Error downloading song", e)
-                uiEvent.emit(UiEvent.ShowSnackbar("Error al descargar: ${e.message}"))
+                uiEvent.emit(UiEvent.ShowSnackbar("${appContext.getString(R.string.notification_download_error)}: ${e.message}"))
             }
         }
     }

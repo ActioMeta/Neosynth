@@ -33,18 +33,37 @@ import javax.inject.Inject
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
-    private val musicController: MusicController,
+    val musicController: MusicController,
     private val api: NavidromeApiService,
     private val serverDao: ServerDao,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
+    val currentSong = musicController.currentMediaItem
+
     // Estado para filtro de playlist seleccionada
     private val _selectedPlaylistId = MutableStateFlow<String?>(null)
     val selectedPlaylistId: StateFlow<String?> = _selectedPlaylistId.asStateFlow()
 
+    // Estados de filtrado y ordenamiento
+    private val _activeFilterCategory = MutableStateFlow(FilterCategory.SONGS)
+    val activeFilterCategory: StateFlow<FilterCategory> = _activeFilterCategory.asStateFlow()
+
+    private val _activeSortOrder = MutableStateFlow(SortOrder.TITLE)
+    val activeSortOrder: StateFlow<SortOrder> = _activeSortOrder.asStateFlow()
+
+    fun setFilterCategory(category: FilterCategory) {
+        _activeFilterCategory.value = category
+        if (category != FilterCategory.PLAYLISTS) {
+            _selectedPlaylistId.value = null
+        }
+    }
+
+    fun setSortOrder(order: SortOrder) {
+        _activeSortOrder.value = order
+    }
+
     // Flow de playlists (sincronizadas y descargadas)
-    // Mostrar TODAS las playlists del servidor activo
     val allPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()
         .flatMapLatest { server ->
             if (server != null) {
@@ -59,30 +78,71 @@ class DownloadsViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Estado de canciones agrupadas (UI State) - Solo canciones descargadas
-    // Ahora puede filtrar por playlist si hay una seleccionada
+    // Estado de canciones agrupadas (UI State)
     val groupedSongs: StateFlow<Map<Char, List<SongEntity>>> = combine(
         musicRepository.getDownloadedSongs(),
         _selectedPlaylistId,
-        allPlaylists
-    ) { allSongs, playlistId, playlists ->
-        val filteredSongs = if (playlistId != null) {
-            // Encontrar la playlist seleccionada y mostrar TODAS sus canciones (descargadas o no)
+        allPlaylists,
+        _activeFilterCategory,
+        _activeSortOrder
+    ) { allSongs, playlistId, playlists, category, sortOrder ->
+        var filteredSongs = if (playlistId != null) {
             val selectedPlaylist = playlists.find { it.playlist.id == playlistId }
             selectedPlaylist?.songs ?: emptyList()
         } else {
-            // Sin playlist seleccionada, mostrar solo canciones descargadas
             allSongs
         }
-        
-        val sortedList = filteredSongs.sortedWith(compareBy<SongEntity> {
-            val firstChar = it.title.firstOrNull() ?: ' '
-            !firstChar.isLetter()
-        }.thenBy { it.title.lowercase() })
 
-        sortedList.groupBy { song ->
-            val firstChar = song.title.firstOrNull()?.uppercaseChar() ?: '#'
-            if (firstChar.isLetter()) firstChar else '#'
+        if (category == FilterCategory.FAVORITES) {
+            filteredSongs = filteredSongs.filter { it.isFavorite }
+        }
+
+        val sortedList = when (sortOrder) {
+            SortOrder.ASCENDING -> {
+                filteredSongs.sortedBy { it.title.lowercase() }
+            }
+            SortOrder.DESCENDING -> {
+                filteredSongs.sortedByDescending { it.title.lowercase() }
+            }
+            SortOrder.TITLE -> {
+                filteredSongs.sortedWith(compareBy<SongEntity> {
+                    val firstChar = it.title.firstOrNull() ?: ' '
+                    !firstChar.isLetter()
+                }.thenBy { it.title.lowercase() })
+            }
+            SortOrder.ARTIST -> {
+                filteredSongs.sortedWith(compareBy<SongEntity> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
+            }
+            SortOrder.ALBUM -> {
+                filteredSongs.sortedWith(compareBy<SongEntity> { it.album.lowercase() }.thenBy { it.trackNumber ?: 0 }.thenBy { it.title.lowercase() })
+            }
+            SortOrder.RECENT -> {
+                filteredSongs.sortedByDescending { it.downloadedAt ?: 0L }
+            }
+        }
+
+        when {
+            sortOrder == SortOrder.RECENT -> {
+                sortedList.groupBy { '↓' }
+            }
+            category == FilterCategory.ALBUMS -> {
+                sortedList.groupBy { song ->
+                    val firstChar = song.album.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (firstChar.isLetter()) firstChar else '#'
+                }
+            }
+            category == FilterCategory.ARTISTS -> {
+                sortedList.groupBy { song ->
+                    val firstChar = song.artist.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (firstChar.isLetter()) firstChar else '#'
+                }
+            }
+            else -> {
+                sortedList.groupBy { song ->
+                    val firstChar = song.title.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (firstChar.isLetter()) firstChar else '#'
+                }
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -90,19 +150,35 @@ class DownloadsViewModel @Inject constructor(
         initialValue = emptyMap()
     )
 
-    // Reproducir lista completa (o desde un índice específico)
+    // Reproducir lista completa
     fun playAll(songs: List<SongEntity>, startIndex: Int = 0) {
         val mediaItems = songs.map { it.toMediaItem() }
         musicController.playQueue(mediaItems, startIndex)
     }
 
-    // 3. Reproducir solo la selección múltiple
+    // Reproducir todas en aleatorio
+    fun shufflePlayAll(songs: List<SongEntity>) {
+        if (songs.isEmpty()) return
+        
+        // Desactivar modo aleatorio del controlador si está activo para evitar bucles de reordenamiento de ExoPlayer
+        if (musicController.shuffleModeEnabled.value) {
+            musicController.toggleShuffle()
+        }
+        
+        // Mezclar la lista de canciones en memoria
+        val shuffledSongs = songs.shuffled()
+        
+        // Reproducir la lista mezclada desde el inicio (índice 0)
+        playAll(shuffledSongs, 0)
+    }
+
+    // 3. Reproducir solo la selección múltiple (Bug 2 Fix)
     fun playSelected(selectedIds: Set<String>, allSongs: List<SongEntity>) {
         if (selectedIds.isEmpty()) return
 
-        // Filtramos las canciones que coincidan con los IDs seleccionados
-        val selectedMediaItems = allSongs
-            .filter { selectedIds.contains(it.id) }
+        val songsMap = allSongs.associateBy { it.id }
+        val selectedMediaItems = selectedIds
+            .mapNotNull { id -> songsMap[id] }
             .map { it.toMediaItem() }
 
         musicController.playQueue(selectedMediaItems, 0)
@@ -123,15 +199,31 @@ class DownloadsViewModel @Inject constructor(
             android.util.Log.e("DownloadViewModel", "Error parsing metadata for offline song", e)
         }
 
+        val cleanPath = this.path.removePrefix("file://")
+        val mediaUri = if (this.path.startsWith("/") || this.path.startsWith("file:/")) {
+            android.net.Uri.fromFile(java.io.File(cleanPath))
+        } else {
+            android.net.Uri.parse(this.path)
+        }
+
+        val artworkUri = if (!this.imageUrl.isNullOrBlank()) {
+            val cleanImgPath = this.imageUrl.removePrefix("file://")
+            if (this.imageUrl.startsWith("/") || this.imageUrl.startsWith("file:/")) {
+                android.net.Uri.fromFile(java.io.File(cleanImgPath))
+            } else {
+                android.net.Uri.parse(this.imageUrl)
+            }
+        } else null
+
         return MediaItem.Builder()
             .setMediaId(this.id)
-            .setUri(this.path.toUri()) // Usamos el path local porque es "Downloads"
+            .setUri(mediaUri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(this.title)
                     .setArtist(this.artist)
                     .setAlbumTitle(this.album)
-                    .setArtworkUri(this.imageUrl?.toUri())
+                    .setArtworkUri(artworkUri)
                     .setExtras(
                         android.os.Bundle().apply {
                             putString("path", this@toMediaItem.path)
@@ -156,6 +248,18 @@ class DownloadsViewModel @Inject constructor(
     // 6. Agregar canciones a la cola de reproducción
     fun addToQueue(songs: List<SongEntity>) {
         val mediaItems = songs.map { it.toMediaItem() }
+        musicController.addToQueue(mediaItems)
+    }
+
+    fun playNextSelected(songIds: Set<String>, allSongs: List<SongEntity>) {
+        val selectedSongs = allSongs.filter { it.id in songIds }
+        val mediaItems = selectedSongs.map { it.toMediaItem() }
+        musicController.addAfterCurrent(mediaItems)
+    }
+
+    fun addToQueueSelected(songIds: Set<String>, allSongs: List<SongEntity>) {
+        val selectedSongs = allSongs.filter { it.id in songIds }
+        val mediaItems = selectedSongs.map { it.toMediaItem() }
         musicController.addToQueue(mediaItems)
     }
 
@@ -250,6 +354,9 @@ class DownloadsViewModel @Inject constructor(
     // 11. Seleccionar playlist para filtrar canciones
     fun selectPlaylist(playlistId: String?) {
         _selectedPlaylistId.value = playlistId
+        if (playlistId != null) {
+            _activeFilterCategory.value = FilterCategory.SONGS
+        }
     }
     
     // 12. Limpiar filtro de playlist
@@ -334,4 +441,12 @@ fun SongEntity.toDomainModel(): Song {
         sourceType = try { MusicSourceType.valueOf(this.sourceType) } catch (e: Exception) { MusicSourceType.SUBSONIC },
         sourceId = this.sourceId
     )
+}
+
+enum class SortOrder {
+    ASCENDING, DESCENDING, TITLE, ARTIST, ALBUM, RECENT
+}
+
+enum class FilterCategory {
+    SONGS, ALBUMS, ARTISTS, PLAYLISTS, FAVORITES
 }

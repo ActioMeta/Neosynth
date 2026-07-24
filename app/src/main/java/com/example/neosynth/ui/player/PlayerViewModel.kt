@@ -17,9 +17,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
+import com.example.neosynth.R
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -91,7 +93,7 @@ class PlayerViewModel @Inject constructor(
             try {
                 val server = serverDao.getActiveServer()
                 if (server == null) {
-                    onError("No hay un servidor activo")
+                    onError(context.getString(R.string.error_no_active_server))
                     return@launch
                 }
                 
@@ -99,7 +101,7 @@ class PlayerViewModel @Inject constructor(
                 val songIds = currentQueue.map { it.mediaId }
                 
                 if (songIds.isEmpty()) {
-                    onError("La cola está vacía")
+                    onError(context.getString(R.string.error_queue_empty))
                     return@launch
                 }
                 
@@ -114,10 +116,10 @@ class PlayerViewModel @Inject constructor(
                 if (response.response.status == "ok") {
                     onComplete()
                 } else {
-                    onError("Error al crear la playlist")
+                    onError(context.getString(R.string.error_create_playlist_failed))
                 }
             } catch (e: Exception) {
-                onError(e.message ?: "Error desconocido al crear playlist")
+                onError(e.message ?: context.getString(R.string.error_create_playlist_unknown))
             } finally {
                 _isProcessingQueueAction.value = false
             }
@@ -134,9 +136,9 @@ class PlayerViewModel @Inject constructor(
                 val extras = item.mediaMetadata.extras
                 SongDto(
                     id = item.mediaId,
-                    title = item.mediaMetadata.title?.toString() ?: "Unknown",
-                    artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
-                    album = item.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                    title = item.mediaMetadata.title?.toString() ?: context.getString(R.string.unknown_title),
+                    artist = item.mediaMetadata.artist?.toString() ?: context.getString(R.string.unknown_artist),
+                    album = item.mediaMetadata.albumTitle?.toString() ?: context.getString(R.string.unknown_album),
                     duration = (extras?.getLong("duration") ?: 0L).toInt() / 1000,
                     coverArt = item.mediaMetadata.artworkUri?.toString()?.substringAfterLast("id=")?.substringBefore("&") ?: item.mediaId
                 )
@@ -146,9 +148,21 @@ class PlayerViewModel @Inject constructor(
                 allSongs = songsToDownload,
                 server = server,
                 playlistId = "queue_${System.currentTimeMillis()}",
-                playlistName = "Cola de reproducción",
+                playlistName = context.getString(R.string.queue_playing_name),
                 scope = viewModelScope
             )
         }
+    }
+
+    fun startSleepTimer(durationMs: Long) {
+        musicController.startSleepTimer(durationMs)
+    }
+
+    fun startSleepTimerAtEndOfSong() {
+        musicController.startSleepTimerAtEndOfSong()
+    }
+
+    fun cancelSleepTimer() {
+        musicController.cancelSleepTimer()
     }
 }

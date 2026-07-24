@@ -22,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.neosynth.data.model.LyricsResult
+import com.example.neosynth.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,14 +64,14 @@ fun LyricsSelectionSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Selecciona una letra",
+                text = stringResource(R.string.lyrics_select),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
             
             // Segmented Button Row
-            val optionsTitles = listOf("Sincronizadas", "Texto plano")
+            val optionsTitles = listOf(stringResource(R.string.lyrics_synced), stringResource(R.string.lyrics_plain_text))
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -103,7 +105,7 @@ fun LyricsSelectionSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No hay opciones disponibles en esta categoría",
+                        text = stringResource(R.string.lyrics_no_options),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -174,7 +176,7 @@ fun LyricsOptionItem(
                     .lineSequence()
                     .map { it.trim() }
                     .firstOrNull { it.isNotEmpty() && !it.startsWith("[") }
-                    ?: if (option.isSynced) "Letra sincronizada" else "Letra en texto plano"
+                    ?: if (option.isSynced) stringResource(R.string.lyrics_synced_lyric) else stringResource(R.string.lyrics_plain_text_lyric)
 
                 Text(
                     text = previewText,

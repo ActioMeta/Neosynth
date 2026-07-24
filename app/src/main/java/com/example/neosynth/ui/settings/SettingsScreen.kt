@@ -58,14 +58,18 @@ fun SettingsScreen(
     }
     val currentLanguageStr = remember(currentLocaleTag) {
         when {
-            currentLocaleTag.startsWith("es") -> "Español"
-            currentLocaleTag.startsWith("en") -> "English"
-            else -> "Sistema (" + java.util.Locale.getDefault().displayLanguage.replaceFirstChar { it.uppercase() } + ")"
+            currentLocaleTag.startsWith("es") -> context.getString(R.string.lang_spanish)
+            currentLocaleTag.startsWith("en") -> context.getString(R.string.lang_english)
+            else -> {
+                val sysLang = java.util.Locale.getDefault().displayLanguage.replaceFirstChar { it.uppercase() }
+                context.getString(R.string.lang_system_with_name, sysLang)
+            }
         }
     }
     
     var showQualityDialog by remember { mutableStateOf<QualityDialogType?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showPaletteDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showServerDialog by remember { mutableStateOf(false) }
     var showServersListDialog by remember { mutableStateOf(false) }
@@ -91,7 +95,7 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Volver"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -109,14 +113,14 @@ fun SettingsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 180.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Server Section
+            // 1. Server Section
             item {
                 SettingsSection(title = stringResource(R.string.server_title)) {
                     SettingsCard {
                         SettingsClickableItem(
                             icon = Icons.Rounded.Dns,
                             title = stringResource(R.string.server_manage),
-                            subtitle = "${allServers.size} servidor(es) configurado(s)",
+                            subtitle = stringResource(R.string.settings_servers_count, allServers.size),
                             onClick = { showServersListDialog = true }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -135,41 +139,39 @@ fun SettingsScreen(
                 }
             }
 
-            // Storage Section
+            // 2. Appearance Section
             item {
-                SettingsSection(title = stringResource(R.string.settings_storage)) {
+                SettingsSection(title = stringResource(R.string.settings_appearance)) {
                     SettingsCard {
-                        SettingsItem(
-                            icon = Icons.Rounded.Download,
-                            title = stringResource(R.string.settings_downloaded_songs),
-                            subtitle = "$downloadedCount canciones"
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SettingsItem(
-                            icon = Icons.Rounded.Storage,
-                            title = stringResource(R.string.settings_image_cache),
-                            subtitle = cacheSize
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.Palette,
+                            title = stringResource(R.string.settings_theme),
+                            subtitle = getThemeLabel(appSettings.themeMode),
+                            onClick = { showThemeDialog = true }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
-                            icon = Icons.Rounded.DeleteSweep,
-                            title = stringResource(R.string.settings_clear_cache),
-                            subtitle = stringResource(R.string.settings_clear_cache_desc),
-                            onClick = { viewModel.clearCache() }
+                            icon = Icons.Rounded.ColorLens,
+                            title = "Paleta de colores",
+                            subtitle = when (appSettings.colorPalette) {
+                                AppColorPalette.MATERIAL_YOU -> "Material You (Dinámico)"
+                                AppColorPalette.NEOSYNTH -> "NeoSynth (Púrpura suave / Lila)"
+                                AppColorPalette.TOKYO_NIGHT -> "Tokyo Night (Azul Slate / Pastel)"
+                            },
+                            onClick = { showPaletteDialog = true }
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
-                            icon = Icons.Rounded.DeleteForever,
-                            title = stringResource(R.string.settings_delete_all_downloads),
-                            subtitle = stringResource(R.string.settings_delete_all_downloads_desc),
-                            onClick = { showDeleteAllDialog = true },
-                            iconTint = MaterialTheme.colorScheme.error
+                            icon = Icons.Rounded.Language,
+                            title = stringResource(R.string.settings_language),
+                            subtitle = currentLanguageStr,
+                            onClick = { showLanguageDialog = true }
                         )
                     }
                 }
             }
 
-            // Playback Section
+            // 3. Playback & Audio Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_playback)) {
                     SettingsCard {
@@ -200,7 +202,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Quality Section
+            // 4. Streaming Quality Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_audio_streaming)) {
                     SettingsCard {
@@ -221,7 +223,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Download Quality Section
+            // 5. Download Quality Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_audio_download)) {
                     SettingsCard {
@@ -242,29 +244,41 @@ fun SettingsScreen(
                 }
             }
 
-            // Appearance Section
+            // 6. Storage Section
             item {
-                SettingsSection(title = stringResource(R.string.settings_appearance)) {
+                SettingsSection(title = stringResource(R.string.settings_storage)) {
                     SettingsCard {
-                        SettingsClickableItem(
-                            icon = Icons.Rounded.Palette,
-                            title = stringResource(R.string.settings_theme),
-                            subtitle = getThemeLabel(appSettings.themeMode),
-                            onClick = { showThemeDialog = true }
+                        SettingsItem(
+                            icon = Icons.Rounded.Download,
+                            title = stringResource(R.string.settings_downloaded_songs),
+                            subtitle = stringResource(R.string.library_songs_count, downloadedCount)
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsItem(
+                            icon = Icons.Rounded.Storage,
+                            title = stringResource(R.string.settings_image_cache),
+                            subtitle = cacheSize
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
-                            icon = Icons.Rounded.Language,
-                            title = stringResource(R.string.settings_language),
-                            subtitle = currentLanguageStr,
-                            onClick = { showLanguageDialog = true }
+                            icon = Icons.Rounded.DeleteSweep,
+                            title = stringResource(R.string.settings_clear_cache),
+                            subtitle = stringResource(R.string.settings_clear_cache_desc),
+                            onClick = { viewModel.clearCache() }
                         )
-                        // Dynamic Colors removed
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingsClickableItem(
+                            icon = Icons.Rounded.DeleteForever,
+                            title = stringResource(R.string.settings_delete_all_downloads),
+                            subtitle = stringResource(R.string.settings_delete_all_downloads_desc),
+                            onClick = { showDeleteAllDialog = true },
+                            iconTint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
 
-            // External Services Section
+            // 7. External Services & IA Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_services)) {
                     SettingsCard {
@@ -278,14 +292,14 @@ fun SettingsScreen(
                 }
             }
 
-            // About Section
+            // 8. About Section
             item {
                 SettingsSection(title = stringResource(R.string.settings_about)) {
                     SettingsCard {
                         SettingsItem(
                             icon = Icons.Rounded.Info,
                             title = stringResource(R.string.app_name),
-                            subtitle = "Versión 2.2.0"
+                            subtitle = stringResource(R.string.settings_version_label, "2.2.0")
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SettingsClickableItem(
@@ -322,7 +336,7 @@ fun SettingsScreen(
             }
             QualityDialogType.STREAM_MOBILE -> {
                 StreamQualityPickerDialog(
-                    title = stringResource(R.string.settings_stream_mobile),
+                    title = stringResource(R.string.quality_stream_mobile),
                     currentQuality = audioSettings.streamMobileQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateStreamMobileQuality(quality)
@@ -344,7 +358,7 @@ fun SettingsScreen(
             }
             QualityDialogType.DOWNLOAD_MOBILE -> {
                 DownloadQualityPickerDialog(
-                    title = stringResource(R.string.settings_download_mobile),
+                    title = stringResource(R.string.quality_download_mobile),
                     currentQuality = audioSettings.downloadMobileQuality,
                     onQualitySelected = { quality ->
                         viewModel.updateDownloadMobileQuality(quality)
@@ -364,6 +378,17 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showPaletteDialog) {
+        PalettePickerDialog(
+            currentPalette = appSettings.colorPalette,
+            onPaletteSelected = {
+                viewModel.updateColorPalette(it)
+                showPaletteDialog = false
+            },
+            onDismiss = { showPaletteDialog = false }
         )
     }
     
@@ -481,8 +506,8 @@ private fun getStreamQualityLabel(quality: StreamQuality): String {
         StreamQuality.LOW -> stringResource(R.string.quality_low) + " (128 kbps Opus)"
         StreamQuality.MEDIUM -> stringResource(R.string.quality_medium) + " (192 kbps MP3)"
         StreamQuality.HIGH -> stringResource(R.string.quality_high) + " (256 kbps AAC)"
-        StreamQuality.VERY_HIGH -> stringResource(R.string.quality_very_high) + " (320 kbps MP3)"
-        StreamQuality.LOSSLESS -> stringResource(R.string.quality_lossless) + " (Original)"
+        StreamQuality.VERY_HIGH -> stringResource(R.string.quality_max_mp3)
+        StreamQuality.LOSSLESS -> stringResource(R.string.quality_lossless_desc)
     }
 }
 
@@ -492,8 +517,8 @@ private fun getDownloadQualityLabel(quality: DownloadQuality): String {
         DownloadQuality.LOW -> stringResource(R.string.quality_low) + " (128 kbps Opus)"
         DownloadQuality.MEDIUM -> stringResource(R.string.quality_medium) + " (192 kbps MP3)"
         DownloadQuality.HIGH -> stringResource(R.string.quality_high) + " (256 kbps AAC)"
-        DownloadQuality.VERY_HIGH -> stringResource(R.string.quality_very_high) + " (320 kbps MP3)"
-        DownloadQuality.LOSSLESS -> stringResource(R.string.quality_lossless) + " (Original)"
+        DownloadQuality.VERY_HIGH -> stringResource(R.string.quality_max_mp3)
+        DownloadQuality.LOSSLESS -> stringResource(R.string.quality_lossless_desc)
     }
 }
 
@@ -810,22 +835,22 @@ private fun StreamQualityPickerDialog(
                         Column {
                             Text(
                                 text = when (quality) {
-                                    StreamQuality.LOW -> "Baja"
-                                    StreamQuality.MEDIUM -> "Media"
-                                    StreamQuality.HIGH -> "Alta"
-                                    StreamQuality.VERY_HIGH -> "Muy alta"
-                                    StreamQuality.LOSSLESS -> "Sin pérdida"
+                                    StreamQuality.LOW -> stringResource(R.string.quality_low)
+                                    StreamQuality.MEDIUM -> stringResource(R.string.quality_medium)
+                                    StreamQuality.HIGH -> stringResource(R.string.quality_high)
+                                    StreamQuality.VERY_HIGH -> stringResource(R.string.quality_very_high)
+                                    StreamQuality.LOSSLESS -> stringResource(R.string.quality_lossless)
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (quality == currentQuality) FontWeight.Bold else FontWeight.Normal
                             )
                             Text(
                                 text = when (quality) {
-                                    StreamQuality.LOW -> "128 kbps Opus - Ahorro de datos"
-                                    StreamQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
-                                    StreamQuality.HIGH -> "256 kbps AAC - Calidad alta"
-                                    StreamQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad"
-                                    StreamQuality.LOSSLESS -> "Original - Sin transcodificar"
+                                    StreamQuality.LOW -> stringResource(R.string.quality_low_desc_stream)
+                                    StreamQuality.MEDIUM -> stringResource(R.string.quality_medium_desc_stream)
+                                    StreamQuality.HIGH -> stringResource(R.string.quality_high_desc_stream)
+                                    StreamQuality.VERY_HIGH -> stringResource(R.string.quality_very_high_desc_stream)
+                                    StreamQuality.LOSSLESS -> stringResource(R.string.quality_lossless_desc_stream)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -838,7 +863,7 @@ private fun StreamQualityPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -876,22 +901,22 @@ private fun DownloadQualityPickerDialog(
                         Column {
                             Text(
                                 text = when (quality) {
-                                    DownloadQuality.LOW -> "Baja"
-                                    DownloadQuality.MEDIUM -> "Media"
-                                    DownloadQuality.HIGH -> "Alta"
-                                    DownloadQuality.VERY_HIGH -> "Muy alta"
-                                    DownloadQuality.LOSSLESS -> "Sin pérdida"
+                                    DownloadQuality.LOW -> stringResource(R.string.quality_low)
+                                    DownloadQuality.MEDIUM -> stringResource(R.string.quality_medium)
+                                    DownloadQuality.HIGH -> stringResource(R.string.quality_high)
+                                    DownloadQuality.VERY_HIGH -> stringResource(R.string.quality_very_high)
+                                    DownloadQuality.LOSSLESS -> stringResource(R.string.quality_lossless)
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (quality == currentQuality) FontWeight.Bold else FontWeight.Normal
                             )
                             Text(
                                 text = when (quality) {
-                                    DownloadQuality.LOW -> "128 kbps Opus - Ahorro de espacio"
-                                    DownloadQuality.MEDIUM -> "192 kbps MP3 - Equilibrado"
-                                    DownloadQuality.HIGH -> "256 kbps AAC - Calidad alta"
-                                    DownloadQuality.VERY_HIGH -> "320 kbps MP3 - Máxima calidad"
-                                    DownloadQuality.LOSSLESS -> "Original - Sin transcodificar"
+                                    DownloadQuality.LOW -> stringResource(R.string.quality_low_desc_download)
+                                    DownloadQuality.MEDIUM -> stringResource(R.string.quality_medium_desc_download)
+                                    DownloadQuality.HIGH -> stringResource(R.string.quality_high_desc_download)
+                                    DownloadQuality.VERY_HIGH -> stringResource(R.string.quality_very_high_desc_download)
+                                    DownloadQuality.LOSSLESS -> stringResource(R.string.quality_lossless_desc_download)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -904,7 +929,7 @@ private fun DownloadQualityPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -978,7 +1003,7 @@ private fun QualityPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -994,7 +1019,7 @@ private fun ThemePickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Tema", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_theme), fontWeight = FontWeight.Bold)
         },
         text = {
             Column {
@@ -1015,18 +1040,18 @@ private fun ThemePickerDialog(
                         Column {
                             Text(
                                 text = when (theme) {
-                                    ThemeMode.LIGHT -> "Claro"
-                                    ThemeMode.DARK -> "Oscuro"
-                                    ThemeMode.SYSTEM -> "Sistema"
+                                    ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                                    ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                                    ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (theme == currentTheme) FontWeight.Bold else FontWeight.Normal
                             )
                             Text(
                                 text = when (theme) {
-                                    ThemeMode.LIGHT -> "Siempre tema claro"
-                                    ThemeMode.DARK -> "Siempre tema oscuro"
-                                    ThemeMode.SYSTEM -> "Seguir configuración del sistema"
+                                    ThemeMode.LIGHT -> stringResource(R.string.theme_light_desc)
+                                    ThemeMode.DARK -> stringResource(R.string.theme_dark_desc)
+                                    ThemeMode.SYSTEM -> stringResource(R.string.theme_system_desc)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1039,7 +1064,7 @@ private fun ThemePickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text(stringResource(R.string.action_close))
             }
         }
     )
@@ -1059,7 +1084,7 @@ private fun ServersListDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Servidores", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_servers), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -1079,7 +1104,7 @@ private fun ServersListDialog(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No hay servidores",
+                                text = stringResource(R.string.no_servers),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1140,7 +1165,7 @@ private fun ServersListDialog(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Edit,
-                                            contentDescription = "Editar",
+                                            contentDescription = stringResource(R.string.action_edit),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -1153,7 +1178,7 @@ private fun ServersListDialog(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Delete,
-                                                contentDescription = "Eliminar",
+                                                contentDescription = stringResource(R.string.action_delete),
                                                 tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(20.dp)
                                             )
@@ -1173,14 +1198,84 @@ private fun ServersListDialog(
                 ) {
                     Icon(imageVector = Icons.Rounded.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Agregar servidor")
+                    Text(stringResource(R.string.server_add_title))
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text(stringResource(R.string.action_close))
+            }
+        }
+    )
+}
+
+@Composable
+private fun PalettePickerDialog(
+    currentPalette: AppColorPalette,
+    onPaletteSelected: (AppColorPalette) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ColorLens,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text("Paleta de Colores", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    AppColorPalette.MATERIAL_YOU to ("Material You" to "Colores dinámicos del sistema (Android 12+)"),
+                    AppColorPalette.NEOSYNTH to ("NeoSynth" to "Púrpura real elegante con fondo negro profundo"),
+                    AppColorPalette.TOKYO_NIGHT to ("Tokyo Night" to "Fondo slate oscuro con azul pastel y cian neón")
+                ).forEach { (palette, info) ->
+                    val isSelected = palette == currentPalette
+                    Surface(
+                        onClick = { onPaletteSelected(palette) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onPaletteSelected(palette) }
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = info.first,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = info.second,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

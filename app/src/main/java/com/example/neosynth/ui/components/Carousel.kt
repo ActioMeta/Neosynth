@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
-import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,28 +25,9 @@ import com.example.neosynth.domain.model.Album
 /**
  * Componente Carrusel para mostrar una colección de álbumes de forma desplazable.
  * 
- * Utiliza Material Design 3 HorizontalMultiBrowseCarousel para mostrar múltiples elementos
- * en un carrusel adaptativo que se ajusta al tamaño de la pantalla.
- *
- * @param albums Lista de álbumes a mostrar en el carrusel
- * @param title Título opcional para mostrar encima del carrusel
- * @param sharedTransitionScope Scope para transiciones compartidas entre pantallas
- * @param animatedVisibilityScope Scope para visibilidad animada
- * @param modifier Modificador para personalizar la apariencia del carrusel
- * @param onClick Callback cuando se hace click en un álbum
- * @param onPlay Callback cuando se presiona el botón de reproducción
- * @param onShuffle Callback cuando se presiona el botón de reproducción aleatoria
- * @param onDownload Callback cuando se presiona el botón de descarga
- * @param onGoToArtist Callback cuando se navega al artista
- * @param onPlayNext Callback cuando se añade a reproducción siguiente
- * @param onAddToQueue Callback cuando se añade a la cola
- * @param onGoToAlbum Callback cuando se navega al álbum
- * @param itemHeight Altura de cada elemento del carrusel (por defecto 200.dp)
- * @param itemWidth Ancho preferido de cada elemento del carrusel (por defecto 180.dp)
- * @param contentPadding Relleno horizontal alrededor del carrusel (por defecto 24.dp)
- * @param itemSpacing Espaciado entre elementos (por defecto 8.dp)
+ * Utiliza un LazyRow optimizado para lograr un desplazamiento fluido, suave y con inercia,
+ * evitando los saltos bruscos y toscos de los carruseles por defecto.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Carousel(
     albums: List<Album>,
@@ -83,68 +64,42 @@ fun Carousel(
             )
         }
 
-        // Carrusel Multi-Browse para mostrar múltiples elementos
-        val carouselState = rememberCarouselState { albums.size }
-
-        HorizontalMultiBrowseCarousel(
-            state = carouselState,
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing.dp),
+            contentPadding = PaddingValues(horizontal = contentPadding.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(itemHeight.dp)
-                .padding(0.dp),
-            preferredItemWidth = itemWidth.dp,
-            itemSpacing = itemSpacing.dp,
-            contentPadding = PaddingValues(horizontal = contentPadding.dp)
-        ) { albumIndex ->
-            val album = albums[albumIndex]
-
-            CardItem(
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                album = album,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(itemHeight.dp)
-                    .maskClip(RoundedCornerShape(28.dp)),
-                onClick = { onClick(album) },
-                onPlay = { onPlay(album) },
-                onShuffle = { onShuffle(album) },
-                onDownload = { onDownload(album) },
-                onGoToArtist = { onGoToArtist(album) },
-                onPlayNext = onPlayNext?.let { { it(album) } },
-                onAddToQueue = onAddToQueue?.let { { it(album) } },
-                onGoToAlbum = onGoToAlbum?.let { { it(album) } }
-            )
+        ) {
+            items(albums, key = { it.id }) { album ->
+                Box(modifier = Modifier.width(itemWidth.dp)) {
+                    CardItem(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        album = album,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(itemHeight.dp)
+                            .clip(RoundedCornerShape(28.dp)),
+                        onClick = { onClick(album) },
+                        onPlay = { onPlay(album) },
+                        onShuffle = { onShuffle(album) },
+                        onDownload = { onDownload(album) },
+                        onGoToArtist = { onGoToArtist(album) },
+                        onPlayNext = onPlayNext?.let { { it(album) } },
+                        onAddToQueue = onAddToQueue?.let { { it(album) } },
+                        onGoToAlbum = onGoToAlbum?.let { { it(album) } }
+                    )
+                }
+            }
         }
     }
 }
 
 /**
  * Componente Carrusel sin contenedor para mostrar una colección de álbumes
- * en un carrusel más libre con elementos de un solo tamaño.
- *
- * Utiliza Material Design 3 HorizontalUncontainedCarousel para mostrar elementos
- * que fluyen más allá del borde de la pantalla.
- *
- * @param albums Lista de álbumes a mostrar en el carrusel
- * @param title Título opcional para mostrar encima del carrusel
- * @param sharedTransitionScope Scope para transiciones compartidas entre pantallas
- * @param animatedVisibilityScope Scope para visibilidad animada
- * @param modifier Modificador para personalizar la apariencia del carrusel
- * @param onClick Callback cuando se hace click en un álbum
- * @param onPlay Callback cuando se presiona el botón de reproducción
- * @param onShuffle Callback cuando se presiona el botón de reproducción aleatoria
- * @param onDownload Callback cuando se presiona el botón de descarga
- * @param onGoToArtist Callback cuando se navega al artista
- * @param onPlayNext Callback cuando se añade a reproducción siguiente
- * @param onAddToQueue Callback cuando se añade a la cola
- * @param onGoToAlbum Callback cuando se navega al álbum
- * @param itemHeight Altura de cada elemento del carrusel (por defecto 160.dp)
- * @param itemWidth Ancho exacto de cada elemento del carrusel (por defecto 150.dp)
- * @param contentPadding Relleno horizontal alrededor del carrusel (por defecto 24.dp)
- * @param itemSpacing Espaciado entre elementos (por defecto 16.dp)
+ * en un flujo continuo y altamente fluido.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UncontainedCarousel(
     albums: List<Album>,
@@ -181,38 +136,34 @@ fun UncontainedCarousel(
             )
         }
 
-        // Carrusel sin contenedor para elementos de un solo tamaño
-        val carouselState = rememberCarouselState { albums.size }
-
-        androidx.compose.material3.carousel.HorizontalUncontainedCarousel(
-            state = carouselState,
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing.dp),
+            contentPadding = PaddingValues(horizontal = contentPadding.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(itemHeight.dp)
-                .padding(0.dp),
-            itemWidth = itemWidth.dp,
-            itemSpacing = itemSpacing.dp,
-            contentPadding = PaddingValues(horizontal = contentPadding.dp)
-        ) { albumIndex ->
-            val album = albums[albumIndex]
-            
-            CardItem(
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                album = album,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(itemHeight.dp)
-                    .clip(RoundedCornerShape(28.dp)),
-                onClick = { onClick(album) },
-                onPlay = { onPlay(album) },
-                onShuffle = { onShuffle(album) },
-                onDownload = { onDownload(album) },
-                onGoToArtist = { onGoToArtist(album) },
-                onPlayNext = onPlayNext?.let { { it(album) } },
-                onAddToQueue = onAddToQueue?.let { { it(album) } },
-                onGoToAlbum = onGoToAlbum?.let { { it(album) } }
-            )
+        ) {
+            items(albums, key = { it.id }) { album ->
+                Box(modifier = Modifier.width(itemWidth.dp)) {
+                    CardItem(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        album = album,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(itemHeight.dp)
+                            .clip(RoundedCornerShape(28.dp)),
+                        onClick = { onClick(album) },
+                        onPlay = { onPlay(album) },
+                        onShuffle = { onShuffle(album) },
+                        onDownload = { onDownload(album) },
+                        onGoToArtist = { onGoToArtist(album) },
+                        onPlayNext = onPlayNext?.let { { it(album) } },
+                        onAddToQueue = onAddToQueue?.let { { it(album) } },
+                        onGoToAlbum = onGoToAlbum?.let { { it(album) } }
+                    )
+                }
+            }
         }
     }
 }

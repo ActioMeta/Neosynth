@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.annotation.StringRes
 import androidx.media3.common.MediaItem
+import com.example.neosynth.R
 import androidx.media3.common.MediaMetadata
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
@@ -34,13 +36,13 @@ import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
 import javax.inject.Inject
 
-enum class SongSortOrder(val label: String) {
-    CREATED_DESC("Más recientes"),
-    CREATED_ASC("Más antiguos"),
-    TITLE("Título A→Z"),
-    ARTIST("Artista A→Z"),
-    ALBUM("Álbum A→Z"),
-    DURATION_DESC("Mayor duración")
+enum class SongSortOrder(@StringRes val labelRes: Int) {
+    CREATED_DESC(R.string.sort_most_recent),
+    CREATED_ASC(R.string.sort_oldest),
+    TITLE(R.string.sort_title_az),
+    ARTIST(R.string.sort_artist_az),
+    ALBUM(R.string.sort_album_az),
+    DURATION_DESC(R.string.sort_longest_duration)
 }
 
 @HiltViewModel
@@ -320,8 +322,29 @@ class RecentSongsViewModel @Inject constructor(
         }
     }
 
+    fun playSelectedNext() {
+        val selected = songs.filter { it.id in selectedSongIds }
+        if (selected.isEmpty()) return
+        
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            val mediaItems = buildMediaItems(selected, server)
+            if (mediaItems.isNotEmpty()) {
+                musicController.addAfterCurrent(mediaItems)
+            }
+        }
+    }
+
     fun addSelectedToPlaylist() {
         // Opción actualmente stub debido a que la funcionalidad requiere un sheet para seleccionar playlists.
+    }
+
+    fun addSelectedToFavorites() {
+        viewModelScope.launch {
+            selectedSongIds.forEach { songId ->
+                musicRepository.addToFavorites(songId)
+            }
+        }
     }
 
     // ---------- Reproducción ----------

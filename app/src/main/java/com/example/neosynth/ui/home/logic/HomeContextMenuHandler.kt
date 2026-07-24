@@ -10,10 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.neosynth.R
 
 class HomeContextMenuHandler @Inject constructor(
     private val musicController: MusicController,
-    private val playerHandler: HomePlayerHandler
+    private val playerHandler: HomePlayerHandler,
+    @ApplicationContext private val context: Context
 ) {
     fun onPlayNext(album: Album, scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>) {
         scope.launch {
@@ -22,13 +26,13 @@ class HomeContextMenuHandler @Inject constructor(
                 val songs = playerHandler.getAlbumSongs(album.id, isLocal)
                 if (songs.isNotEmpty()) {
                     musicController.addAfterCurrent(songs)
-                    uiEvent.emit(UiEvent.ShowSnackbar("Playing next: ${album.name}"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.feedback_playing_next, album.name)))
                 } else {
-                    uiEvent.emit(UiEvent.ShowSnackbar("No songs found for album"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_no_songs_found)))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                uiEvent.emit(UiEvent.ShowSnackbar("Error fetching songs"))
+                uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_fetching_songs_failed)))
             }
         }
     }
@@ -40,13 +44,13 @@ class HomeContextMenuHandler @Inject constructor(
                 val songs = playerHandler.getAlbumSongs(album.id, isLocal)
                 if (songs.isNotEmpty()) {
                     musicController.addToQueue(songs)
-                    uiEvent.emit(UiEvent.ShowSnackbar("Added to queue: ${album.name}"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.feedback_added_to_queue, album.name)))
                 } else {
-                    uiEvent.emit(UiEvent.ShowSnackbar("No songs found for album"))
+                    uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_no_songs_found)))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                uiEvent.emit(UiEvent.ShowSnackbar("Error fetching songs"))
+                uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_fetching_songs_failed)))
             }
         }
     }

@@ -37,7 +37,10 @@ import com.example.neosynth.ui.home.HomeScreen
 import com.example.neosynth.ui.home.HomeViewModel
 import com.example.neosynth.ui.login.LoginScreen
 import com.example.neosynth.ui.components.MiniPlayer
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.discover.DiscoverScreen
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import com.example.neosynth.ui.discover.recent.RecentSongsScreen
 import com.example.neosynth.ui.downloads.DownloadsScreen
 import com.example.neosynth.ui.player.PlayerScreen
@@ -99,7 +102,17 @@ fun NeosynthNavGraph(
 
             composable("downloads") {
                 DownloadsScreen(
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onAlbumClick = { albumId ->
+                        navController.navigate("album/$albumId")
+                    },
+                    onArtistClick = { artistId, artistName ->
+                        val encodedName = URLEncoder.encode(artistName, "UTF-8")
+                        navController.navigate("artist/$artistId/$encodedName")
+                    },
+                    onPlaylistClick = { playlistId ->
+                        navController.navigate("playlist/$playlistId")
+                    }
                 )
             }
 
@@ -170,7 +183,11 @@ fun NeosynthNavGraph(
                         navController.navigate("artist/$artistId/$encodedName")
                     },
                     onNavigateToPlaylist = { playlistId ->
-                        navController.navigate("playlist/$playlistId")
+                        if (playlistId == "favorites") {
+                            navController.navigate("downloads")
+                        } else {
+                            navController.navigate("playlist/$playlistId")
+                        }
                     },
                     onNavigateToAlbum = { albumId ->
                         navController.navigate("album/$albumId")
@@ -387,8 +404,8 @@ fun NeosynthNavGraph(
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@AnimatedVisibility,
                     mediaId = miniPlayerSongId,
-                    title = song?.mediaMetadata?.title?.toString() ?: "",
-                    artist = song?.mediaMetadata?.artist?.toString() ?: "Desconocido",
+                    title = song?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title),
+                    artist = song?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist),
                     artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
                     isPlaying = isPlaying,
                     hasPrevious = hasPrevious,

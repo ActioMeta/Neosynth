@@ -10,8 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.neosynth.data.remote.responses.PlaylistDto
+import com.example.neosynth.R
 
 @Composable
 fun PlaylistPickerDialog(
@@ -21,7 +23,7 @@ fun PlaylistPickerDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Agregar a playlist") },
+        title = { Text(stringResource(R.string.playlist_add_to)) },
         text = {
             if (playlists.isEmpty()) {
                 Box(
@@ -31,7 +33,7 @@ fun PlaylistPickerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No hay playlists disponibles",
+                        text = stringResource(R.string.playlist_no_available),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -47,7 +49,7 @@ fun PlaylistPickerDialog(
                         ListItem(
                             headlineContent = { Text(playlist.name) },
                             supportingContent = {
-                                Text("${playlist.songCount} canciones")
+                                Text(stringResource(R.string.downloads_songs_count, playlist.songCount))
                             },
                             leadingContent = {
                                 Icon(
@@ -68,7 +70,7 @@ fun PlaylistPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

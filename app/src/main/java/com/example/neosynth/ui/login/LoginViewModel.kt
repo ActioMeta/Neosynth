@@ -11,6 +11,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.neosynth.R
 import javax.inject.Inject
 
 sealed class ConnectionStatus {
@@ -22,6 +25,7 @@ sealed class ConnectionStatus {
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val serverDao: ServerDao,
     private val api: NavidromeApiService,
     private val urlInterceptor: DynamicUrlInterceptor
@@ -34,7 +38,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _connectionStatus.value = ConnectionStatus.Loading
             if (!url.startsWith("http")) {
-                _connectionStatus.value = ConnectionStatus.Error("La URL debe empezar con http:// o https://")
+                _connectionStatus.value = ConnectionStatus.Error(context.getString(R.string.error_invalid_url))
                 return@launch
             }
 
@@ -55,10 +59,10 @@ class LoginViewModel @Inject constructor(
                 if (response.response.status == "ok") {
                     _connectionStatus.value = ConnectionStatus.Success
                 } else {
-                    _connectionStatus.value = ConnectionStatus.Error("Credenciales inválidas")
+                    _connectionStatus.value = ConnectionStatus.Error(context.getString(R.string.error_invalid_credentials))
                 }
             } catch (e: Exception) {
-                _connectionStatus.value = ConnectionStatus.Error("Fallo de conexión: ${e.localizedMessage}")
+                _connectionStatus.value = ConnectionStatus.Error(context.getString(R.string.error_connection_failed, e.localizedMessage))
             }
         }
     }

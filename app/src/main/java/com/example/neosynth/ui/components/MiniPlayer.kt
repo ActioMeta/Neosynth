@@ -42,6 +42,8 @@ import coil.compose.AsyncImage
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 
 @Composable
 fun MiniPlayer(
@@ -76,39 +78,57 @@ fun MiniPlayer(
         label = "miniplayer_scale"
     )
 
-    Surface(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .fillMaxWidth()
-            .height(80.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = colorScheme.surfaceContainer.copy(alpha = 0.95f),
-        tonalElevation = 6.dp
-    ) {
+    val miniPlayerShape = RoundedCornerShape(20.dp)
+    with(sharedTransitionScope) {
+        Surface(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .fillMaxWidth()
+                .height(80.dp)
+                .sharedBounds(
+                    sharedContentState = rememberSharedContentState(key = "player_bounds"),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    clipInOverlayDuringTransition = OverlayClip(miniPlayerShape),
+                    boundsTransform = { _, _ ->
+                        spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    }
+                )
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null
+                ) { onClick() },
+            shape = miniPlayerShape,
+            color = colorScheme.surfaceContainer.copy(alpha = 0.95f),
+            tonalElevation = 6.dp
+        ) {
         Row(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Artwork with Shared Element Transition
-            val miniCoverShape = RoundedCornerShape(12.dp)
+            // Artwork with Shared Element Transition M3 Expressive
+            val miniCoverShape = RoundedCornerShape(20.dp)
             with(sharedTransitionScope) {
                 AsyncImage(
                     model = artworkUri,
                     contentDescription = null,
                     modifier = Modifier
                         .size(64.dp)
-                        .sharedBounds(
-                            sharedContentState = rememberSharedContentState(key = "cover_$mediaId"),
+                        .sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "cover_${mediaId ?: "current"}"),
                             animatedVisibilityScope = animatedVisibilityScope,
-                            clipInOverlayDuringTransition = OverlayClip(miniCoverShape)
+                            boundsTransform = { _, _ ->
+                                spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            }
                         )
                         .clip(miniCoverShape),
                     contentScale = ContentScale.Crop
@@ -148,7 +168,7 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.previous),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -201,11 +221,12 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.next),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
     }
+}
 }

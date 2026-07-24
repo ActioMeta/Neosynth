@@ -27,7 +27,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.neosynth.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,10 +48,11 @@ fun LyricsEditorScreen(
     viewModel: LyricsEditorViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val currentMediaItem by musicController.currentMediaItem
-    val trackTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: "Desconocido"
-    val artistName = currentMediaItem?.mediaMetadata?.artist?.toString() ?: "Desconocido"
-    val albumName = currentMediaItem?.mediaMetadata?.albumTitle?.toString() ?: "Desconocido"
+    val trackTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title)
+    val artistName = currentMediaItem?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist)
+    val albumName = currentMediaItem?.mediaMetadata?.albumTitle?.toString() ?: stringResource(R.string.unknown_album)
     
     // Estado del reproductor local aislado
     val exoPlayer = remember { androidx.media3.exoplayer.ExoPlayer.Builder(context).build() }
@@ -129,18 +136,43 @@ fun LyricsEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Editor de Letras", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text(
+                            trackTitle, 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "$artistName • $albumName", 
+                            style = MaterialTheme.typography.labelSmall, 
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.publishLyrics(trackTitle, artistName, albumName, durationSeconds) },
-                        enabled = !isPublishing && rawLyrics.isNotBlank()
-                    ) {
-                        Icon(Icons.Rounded.CloudUpload, contentDescription = "Publicar a LRCLib")
+                    if (isPublishing) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        IconButton(
+                            onClick = { viewModel.publishLyrics(trackTitle, artistName, albumName, durationSeconds) },
+                            enabled = rawLyrics.isNotBlank()
+                        ) {
+                            Icon(
+                                Icons.Rounded.CloudUpload, 
+                                contentDescription = stringResource(R.string.lyrics_publish_lrclib),
+                                tint = if (rawLyrics.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                            )
+                        }
                     }
                 }
             )
@@ -158,59 +190,60 @@ fun LyricsEditorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding) // Includes SystemBars and NavigationBars padding automatically 
+                .padding(padding) 
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Header Info
-            Text(trackTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("$artistName • $albumName", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // 3 Import Options
+            // Import Tools Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
+                AssistChip(
                     onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Icon(Icons.Rounded.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Archivo", maxLines = 1)
-                }
+                    label = { Text(stringResource(R.string.lyrics_file), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp)) },
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
                 
-                Button(
+                AssistChip(
                     onClick = { viewModel.generateWithGemini(trackTitle, artistName) },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Icon(Icons.Rounded.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Gemini", maxLines = 1)
-                }
+                    label = { Text(stringResource(R.string.lyrics_gemini_ai), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(18.dp)) },
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        leadingIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
                 
-                Button(
+                AssistChip(
                     onClick = { showTextInputDialog = true },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Icon(Icons.Rounded.EditNote, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Texto", maxLines = 1)
-                }
+                    label = { Text(stringResource(R.string.lyrics_text), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp)) },
+                    shape = CircleShape,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(modifier = Modifier.alpha(0.2f))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Lyrics List lines
             if (parsedLines.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("Importa letras para empezar a sincronizar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.lyrics_import_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 // Current line index based on local player position
@@ -235,19 +268,53 @@ fun LyricsEditorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(parsedLines) { index, line ->
-                        LyricLineItem(
-                            line = line,
-                            isCurrentLine = index == currentEditorLineIndex,
-                            onPlayClick = {
-                                line.timeMs?.let { exoPlayer.seekTo(it) }
-                            },
-                            onTextClick = {
-                                editingLineIndex = index
-                            },
-                            onTimerClick = {
-                                viewModel.updateLineTime(index, currentLocalPosition)
+                        val isCurrentLine = index == currentEditorLineIndex
+                        
+                        // Predictive progress for current line
+                        var progress by remember { mutableStateOf(0f) }
+                        if (isCurrentLine) {
+                            val nextLineTime = parsedLines.getOrNull(index + 1)?.timeMs
+                            if (line.timeMs != null && nextLineTime != null) {
+                                val total = (nextLineTime - line.timeMs).toFloat()
+                                val current = (currentLocalPosition - line.timeMs).toFloat()
+                                progress = (current / total).coerceIn(0f, 1f)
                             }
-                        )
+                        }
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            LyricLineItem(
+                                line = line,
+                                isCurrentLine = isCurrentLine,
+                                onPlayClick = {
+                                    line.timeMs?.let { exoPlayer.seekTo(it) }
+                                },
+                                onTextClick = {
+                                    editingLineIndex = index
+                                },
+                                onTimerClick = {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    viewModel.updateLineTime(index, currentLocalPosition)
+                                },
+                                onAdjustTime = { delta ->
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    val currentTime = line.timeMs ?: 0L
+                                    viewModel.updateLineTime(index, (currentTime + delta).coerceAtLeast(0L))
+                                }
+                            )
+                            
+                            if (isCurrentLine && progress > 0f && progress < 1f) {
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                        .height(2.dp)
+                                        .clip(RoundedCornerShape(1.dp)),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = Color.Transparent
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -293,78 +360,136 @@ fun LyricLineItem(
     isCurrentLine: Boolean = false,
     onPlayClick: () -> Unit,
     onTextClick: () -> Unit,
-    onTimerClick: () -> Unit
+    onTimerClick: () -> Unit,
+    onAdjustTime: (Long) -> Unit = {}
 ) {
     val isSynced = line.timeMs != null
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isCurrentLine) 1f else 0.6f, label = "alpha"
+    )
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isCurrentLine) 1.02f else 1f, label = "scale"
+    )
     
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (isCurrentLine)
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
             else
                 MaterialTheme.colorScheme.surface,
         ),
         border = when {
-            isCurrentLine -> BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-            isSynced -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            isCurrentLine -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+            isSynced -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         },
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 1. Play Icon
-            IconButton(
-                onClick = onPlayClick,
-                enabled = isSynced,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.PlayArrow, 
-                    contentDescription = "Saltar a este tiempo",
-                    tint = if (isSynced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = contentAlpha
             }
-            
-            // 2. Text Content (Clickable)
-            Column(
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .clickable(onClick = onTextClick)
-                    .padding(horizontal = 8.dp)
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (isCurrentLine && isSynced) 4.dp else 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isSynced) {
-                    val min = line.timeMs!! / 60000
-                    val sec = (line.timeMs % 60000) / 1000
-                    val mil = (line.timeMs % 1000) / 10
-                    Text(
-                        text = String.format("[%02d:%02d.%02d]", min, sec, mil),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 2.dp)
+                // 1. Play Icon
+                IconButton(
+                    onClick = onPlayClick,
+                    enabled = isSynced,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.PlayArrow, 
+                        contentDescription = stringResource(R.string.lyrics_jump_time),
+                        tint = if (isSynced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                 }
+                
+                // 2. Text Content (Clickable)
                 Text(
-                    text = line.text.ifEmpty { "(Línea en blanco)" },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = line.text.ifEmpty { stringResource(R.string.lyrics_blank_line) },
+                    style = if (isCurrentLine) MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold) else MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onTextClick)
+                        .padding(horizontal = 8.dp)
                 )
+                
+                // 3. Timer and Time Display Column
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = onTimerClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Timer, 
+                            contentDescription = stringResource(R.string.lyrics_assign_time), 
+                            tint = if (isCurrentLine) MaterialTheme.colorScheme.primary else if (isSynced) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    if (isSynced) {
+                        val min = line.timeMs!! / 60000
+                        val sec = (line.timeMs % 60000) / 1000
+                        val mil = (line.timeMs % 1000) / 10
+                        Text(
+                            text = String.format("%02d:%02d.%02d", min, sec, mil),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                }
             }
-            
-            // 3. Timer Icon
-            IconButton(
-                onClick = onTimerClick,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.Timer, 
-                    contentDescription = "Asignar tiempo actual", 
-                    tint = if (isSynced) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+            // 4. Fine-tuning Controls with Icons
+            if (isSynced && isCurrentLine) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp, start = 48.dp, end = 48.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { onAdjustTime(-100L) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.FastRewind, 
+                            contentDescription = stringResource(R.string.lyrics_offset_minus), 
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        )
+                    }
+                    
+                    Text(
+                        stringResource(R.string.lyrics_offset_100ms), 
+                        style = MaterialTheme.typography.labelSmall, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    
+                    IconButton(
+                        onClick = { onAdjustTime(100L) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.FastForward, 
+                            contentDescription = stringResource(R.string.lyrics_offset_plus), 
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -380,23 +505,23 @@ fun TextInputDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Pegar Letras") },
+        title = { Text(stringResource(R.string.lyrics_editor_pasted)) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.fillMaxWidth().height(300.dp),
-                placeholder = { Text("Pega las letras aquí...") }
+                placeholder = { Text(stringResource(R.string.lyrics_editor_paste_hint)) }
             )
         },
         confirmButton = {
             Button(onClick = { onSave(text) }) {
-                Text("Aplicar")
+                Text(stringResource(R.string.lyrics_apply))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -423,18 +548,18 @@ fun EditLineDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar Línea") },
+        title = { Text(stringResource(R.string.lyrics_edit_line)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Letra") }
+                    label = { Text(stringResource(R.string.lyrics_lyric)) }
                 )
                 OutlinedTextField(
                     value = timeStr,
                     onValueChange = { timeStr = it },
-                    label = { Text("Tiempo (mm:ss.xx)") },
+                    label = { Text(stringResource(R.string.lyrics_time_format)) },
                     placeholder = { Text("00:00.00") }
                 )
             }
@@ -456,16 +581,16 @@ fun EditLineDialog(
                 
                 onSave(text, parsedTime)
             }) {
-                Text("Guardar")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
-                    Text("Eliminar")
+                    Text(stringResource(R.string.action_delete))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         }
@@ -483,49 +608,92 @@ fun LyricsEditorBottomBar(
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)) {
+        Column(modifier = Modifier.padding(bottom = 8.dp, top = 4.dp, start = 16.dp, end = 16.dp)) {
             // Slider
             Slider(
                 value = currentPosition.toFloat(),
                 onValueChange = { exoPlayer.seekTo(it.toLong()) },
                 valueRange = 0f..duration.toFloat(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                )
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Playback Controls
-                IconButton(onClick = { exoPlayer.seekTo((currentPosition - 5000).coerceAtLeast(0)) }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Rounded.FastRewind, contentDescription = "-5s")
-                }
+                // Left side: Current Time Monitor (Styled like total duration)
+                val min = currentPosition / 60000
+                val sec = (currentPosition % 60000) / 1000
+                val mil = (currentPosition % 1000) / 10
                 
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                FloatingActionButton(
-                    onClick = { 
-                        if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
-                    },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape,
-                    modifier = Modifier.size(64.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Icon(
-                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        modifier = Modifier.size(32.dp)
+                    Text(
+                        text = String.format("%02d:%02d.%02d", min, sec, mil),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                IconButton(onClick = { exoPlayer.seekTo((currentPosition + 5000).coerceAtMost(duration)) }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Rounded.FastForward, contentDescription = "+5s")
+
+                // Center: Playback Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    IconButton(onClick = { exoPlayer.seekTo((currentPosition - 5000).coerceAtLeast(0)) }) {
+                        Icon(Icons.Rounded.FastRewind, contentDescription = stringResource(R.string.lyrics_minus_5s), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    
+                    FloatingActionButton(
+                        onClick = { 
+                            if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = stringResource(R.string.play_pause),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    
+                    IconButton(onClick = { exoPlayer.seekTo((currentPosition + 5000).coerceAtMost(duration)) }) {
+                        Icon(Icons.Rounded.FastForward, contentDescription = stringResource(R.string.lyrics_plus_5s), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                // Right side: Total Duration / Spacer
+                val dMin = duration / 60000
+                val dSec = (duration % 60000) / 1000
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Text(
+                        text = String.format("%02d:%02d", dMin, dSec),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             Spacer(modifier = Modifier.navigationBarsPadding())
         }
     }
 }
+

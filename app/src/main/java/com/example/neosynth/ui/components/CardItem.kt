@@ -72,8 +72,16 @@ fun CardItem(
                     modifier = Modifier
                         .sharedElement(
                             sharedContentState = rememberSharedContentState(key = "cover_${album.id}"),
-                            animatedVisibilityScope = animatedVisibilityScope
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            boundsTransform = { _, _ ->
+                                androidx.compose.animation.core.spring(
+                                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                )
+                            },
+                            clipInOverlayDuringTransition = OverlayClip(cardShape)
                         )
+                        .clip(cardShape)
                         .fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -115,26 +123,18 @@ fun CardItem(
                 )
             }
 
-            // Menú contextual
-            if (onPlayNext != null && onAddToQueue != null && onGoToAlbum != null) {
-                com.example.neosynth.ui.home.components.HomePopupMenu(
-                    expanded = showMenu,
-                    onDismiss = { showMenu = false },
-                    onPlayNext = onPlayNext,
-                    onAddToQueue = onAddToQueue,
-                    onGoToArtist = onGoToArtist,
-                    onGoToAlbum = onGoToAlbum,
-                    offset = DpOffset(0.dp, 0.dp)
-                )
-            } else {
-                AlbumContextMenu(
-                    expanded = showMenu,
+            // Menú contextual desplegable (ModalBottomSheet Expresivo)
+            if (showMenu) {
+                AlbumOptionsBottomSheet(
+                    album = album,
                     onDismiss = { showMenu = false },
                     onPlay = onPlay,
                     onShuffle = onShuffle,
                     onDownload = onDownload,
                     onGoToArtist = onGoToArtist,
-                    offset = DpOffset(0.dp, 0.dp)
+                    onPlayNext = onPlayNext,
+                    onAddToQueue = onAddToQueue,
+                    onGoToAlbum = onGoToAlbum
                 )
             }
         }

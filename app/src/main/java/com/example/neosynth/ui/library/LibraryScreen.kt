@@ -32,6 +32,11 @@ import com.example.neosynth.data.remote.responses.AlbumDto
 import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.ui.components.AlphabetScrollbar
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
+import com.example.neosynth.ui.stats.rememberBounceScale
 import androidx.compose.ui.res.stringResource
 import com.example.neosynth.R
 import kotlinx.coroutines.launch
@@ -50,9 +55,17 @@ fun LibraryScreen(
     val artists by viewModel.artists.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isLoadingMoreAlbums by viewModel.isLoadingMoreAlbums.collectAsStateWithLifecycle()
+    val pinnedPlaylistIds by viewModel.pinnedPlaylistIds.collectAsStateWithLifecycle()
+    val pinnedAlbumIds by viewModel.pinnedAlbumIds.collectAsStateWithLifecycle()
+    val pinnedArtistIds by viewModel.pinnedArtistIds.collectAsStateWithLifecycle()
+    val favoriteSongsCount by viewModel.favoriteSongsCount.collectAsStateWithLifecycle()
     
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf(stringResource(R.string.tab_playlists), stringResource(R.string.tab_albums), stringResource(R.string.tab_artists))
+    val tabs = listOf(
+        Pair(stringResource(R.string.tab_playlists), Icons.Rounded.QueueMusic),
+        Pair(stringResource(R.string.tab_albums), Icons.Rounded.Album),
+        Pair(stringResource(R.string.tab_artists), Icons.Rounded.Person)
+    )
     
     // Dialogs
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -102,23 +115,91 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tabs with Segmented Buttons
-            SingleChoiceSegmentedButtonRow(
+            // Hero Stats Summary Card M3 Expressive
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
             ) {
-                tabs.forEachIndexed { index, title ->
-                    SegmentedButton(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size)
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Text(
-                            text = title,
-                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                            text = "${playlists.size} playlists • ${albums.size} álbumes • ${artists.size} artistas",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
                         )
                     }
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "$favoriteSongsCount ♥",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Tabs con Filter Chips Expressive
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tabs.forEachIndexed { index, (title, icon) ->
+                    val selected = selectedTab == index
+                    val chipInteraction = remember { MutableInteractionSource() }
+                    val chipScale by rememberBounceScale(chipInteraction)
+                    
+                    FilterChip(
+                        selected = selected,
+                        onClick = { selectedTab = index },
+                        label = {
+                            Text(
+                                text = title,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        shape = CircleShape,
+                        interactionSource = chipInteraction,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = chipScale
+                            scaleY = chipScale
+                        }
+                    )
                 }
             }
 
@@ -128,6 +209,9 @@ fun LibraryScreen(
                 when (selectedTab) {
                     0 -> PlaylistsTab(
                         playlists = playlists,
+                        pinnedPlaylistIds = pinnedPlaylistIds,
+                        favoriteSongsCount = favoriteSongsCount,
+                        onTogglePinPlaylist = { viewModel.togglePinPlaylist(it) },
                         getCoverUrl = { viewModel.getCoverUrl(it) },
                         onPlaylistClick = onNavigateToPlaylist,
                         onEditPlaylist = { showEditPlaylistDialog = it },
@@ -135,6 +219,8 @@ fun LibraryScreen(
                     )
                     1 -> AlbumsTab(
                         albums = albums,
+                        pinnedAlbumIds = pinnedAlbumIds,
+                        onTogglePinAlbum = { viewModel.togglePinAlbum(it) },
                         isLoadingMoreAlbums = isLoadingMoreAlbums,
                         getCoverUrl = { viewModel.getCoverUrl(it) },
                         onAlbumClick = onNavigateToAlbum,
@@ -142,6 +228,8 @@ fun LibraryScreen(
                     )
                     2 -> ArtistsTab(
                         artists = artists,
+                        pinnedArtistIds = pinnedArtistIds,
+                        onTogglePinArtist = { viewModel.togglePinArtist(it) },
                         onArtistClick = onNavigateToArtist
                     )
                 }
@@ -189,96 +277,168 @@ fun LibraryScreen(
 @Composable
 private fun PlaylistsTab(
     playlists: List<PlaylistDto>,
+    pinnedPlaylistIds: Set<String>,
+    favoriteSongsCount: Int,
+
+    onTogglePinPlaylist: (String) -> Unit,
     getCoverUrl: (String?) -> String?,
     onPlaylistClick: (String) -> Unit,
     onEditPlaylist: (PlaylistDto) -> Unit,
     onDeletePlaylist: (PlaylistDto) -> Unit
 ) {
-    if (playlists.isEmpty()) {
-        EmptyState(
-            icon = Icons.Rounded.QueueMusic,
-            title = stringResource(R.string.library_no_playlists_title),
-            subtitle = stringResource(R.string.library_no_playlists_subtitle)
-        )
-    } else {
-        val listState = rememberLazyListState()
-        val scope = rememberCoroutineScope()
-        
-        // Agrupar playlists por primera letra
-        val groupedPlaylists = remember(playlists) {
-            playlists.sortedBy { it.name.lowercase() }
-                .groupBy { playlist ->
-                    val firstChar = playlist.name.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
-                }
-        }
-        
-        val availableLetters = remember(groupedPlaylists) {
-            groupedPlaylists.keys.toSet()
-        }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    
+    // Pinned vs Unpinned playlists
+    val pinnedPlaylists = remember(playlists, pinnedPlaylistIds) {
+        playlists.filter { it.id in pinnedPlaylistIds }.sortedBy { it.name.lowercase() }
+    }
+    val unpinnedPlaylists = remember(playlists, pinnedPlaylistIds) {
+        playlists.filter { it.id !in pinnedPlaylistIds }
+    }
 
-        Row(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                groupedPlaylists.forEach { (initial, playlistsInGroup) ->
-                    stickyHeader(key = "header_$initial") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
-                                .padding(vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = initial.toString(),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    
-                    items(
-                        items = playlistsInGroup,
-                        key = { it.id }
-                    ) { playlist ->
-                        PlaylistRow(
-                            playlist = playlist,
-                            coverUrl = getCoverUrl(playlist.coverArt),
-                            onClick = { onPlaylistClick(playlist.id) },
-                            onEdit = { onEditPlaylist(playlist) },
-                            onDelete = { onDeletePlaylist(playlist) }
+    // Agrupar unpinned playlists por primera letra
+    val groupedPlaylists = remember(unpinnedPlaylists) {
+        unpinnedPlaylists.sortedBy { it.name.lowercase() }
+            .groupBy { playlist ->
+                val firstChar = playlist.name.firstOrNull()?.uppercaseChar() ?: '#'
+                if (firstChar.isLetter()) firstChar else '#'
+            }
+    }
+    
+    val availableLetters = remember(groupedPlaylists) {
+        groupedPlaylists.keys.toSet()
+    }
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // --- 1. Favorites Playlist ---
+            item(key = "virtual_favorites") {
+                PlaylistRow(
+                    playlist = PlaylistDto(
+                        id = "favorites",
+                        name = stringResource(R.string.favorites),
+                        songCount = favoriteSongsCount,
+                        duration = 0,
+                        coverArt = null
+                    ),
+                    coverUrl = null,
+                    isVirtualFavorites = true,
+                    isPinned = false,
+                    onTogglePin = {},
+                    onClick = { onPlaylistClick("favorites") },
+                    onEdit = {},
+                    onDelete = {}
+                )
+            }
+
+            // --- 2. Pinned Playlists ---
+            if (pinnedPlaylists.isNotEmpty()) {
+                stickyHeader(key = "header_pinned") {
+                    Surface(
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(elevation = 2.dp),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Text(
+                            text = stringResource(R.string.pinned_items),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
                 }
+
+                items(
+                    items = pinnedPlaylists,
+                    key = { "pinned_${it.id}" }
+                ) { playlist ->
+                    PlaylistRow(
+                        playlist = playlist,
+                        coverUrl = getCoverUrl(playlist.coverArt),
+                        isPinned = true,
+                        onTogglePin = { onTogglePinPlaylist(playlist.id) },
+                        onClick = { onPlaylistClick(playlist.id) },
+                        onEdit = { onEditPlaylist(playlist) },
+                        onDelete = { onDeletePlaylist(playlist) }
+                    )
+                }
+                
+                item(key = "pinned_divider") {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                }
             }
-            
-            // Alphabet Scrollbar
-            if (playlists.size > 10) {
-                AlphabetScrollbar(
-                    availableLetters = availableLetters,
-                    currentLetter = null,
-                    onLetterSelected = { letter ->
-                        val keys = groupedPlaylists.keys.toList()
-                        val targetKeyIndex = keys.indexOf(letter)
-                        if (targetKeyIndex >= 0) {
-                            var itemIndex = 0
-                            for (i in 0 until targetKeyIndex) {
-                                itemIndex += 1 + (groupedPlaylists[keys[i]]?.size ?: 0)
-                            }
-                            scope.launch {
-                                listState.animateScrollToItem(itemIndex)
-                            }
+
+            // --- 3. Unpinned Grouped Playlists ---
+            groupedPlaylists.forEach { (initial, playlistsInGroup) ->
+                stickyHeader(key = "header_$initial") {
+                    Surface(
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(elevation = 2.dp),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Text(
+                            text = initial.toString(),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+                
+                items(
+                    items = playlistsInGroup,
+                    key = { it.id }
+                ) { playlist ->
+                    PlaylistRow(
+                        playlist = playlist,
+                        coverUrl = getCoverUrl(playlist.coverArt),
+                        isPinned = false,
+                        onTogglePin = { onTogglePinPlaylist(playlist.id) },
+                        onClick = { onPlaylistClick(playlist.id) },
+                        onEdit = { onEditPlaylist(playlist) },
+                        onDelete = { onDeletePlaylist(playlist) }
+                    )
+                }
+            }
+        }
+        
+        // Alphabet Scrollbar
+        if (unpinnedPlaylists.size > 10) {
+            AlphabetScrollbar(
+                availableLetters = availableLetters,
+                currentLetter = null,
+                onLetterSelected = { letter ->
+                    val keys = groupedPlaylists.keys.toList()
+                    val targetKeyIndex = keys.indexOf(letter)
+                    if (targetKeyIndex >= 0) {
+                        var itemIndex = 1 // Start at 1 for the favorites row
+                        if (pinnedPlaylists.isNotEmpty()) {
+                            itemIndex += 1 // Pinned header
+                            itemIndex += pinnedPlaylists.size // Pinned items
+                            itemIndex += 1 // Divider
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(end = 4.dp, top = 8.dp, bottom = 180.dp)
-                )
-            }
+                        for (i in 0 until targetKeyIndex) {
+                            itemIndex += 1 + (groupedPlaylists[keys[i]]?.size ?: 0)
+                        }
+                        scope.launch {
+                            listState.animateScrollToItem(itemIndex)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(end = 4.dp, top = 8.dp, bottom = 180.dp)
+            )
         }
     }
 }
@@ -287,6 +447,9 @@ private fun PlaylistsTab(
 @Composable
 private fun AlbumsTab(
     albums: List<AlbumDto>,
+    pinnedAlbumIds: Set<String>,
+
+    onTogglePinAlbum: (String) -> Unit,
     isLoadingMoreAlbums: Boolean,
     getCoverUrl: (String?) -> String?,
     onAlbumClick: (String) -> Unit,
@@ -302,9 +465,17 @@ private fun AlbumsTab(
         val listState = rememberLazyListState()
         val scope = rememberCoroutineScope()
         
-        // Agrupar álbumes por primera letra
-        val groupedAlbums = remember(albums) {
-            albums.sortedBy { it.title.lowercase() }
+        // Pinned vs Unpinned albums
+        val pinnedAlbums = remember(albums, pinnedAlbumIds) {
+            albums.filter { it.id in pinnedAlbumIds }.sortedBy { it.title.lowercase() }
+        }
+        val unpinnedAlbums = remember(albums, pinnedAlbumIds) {
+            albums.filter { it.id !in pinnedAlbumIds }
+        }
+
+        // Agrupar unpinned álbumes por primera letra
+        val groupedAlbums = remember(unpinnedAlbums) {
+            unpinnedAlbums.sortedBy { it.title.lowercase() }
                 .groupBy { album ->
                     val firstChar = album.title.firstOrNull()?.uppercaseChar() ?: '#'
                     if (firstChar.isLetter()) firstChar else '#'
@@ -322,19 +493,58 @@ private fun AlbumsTab(
                 contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                groupedAlbums.forEach { (initial, albumsInGroup) ->
-                    stickyHeader(key = "header_$initial") {
-                        Box(
+                // --- Pinned Albums ---
+                if (pinnedAlbums.isNotEmpty()) {
+                    stickyHeader(key = "header_pinned_albums") {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
-                                .padding(vertical = 6.dp)
+                                .shadow(elevation = 2.dp),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = stringResource(R.string.pinned_items),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    items(
+                        items = pinnedAlbums,
+                        key = { "pinned_${it.id}" }
+                    ) { album ->
+                        AlbumRow(
+                            album = album,
+                            coverUrl = getCoverUrl(album.coverArt),
+                            isPinned = true,
+                            onTogglePin = { onTogglePinAlbum(album.id) },
+                            onClick = { onAlbumClick(album.id) }
+                        )
+                    }
+                    
+                    item(key = "pinned_divider_albums") {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                }
+
+                // --- Unpinned Grouped Albums ---
+                groupedAlbums.forEach { (initial, albumsInGroup) ->
+                    stickyHeader(key = "header_$initial") {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(elevation = 2.dp),
+                            contentColor = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
                                 text = initial.toString(),
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
                     }
@@ -346,6 +556,8 @@ private fun AlbumsTab(
                         AlbumRow(
                             album = album,
                             coverUrl = getCoverUrl(album.coverArt),
+                            isPinned = false,
+                            onTogglePin = { onTogglePinAlbum(album.id) },
                             onClick = { onAlbumClick(album.id) }
                         )
                     }
@@ -382,7 +594,7 @@ private fun AlbumsTab(
             }
             
             // Alphabet Scrollbar
-            if (albums.size > 10) {
+            if (unpinnedAlbums.size > 10) {
                 AlphabetScrollbar(
                     availableLetters = availableLetters,
                     currentLetter = null,
@@ -391,6 +603,11 @@ private fun AlbumsTab(
                         val targetKeyIndex = keys.indexOf(letter)
                         if (targetKeyIndex >= 0) {
                             var itemIndex = 0
+                            if (pinnedAlbums.isNotEmpty()) {
+                                itemIndex += 1 // Pinned header
+                                itemIndex += pinnedAlbums.size // Pinned items
+                                itemIndex += 1 // Divider
+                            }
                             for (i in 0 until targetKeyIndex) {
                                 itemIndex += 1 + (groupedAlbums[keys[i]]?.size ?: 0)
                             }
@@ -412,12 +629,23 @@ private fun AlbumsTab(
 private fun AlbumRow(
     album: AlbumDto,
     coverUrl: String?,
+    isPinned: Boolean = false,
+    onTogglePin: () -> Unit = {},
     onClick: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberBounceScale(interactionSource)
+
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(12.dp),
-        color = androidx.compose.ui.graphics.Color.Transparent
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
     ) {
         Row(
             modifier = Modifier
@@ -455,13 +683,25 @@ private fun AlbumRow(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = album.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = album.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isPinned) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.PushPin,
+                            contentDescription = stringResource(R.string.pinned_items),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 Text(
                     text = album.artist,
                     style = MaterialTheme.typography.bodySmall,
@@ -469,6 +709,42 @@ private fun AlbumRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.action_options)
+                    )
+                }
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isPinned)
+                                    stringResource(R.string.action_unpin)
+                                else
+                                    stringResource(R.string.action_pin)
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onTogglePin()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.PushPin,
+                                contentDescription = null,
+                                tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                }
             }
         }
     }
@@ -478,6 +754,9 @@ private fun AlbumRow(
 @Composable
 private fun ArtistsTab(
     artists: List<ArtistDto>,
+    pinnedArtistIds: Set<String>,
+
+    onTogglePinArtist: (String) -> Unit,
     onArtistClick: (String, String) -> Unit
 ) {
     if (artists.isEmpty()) {
@@ -490,9 +769,17 @@ private fun ArtistsTab(
         val listState = rememberLazyListState()
         val scope = rememberCoroutineScope()
         
-        // Agrupar artistas por primera letra
-        val groupedArtists = remember(artists) {
-            artists.sortedBy { it.name.lowercase() }
+        // Pinned vs Unpinned artists
+        val pinnedArtists = remember(artists, pinnedArtistIds) {
+            artists.filter { it.id in pinnedArtistIds }.sortedBy { it.name.lowercase() }
+        }
+        val unpinnedArtists = remember(artists, pinnedArtistIds) {
+            artists.filter { it.id !in pinnedArtistIds }
+        }
+
+        // Agrupar unpinned artistas por primera letra
+        val groupedArtists = remember(unpinnedArtists) {
+            unpinnedArtists.sortedBy { it.name.lowercase() }
                 .groupBy { artist ->
                     val firstChar = artist.name.firstOrNull()?.uppercaseChar() ?: '#'
                     if (firstChar.isLetter()) firstChar else '#'
@@ -510,19 +797,57 @@ private fun ArtistsTab(
                 contentPadding = PaddingValues(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 180.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                groupedArtists.forEach { (initial, artistsInGroup) ->
-                    stickyHeader(key = "header_$initial") {
-                        Box(
+                // --- Pinned Artists ---
+                if (pinnedArtists.isNotEmpty()) {
+                    stickyHeader(key = "header_pinned_artists") {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f))
-                                .padding(vertical = 8.dp)
+                                .shadow(elevation = 2.dp),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = stringResource(R.string.pinned_items),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    items(
+                        items = pinnedArtists,
+                        key = { "pinned_${it.id}" }
+                    ) { artist ->
+                        ArtistRowItem(
+                            artist = artist,
+                            isPinned = true,
+                            onTogglePin = { onTogglePinArtist(artist.id) },
+                            onClick = { onArtistClick(artist.id, artist.name) }
+                        )
+                    }
+                    
+                    item(key = "pinned_divider_artists") {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                }
+
+                // --- Unpinned Grouped Artists ---
+                groupedArtists.forEach { (initial, artistsInGroup) ->
+                    stickyHeader(key = "header_$initial") {
+                        Surface(
+                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(elevation = 2.dp),
+                            contentColor = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
                                 text = initial.toString(),
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
                     }
@@ -533,6 +858,8 @@ private fun ArtistsTab(
                     ) { artist ->
                         ArtistRowItem(
                             artist = artist,
+                            isPinned = false,
+                            onTogglePin = { onTogglePinArtist(artist.id) },
                             onClick = { onArtistClick(artist.id, artist.name) }
                         )
                     }
@@ -540,7 +867,7 @@ private fun ArtistsTab(
             }
             
             // Alphabet Scrollbar
-            if (artists.size > 15) {
+            if (unpinnedArtists.size > 15) {
                 AlphabetScrollbar(
                     availableLetters = availableLetters,
                     currentLetter = null,
@@ -549,6 +876,11 @@ private fun ArtistsTab(
                         val targetKeyIndex = keys.indexOf(letter)
                         if (targetKeyIndex >= 0) {
                             var itemIndex = 0
+                            if (pinnedArtists.isNotEmpty()) {
+                                itemIndex += 1 // Pinned header
+                                itemIndex += pinnedArtists.size // Pinned items
+                                itemIndex += 1 // Divider
+                            }
                             for (i in 0 until targetKeyIndex) {
                                 itemIndex += 1 + (groupedArtists[keys[i]]?.size ?: 0)
                             }
@@ -570,16 +902,26 @@ private fun ArtistsTab(
 private fun PlaylistRow(
     playlist: PlaylistDto,
     coverUrl: String?,
+    isVirtualFavorites: Boolean = false,
+    isPinned: Boolean = false,
+    onTogglePin: () -> Unit = {},
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberBounceScale(interactionSource)
 
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(12.dp),
-        color = androidx.compose.ui.graphics.Color.Transparent
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
     ) {
         Row(
             modifier = Modifier
@@ -588,7 +930,9 @@ private fun PlaylistRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Cover
-            if (coverUrl != null) {
+            if (isVirtualFavorites) {
+                FavoritesCover(modifier = Modifier.size(56.dp))
+            } else if (coverUrl != null) {
                 AsyncImage(
                     model = coverUrl,
                     contentDescription = playlist.name,
@@ -598,32 +942,31 @@ private fun PlaylistRow(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.QueueMusic,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                PlaylistCollageCover(modifier = Modifier.size(56.dp))
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = playlist.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isPinned) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.PushPin,
+                            contentDescription = stringResource(R.string.pinned_items),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 Text(
                     text = stringResource(R.string.library_songs_count, playlist.songCount),
                     style = MaterialTheme.typography.bodySmall,
@@ -631,38 +974,61 @@ private fun PlaylistRow(
                 )
             }
 
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.action_options)
-                    )
-                }
-                
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_edit)) },
-                        onClick = {
-                            showMenu = false
-                            onEdit()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Edit, contentDescription = null)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_delete)) },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Delete, contentDescription = null)
-                        }
-                    )
+            if (!isVirtualFavorites) {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = stringResource(R.string.action_options)
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (isPinned)
+                                        stringResource(R.string.action_unpin)
+                                    else
+                                        stringResource(R.string.action_pin)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onTogglePin()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.PushPin,
+                                    contentDescription = null,
+                                    tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_edit)) },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Edit, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_delete)) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Delete, contentDescription = null)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -672,12 +1038,23 @@ private fun PlaylistRow(
 @Composable
 private fun ArtistRowItem(
     artist: ArtistDto,
+    isPinned: Boolean = false,
+    onTogglePin: () -> Unit = {},
     onClick: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberBounceScale(interactionSource)
+
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(12.dp),
-        color = androidx.compose.ui.graphics.Color.Transparent
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
     ) {
         Row(
             modifier = Modifier
@@ -715,19 +1092,67 @@ private fun ArtistRowItem(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = artist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = artist.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isPinned) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.PushPin,
+                            contentDescription = stringResource(R.string.pinned_items),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
                 artist.albumCount?.let { count ->
                     Text(
                         text = stringResource(R.string.library_albums_count, count),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.action_options)
+                    )
+                }
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isPinned)
+                                    stringResource(R.string.action_unpin)
+                                else
+                                    stringResource(R.string.action_pin)
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onTogglePin()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.PushPin,
+                                contentDescription = null,
+                                tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     )
                 }
             }
@@ -865,4 +1290,100 @@ private fun DeletePlaylistDialog(
             }
         }
     )
+}
+
+@Composable
+private fun PlaylistCollageCover(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.secondaryContainer
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f))
+                )
+            }
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                )
+            }
+        }
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+            modifier = Modifier
+                .size(28.dp)
+                .shadow(4.dp, CircleShape),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+            )
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.QueueMusic,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FavoritesCover(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        androidx.compose.ui.graphics.Color(0xFFE91E63),
+                        androidx.compose.ui.graphics.Color(0xFF9C27B0)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Favorite,
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+            tint = androidx.compose.ui.graphics.Color.White
+        )
+    }
 }

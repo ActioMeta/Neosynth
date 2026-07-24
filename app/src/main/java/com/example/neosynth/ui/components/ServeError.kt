@@ -11,16 +11,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.neosynth.R
 
 @Composable
 fun ServerErrorScreen(
     onRetry: () -> Unit,
     onSettings: (() -> Unit)? = null,
-    title: String = "Servidor inalcanzable",
-    message: String = "No pudimos conectar con tu biblioteca. Verifica tu conexión o los ajustes del servidor."
+    title: String = stringResource(R.string.error_server_unreachable),
+    message: String = stringResource(R.string.error_server_unreachable_desc)
 ) {
     Column(
         modifier = Modifier
@@ -62,7 +64,7 @@ fun ServerErrorScreen(
             ) {
                 Icon(Icons.Rounded.Refresh, null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Reintentar")
+                Text(stringResource(R.string.action_retry))
             }
             
             if (onSettings != null) {
@@ -73,7 +75,7 @@ fun ServerErrorScreen(
                 ) {
                     Icon(Icons.Rounded.Settings, null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Configuración")
+                    Text(stringResource(R.string.action_settings))
                 }
             }
         }

@@ -1,6 +1,9 @@
 package com.example.neosynth.ui.home.logic
 
+import android.content.Context
 import android.util.Log
+import com.example.neosynth.R
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.example.neosynth.data.model.LyricsResult
 import com.example.neosynth.data.repository.LyricsRepository
 import com.example.neosynth.player.MusicController
@@ -13,7 +16,8 @@ import javax.inject.Inject
 
 class HomeLyricsHandler @Inject constructor(
     private val lyricsRepository: LyricsRepository,
-    private val musicController: MusicController
+    private val musicController: MusicController,
+    @ApplicationContext private val appContext: Context
 ) {
 
     private val _currentLyrics = MutableStateFlow<String?>(null)
@@ -81,14 +85,14 @@ class HomeLyricsHandler @Inject constructor(
                 } else {
                     _showLyricsSelection.value = false
                     _currentLyrics.value = null
-                    _lyricsError.value = "No se encontraron letras para esta canción"
+                    _lyricsError.value = appContext.getString(R.string.msg_no_lyrics_found)
                 }
             } catch (e: Exception) {
                 Log.e("HomeLyricsHandler", "Error loading lyrics", e)
                 _currentLyrics.value = null
                 _lyricsOptions.value = emptyList()
                 _showLyricsSelection.value = false
-                _lyricsError.value = "Error al buscar letras: ${e.message}"
+                _lyricsError.value = appContext.getString(R.string.error_lyrics_search_failed, e.message ?: "")
             } finally {
                 _isLoadingLyrics.value = false
             }

@@ -19,6 +19,11 @@ import android.graphics.drawable.BitmapDrawable
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.request.ImageRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Singleton
@@ -61,11 +66,64 @@ class MusicController @Inject constructor(
     private val _audioSessionId = mutableStateOf(0)
     val audioSessionId: State<Int> = _audioSessionId
 
+    // Sleep Timer state
+    private val _sleepTimerRemaining = mutableStateOf(0L)
+    val sleepTimerRemaining: State<Long> = _sleepTimerRemaining
+    private var sleepTimerJob: Job? = null
+    private val controllerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
     private var browserFuture: ListenableFuture<MediaBrowser>? = null
     val browser: MediaBrowser?
         get() = if (browserFuture?.isDone == true) browserFuture?.get() else null
 
     private var originalQueue: List<MediaItem>? = null
+    private var pendingRestorePosition: Pair<String, Long>? = null
+
+    fun startSleepTimer(durationMs: Long) {
+        cancelSleepTimer()
+        if (durationMs <= 0) return
+        
+        _sleepTimerRemaining.value = durationMs
+        
+        sleepTimerJob = controllerScope.launch {
+            var remaining = durationMs
+            while (remaining > 0) {
+                delay(1000)
+                remaining -= 1000
+                _sleepTimerRemaining.value = remaining.coerceAtLeast(0)
+                
+                // Fade out volume in the last 5 seconds
+                if (remaining <= 5000 && remaining > 0) {
+                    val player = browser
+                    if (player != null && player.isPlaying) {
+                        val targetVolume = (remaining / 5000f) * 1f
+                        player.volume = targetVolume.coerceIn(0f, 1f)
+                    }
+                }
+            }
+            
+            // Pause player
+            browser?.let { player ->
+                player.pause()
+                player.volume = 1.0f // Reset volume
+            }
+            cancelSleepTimer()
+        }
+    }
+
+    fun startSleepTimerAtEndOfSong() {
+        cancelSleepTimer()
+        _sleepTimerRemaining.value = -1L
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerRemaining.value = 0L
+        browser?.let { player ->
+            player.volume = 1.0f
+        }
+    }
 
     init {
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
@@ -92,6 +150,17 @@ class MusicController @Inject constructor(
                     updateQueue()
                     updateNavStates()
                     updateDominantColor(mediaItem)
+                    
+                    val restore = pendingRestorePosition
+                    if (restore != null && mediaItem?.mediaId == restore.first) {
+                        pendingRestorePosition = null
+                        player.seekTo(restore.second)
+                    }
+                    
+                    if (_sleepTimerRemaining.value == -1L) {
+                        player.pause()
+                        cancelSleepTimer()
+                    }
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -115,6 +184,12 @@ class MusicController @Inject constructor(
                 override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
                     updateQueue()
                     updateNavStates()
+                    
+                    val restore = pendingRestorePosition
+                    if (restore != null && player.currentMediaItem?.mediaId == restore.first) {
+                        pendingRestorePosition = null
+                        player.seekTo(restore.second)
+                    }
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -288,6 +363,13 @@ class MusicController @Inject constructor(
             if (fromIndex in 0 until player.mediaItemCount && 
                 toIndex in 0 until player.mediaItemCount &&
                 fromIndex != toIndex) {
+                
+                val activeItem = player.currentMediaItem
+                if (activeItem != null) {
+                    val currentPos = player.currentPosition
+                    pendingRestorePosition = Pair(activeItem.mediaId, currentPos)
+                }
+                
                 player.moveMediaItem(fromIndex, toIndex)
                 updateQueue()
             }

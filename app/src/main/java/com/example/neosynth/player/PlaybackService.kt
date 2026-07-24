@@ -17,14 +17,24 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import com.example.neosynth.MainActivity
 import com.example.neosynth.data.preferences.SettingsPreferences
 import com.example.neosynth.player.audio.CrossfeedAudioProcessor
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheWriter
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+import kotlinx.coroutines.Job
 
+@OptIn(UnstableApi::class)
 @AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
@@ -32,10 +42,16 @@ class PlaybackService : MediaSessionService() {
     
     @Inject
     lateinit var settingsPreferences: SettingsPreferences
+
+    @Inject
+    lateinit var statsRepository: com.example.neosynth.data.repository.StatsRepository
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val crossfeedProcessor = CrossfeedAudioProcessor()
+    private var preloadJob: Job? = null
+    private var playbackTrackerJob: Job? = null
+    private var currentTrackLogged = false
 
     override fun onCreate() {
         super.onCreate()
@@ -55,6 +71,16 @@ class PlaybackService : MediaSessionService() {
                 5000    // Playback rebuffer: 5s
             )
             .build()
+
+        // Setup cache datasource factory for gapless & preloading
+        val cache = MediaCacheManager.getCache(this)
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+        val defaultDataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(cache)
+            .setUpstreamDataSourceFactory(defaultDataSourceFactory)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
             
         // Custom RenderersFactory to inject AudioProcessors
         val renderersFactory = object : DefaultRenderersFactory(this) {
@@ -73,6 +99,7 @@ class PlaybackService : MediaSessionService() {
         }
         
         exoPlayer = ExoPlayer.Builder(this, renderersFactory)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(cacheDataSourceFactory))
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)
@@ -100,9 +127,70 @@ class PlaybackService : MediaSessionService() {
         // Permanent Listener for Queue Cleanup and Audio Session
         exoPlayer.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                // Removed queue truncation optimization. It was causing the queue indices
-                // to shift during playback, which broke UI pager synchronization.
-                // ExoPlayer is perfectly capable of handling large static playlists.
+                // Preload the next song in the queue
+                val nextIndex = exoPlayer.currentMediaItemIndex + 1
+                if (nextIndex < exoPlayer.mediaItemCount) {
+                    val nextItem = exoPlayer.getMediaItemAt(nextIndex)
+                    preloadMediaItem(nextItem)
+                }
+
+                // Track stats
+                playbackTrackerJob?.cancel()
+                currentTrackLogged = false
+                
+                if (mediaItem != null) {
+                    val songId = mediaItem.mediaId
+                    val title = mediaItem.mediaMetadata.title?.toString() ?: ""
+                    val artist = mediaItem.mediaMetadata.artist?.toString() ?: ""
+                    
+                    playbackTrackerJob = serviceScope.launch {
+                        var duration = exoPlayer.duration
+                        // Wait for duration to load (up to 5 seconds)
+                        var waitCount = 0
+                        while ((duration <= 0 || duration == C.TIME_UNSET) && waitCount < 10) {
+                            kotlinx.coroutines.delay(500)
+                            duration = exoPlayer.duration
+                            waitCount++
+                        }
+                        
+                        val targetTimeMs = if (duration > 0 && duration != C.TIME_UNSET) {
+                            minOf(30_000L, duration / 2)
+                        } else {
+                            30_000L
+                        }
+                        
+                        var elapsedMs = 0L
+                        val checkIntervalMs = 1000L
+                        var historyId: Long? = null
+                        
+                        try {
+                            while (exoPlayer.currentMediaItem?.mediaId == songId) {
+                                kotlinx.coroutines.delay(checkIntervalMs)
+                                if (exoPlayer.isPlaying && exoPlayer.currentMediaItem?.mediaId == songId) {
+                                    elapsedMs += checkIntervalMs
+                                    
+                                    if (elapsedMs >= targetTimeMs && historyId == null) {
+                                        historyId = statsRepository.recordPlayback(
+                                            songId = songId,
+                                            title = title,
+                                            artist = artist,
+                                            durationListened = elapsedMs
+                                        )
+                                        currentTrackLogged = true
+                                    } else if (historyId != null && elapsedMs % 5000L == 0L) {
+                                        statsRepository.updateDurationListened(historyId, elapsedMs)
+                                    }
+                                }
+                            }
+                        } finally {
+                            historyId?.let { id ->
+                                if (elapsedMs > 0) {
+                                    statsRepository.updateDurationListened(id, elapsedMs)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -202,7 +290,53 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    private fun preloadMediaItem(mediaItem: androidx.media3.common.MediaItem) {
+        preloadJob?.cancel()
+        
+        val uri = mediaItem.localConfiguration?.uri ?: return
+        val scheme = uri.scheme
+        if (scheme != "http" && scheme != "https") return
+        
+        preloadJob = serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Wait 2s to not compete with the active player's initial load bandwidth
+                kotlinx.coroutines.delay(2000)
+                
+                val cache = MediaCacheManager.getCache(this@PlaybackService)
+                val httpDataSource = DefaultHttpDataSource.Factory()
+                    .setAllowCrossProtocolRedirects(true)
+                    .createDataSource()
+                
+                val cacheDataSource = CacheDataSource(
+                    cache,
+                    httpDataSource,
+                    CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
+                )
+                
+                val dataSpec = DataSpec.Builder()
+                    .setUri(uri)
+                    .setPosition(0)
+                    .setLength(2 * 1024 * 1024) // 2MB preload limit
+                    .build()
+                    
+                val buffer = ByteArray(128 * 1024)
+                val cacheWriter = CacheWriter(
+                    cacheDataSource,
+                    dataSpec,
+                    buffer,
+                    null
+                )
+                
+                cacheWriter.cache()
+                android.util.Log.d("PlaybackService", "Successfully preloaded next track: ${mediaItem.mediaId}")
+            } catch (e: Exception) {
+                android.util.Log.e("PlaybackService", "Failed to preload next track: ${e.message}")
+            }
+        }
+    }
+
     override fun onDestroy() {
+        preloadJob?.cancel()
         if (::exoPlayer.isInitialized && exoPlayer.audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
              broadcastAudioSessionId(exoPlayer.audioSessionId, AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
         }

@@ -1,8 +1,10 @@
 package com.example.neosynth.ui.home.logic
 
+import android.content.Context
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.example.neosynth.R
 import com.example.neosynth.data.local.ServerDao
 import com.example.neosynth.data.local.buildCoverArtUrl
 import com.example.neosynth.data.local.entities.ServerEntity
@@ -11,6 +13,7 @@ import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.ui.home.HomeViewModel.UiEvent
 import com.example.neosynth.utils.NetworkHelper
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -29,7 +32,8 @@ class HomePlayerHandler @Inject constructor(
     private val musicController: MusicController,
     private val urlInterceptor: DynamicUrlInterceptor,
     private val networkHelper: NetworkHelper,
-    private val settingsPreferences: SettingsPreferences
+    private val settingsPreferences: SettingsPreferences,
+    @ApplicationContext private val context: Context
 ) {
 
     private suspend fun getStreamQuality(): StreamQuality {
@@ -41,9 +45,9 @@ class HomePlayerHandler @Inject constructor(
         }
     }
 
-    fun playShuffle(scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>, updateRandomCoverArts: (List<String>) -> Unit) {
+    fun playShuffle(scope: CoroutineScope, uiEvent: MutableSharedFlow<UiEvent>, isOffline: Boolean = false, updateRandomCoverArts: (List<String>) -> Unit) {
         scope.launch {
-            if (networkHelper.isCurrentConnectionOffline) {
+            if (isOffline || networkHelper.isCurrentConnectionOffline) {
                 playOfflineShuffle(uiEvent, updateRandomCoverArts)
                 return@launch
             }
@@ -93,7 +97,7 @@ class HomePlayerHandler @Inject constructor(
                 updateRandomCoverArts(randomSongs.take(3).mapNotNull { it.imageUrl })
                 musicController.playQueue(mediaItems, 0)
             } else {
-                uiEvent.emit(UiEvent.ShowSnackbar("No hay canciones descargadas"))
+                uiEvent.emit(UiEvent.ShowSnackbar(context.getString(R.string.error_no_songs_downloaded)))
             }
         } catch (e: Exception) {
             Log.e("HomePlayerHandler", "Error playing offline shuffle", e)
@@ -208,6 +212,68 @@ class HomePlayerHandler @Inject constructor(
                     .build()
             )
             .build()
+    }
+
+    fun playPreloadedRandomSongs(
+        scope: CoroutineScope,
+        onlineSongs: List<SongDto>,
+        offlineSongs: List<SongEntity>,
+        isOffline: Boolean,
+        startIndex: Int = 0
+    ) {
+        scope.launch {
+            if (isOffline || networkHelper.isCurrentConnectionOffline || onlineSongs.isEmpty()) {
+                if (offlineSongs.isNotEmpty()) {
+                    val mediaItems = offlineSongs.map { songEntityToMediaItem(it) }
+                    val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+                    musicController.playQueue(mediaItems, safeIndex)
+                }
+                return@launch
+            }
+
+            val server = serverDao.getActiveServer() ?: return@launch
+            urlInterceptor.setBaseUrl(server.url)
+            val quality = getStreamQuality()
+
+            val mediaItems = onlineSongs.map { songDtoToMediaItem(it, server, quality) }
+            if (mediaItems.isNotEmpty()) {
+                val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+                musicController.playQueue(mediaItems, safeIndex)
+            }
+        }
+    }
+
+    fun playSongById(songId: String, scope: CoroutineScope) {
+        scope.launch {
+            val localSong = musicRepository.getSongById(songId)
+            if (localSong != null) {
+                val mediaItem = songEntityToMediaItem(localSong)
+                musicController.playQueue(listOf(mediaItem), 0)
+                return@launch
+            }
+
+            val server = serverDao.getActiveServer() ?: return@launch
+            urlInterceptor.setBaseUrl(server.url)
+            val quality = getStreamQuality()
+
+            try {
+                val response = kotlinx.coroutines.withTimeout(3000L) {
+                    api.getSong(
+                        id = songId,
+                        u = server.username,
+                        t = server.token,
+                        s = server.salt
+                    )
+                }
+                val dto = response.response.song
+                if (dto != null) {
+                    val mediaItem = songDtoToMediaItem(dto, server, quality)
+                    musicController.playQueue(listOf(mediaItem), 0)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun songDtoToMediaItem(songDto: SongDto, server: ServerEntity, quality: StreamQuality): MediaItem {

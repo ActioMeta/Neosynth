@@ -12,6 +12,7 @@ import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.domain.model.Album
+import com.example.neosynth.data.local.dao.SongTimeCount
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.home.logic.HomeDownloadHandler
 import com.example.neosynth.ui.home.logic.HomeFavoritesHandler
@@ -19,6 +20,7 @@ import com.example.neosynth.ui.home.logic.HomeLyricsHandler
 import com.example.neosynth.ui.home.logic.HomePlayerHandler
 import com.example.neosynth.utils.NetworkHelper
 import com.example.neosynth.data.preferences.SettingsPreferences
+import com.example.neosynth.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -40,6 +42,7 @@ class HomeViewModel @Inject constructor(
     private val urlInterceptor: DynamicUrlInterceptor,
     private val networkHelper: NetworkHelper,
     private val settingsPreferences: SettingsPreferences,
+    private val statsRepository: com.example.neosynth.data.repository.StatsRepository,
     @ApplicationContext private val appContext: Context,
     // Handlers
     private val lyricsHandler: HomeLyricsHandler,
@@ -52,9 +55,16 @@ class HomeViewModel @Inject constructor(
     // --- Core Home State ---
     var recentlyAdded by mutableStateOf<List<Album>>(emptyList())
     var randomCoverArts by mutableStateOf<List<String>>(emptyList())
+    var randomSongsDto by mutableStateOf<List<com.example.neosynth.data.remote.responses.SongDto>>(emptyList())
+    var randomDownloadedSongs by mutableStateOf<List<com.example.neosynth.data.local.entities.SongEntity>>(emptyList())
+    var isFirstRandomPlay by mutableStateOf(true)
     var isLoading by mutableStateOf(false)
     var isRefreshing by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var isOfflineMode by mutableStateOf(false)
+        private set
+    var topSongsThisWeek by mutableStateOf<List<SongTimeCount>>(emptyList())
+        private set
     
     // --- Delegated State ---
     
@@ -96,6 +106,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadHomeData()
+        loadStatsData()
         // Initialize other components if needed
         favoritesHandler.updateCurrentSongFavoriteStatus(viewModelScope)
     }
@@ -127,6 +138,7 @@ class HomeViewModel @Inject constructor(
             error = null
             
             if (!forceRetry && networkHelper.isCurrentConnectionOffline) {
+                isOfflineMode = true
                 loadOfflineData()
                 isLoading = false
                 return@launch
@@ -134,6 +146,7 @@ class HomeViewModel @Inject constructor(
             
             val server = serverDao.getActiveServer()
             if (server == null) {
+                isOfflineMode = true
                 loadOfflineData()
                 isLoading = false
                 return@launch
@@ -150,6 +163,8 @@ class HomeViewModel @Inject constructor(
                     )
                 }
                 
+                isOfflineMode = false
+                
                 if (!albumsLoaded) {
                     loadRecentAlbums(server)
                     albumsLoaded = true
@@ -162,6 +177,7 @@ class HomeViewModel @Inject constructor(
                 
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "Ping failed: ${e.message}")
+                isOfflineMode = true
                 loadOfflineData()
             } finally {
                 isLoading = false
@@ -171,38 +187,43 @@ class HomeViewModel @Inject constructor(
     
     private suspend fun loadOfflineData() {
         try {
-            val recentDownloads = musicRepository.getRecentlyDownloadedSongs(20).first()
+            val recentDownloads = musicRepository.getRecentlyDownloadedSongs(60).first()
             if (recentDownloads.isNotEmpty()) {
-                recentlyAdded = recentDownloads.map { song ->
-                    com.example.neosynth.domain.model.Album(
-                        id = song.albumID.ifEmpty { song.id },
-                        name = song.title,
-                        artistId = song.artistID,
-                        artistName = song.artist,
-                        coverArtUrl = song.imageUrl,
-                        sourceType = com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES,
-                        sourceId = "local",
-                        year = 0,
-                        songCount = 1,
-                        genre = null
-                    )
-                }
+                recentlyAdded = recentDownloads
+                    .distinctBy { it.albumID.ifEmpty { it.id } }
+                    .take(15)
+                    .map { song ->
+                        com.example.neosynth.domain.model.Album(
+                            id = song.albumID.ifEmpty { song.id },
+                            name = song.album.ifEmpty { song.title },
+                            artistId = song.artistID,
+                            artistName = song.artist,
+                            coverArtUrl = song.imageUrl,
+                            sourceType = com.example.neosynth.domain.model.MusicSourceType.LOCAL_FILES,
+                            sourceId = "local",
+                            year = song.year ?: 0,
+                            songCount = 1,
+                            genre = song.genre
+                        )
+                    }
             }
             
             val randomDownloaded = musicRepository.getRandomDownloadedSongs(3)
             if (randomDownloaded.isNotEmpty()) {
+                randomDownloadedSongs = randomDownloaded
                 randomCoverArts = randomDownloaded.mapNotNull { it.imageUrl }
+                isFirstRandomPlay = true
             }
             
             if (recentDownloads.isNotEmpty() || randomDownloaded.isNotEmpty()) {
                 error = null 
             } else {
-                 error = "Sin conexión y sin canciones descargadas"
+                 error = appContext.getString(R.string.error_loading_offline_mode)
             }
             
         } catch (e: Exception) {
             e.printStackTrace()
-            if (error == null) error = "Error cargando modo offline"
+            if (error == null) error = appContext.getString(R.string.error_loading_offline_mode)
         }
     }
     
@@ -238,7 +259,7 @@ class HomeViewModel @Inject constructor(
     
     private suspend fun loadRandomSongs(server: com.example.neosynth.data.local.entities.ServerEntity) {
         val resposeRandom = api.getRandomSongs(
-            size = 3,
+            size = 25,
             u = server.username,
             t = server.token,
             s = server.salt,
@@ -247,9 +268,11 @@ class HomeViewModel @Inject constructor(
             f = "json"
         )
         val randomSongs = resposeRandom.response.randomSongs?.song.orEmpty()
-        randomCoverArts = randomSongs.mapNotNull { songDto ->
+        randomSongsDto = randomSongs
+        randomCoverArts = randomSongs.take(3).mapNotNull { songDto ->
             buildCoverArtUrl(server, songDto.coverArt)
         }
+        isFirstRandomPlay = true
     }
 
     fun refresh() {
@@ -262,6 +285,7 @@ class HomeViewModel @Inject constructor(
             
             val server = serverDao.getActiveServer()
             if (server == null) {
+                isOfflineMode = true
                 loadOfflineData()
                 isRefreshing = false
                 return@launch
@@ -278,12 +302,12 @@ class HomeViewModel @Inject constructor(
                     )
                 }
 
+                isOfflineMode = false
                 loadRecentAlbums(server)
                 loadRandomSongs(server)
-                randomSongsLoaded = true
-                albumsLoaded = true
-                    
             } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Refresh failed: ${e.message}")
+                isOfflineMode = true
                 loadOfflineData()
             } finally {
                 isRefreshing = false
@@ -294,9 +318,36 @@ class HomeViewModel @Inject constructor(
     // --- Delegated Actions ---
 
     fun playShuffle() {
-        playerHandler.playShuffle(viewModelScope, _uiEvent) { covers ->
-            randomCoverArts = covers
+        if (isFirstRandomPlay && (randomSongsDto.isNotEmpty() || randomDownloadedSongs.isNotEmpty())) {
+            isFirstRandomPlay = false
+            playerHandler.playPreloadedRandomSongs(
+                scope = viewModelScope,
+                onlineSongs = randomSongsDto,
+                offlineSongs = randomDownloadedSongs,
+                isOffline = isOfflineMode,
+                startIndex = 0
+            )
+        } else {
+            isFirstRandomPlay = false
+            playerHandler.playShuffle(viewModelScope, _uiEvent, isOfflineMode) { covers ->
+                randomCoverArts = covers
+            }
         }
+    }
+
+    fun playRandomMixSongAt(index: Int) {
+        isFirstRandomPlay = false
+        playerHandler.playPreloadedRandomSongs(
+            scope = viewModelScope,
+            onlineSongs = randomSongsDto,
+            offlineSongs = randomDownloadedSongs,
+            isOffline = isOfflineMode,
+            startIndex = index
+        )
+    }
+
+    fun playTopSong(songId: String) {
+        playerHandler.playSongById(songId, viewModelScope)
     }
     
     fun playAlbum(album: Album, shuffle: Boolean = false) {
@@ -348,5 +399,26 @@ class HomeViewModel @Inject constructor(
 
     fun onContextAddToQueue(album: Album) {
         contextMenuHandler.onAddToQueue(album, viewModelScope, _uiEvent)
+    }
+
+    private fun loadStatsData() {
+        viewModelScope.launch {
+            try {
+                // Get Monday of this week timestamp
+                val now = java.time.LocalDateTime.now()
+                val daysToSubtract = now.dayOfWeek.value - 1
+                val sinceTimestamp = now.minusDays(daysToSubtract.toLong())
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+
+                statsRepository.getTopSongsWithTime(sinceTimestamp, limit = 5).collect { list ->
+                    topSongsThisWeek = list
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

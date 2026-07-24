@@ -21,7 +21,8 @@ data class ResponseContent(
     @SerializedName("songsByGenre") val songsByGenre: SongsByGenreContainer? = null,
 
     @SerializedName("albumList2") val albumList2: AlbumList? = null,
-    @SerializedName("randomSongs") val randomSongs: SongListDto? = null
+    @SerializedName("randomSongs") val randomSongs: SongListDto? = null,
+    @SerializedName("song") val song: SongDto? = null
 )
 
 // Artist Info

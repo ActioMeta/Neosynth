@@ -23,9 +23,14 @@ import com.example.neosynth.player.MusicController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimatedPlayerSlider(musicController: MusicController) {
+fun AnimatedPlayerSlider(
+    musicController: MusicController,
+    accentColor: androidx.compose.ui.graphics.Color? = null
+) {
     val currentPosition by musicController.currentPosition
     val duration by musicController.duration
+
+    val activeColor = accentColor ?: MaterialTheme.colorScheme.primary
 
     val interactionSource = remember { MutableInteractionSource() }
     val isDragging by interactionSource.collectIsDraggedAsState()
@@ -63,9 +68,9 @@ fun AnimatedPlayerSlider(musicController: MusicController) {
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             interactionSource = interactionSource,
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                thumbColor = activeColor,
+                activeTrackColor = activeColor,
+                inactiveTrackColor = activeColor.copy(alpha = 0.25f)
             ),
             thumb = {
                 Box(
@@ -77,7 +82,7 @@ fun AnimatedPlayerSlider(musicController: MusicController) {
                             scaleY = thumbScale
                         }
                         .background(
-                            MaterialTheme.colorScheme.primary,
+                            activeColor,
                             shape = RoundedCornerShape(2.dp)
                         )
                 )

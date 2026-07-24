@@ -22,6 +22,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
@@ -40,6 +43,60 @@ class LibraryViewModel @Inject constructor(
 
     private val _playlists = MutableStateFlow<List<PlaylistDto>>(emptyList())
     val playlists: StateFlow<List<PlaylistDto>> = _playlists
+
+    private val prefs = context.getSharedPreferences("neosynth_library_pins", Context.MODE_PRIVATE)
+
+    private val _pinnedPlaylistIds = MutableStateFlow<Set<String>>(emptySet())
+    val pinnedPlaylistIds: StateFlow<Set<String>> = _pinnedPlaylistIds
+
+    private val _pinnedAlbumIds = MutableStateFlow<Set<String>>(emptySet())
+    val pinnedAlbumIds: StateFlow<Set<String>> = _pinnedAlbumIds
+
+    private val _pinnedArtistIds = MutableStateFlow<Set<String>>(emptySet())
+    val pinnedArtistIds: StateFlow<Set<String>> = _pinnedArtistIds
+
+    init {
+        _pinnedPlaylistIds.value = prefs.getStringSet("playlists", emptySet()) ?: emptySet()
+        _pinnedAlbumIds.value = prefs.getStringSet("albums", emptySet()) ?: emptySet()
+        _pinnedArtistIds.value = prefs.getStringSet("artists", emptySet()) ?: emptySet()
+    }
+
+    fun togglePinPlaylist(id: String) {
+        val current = _pinnedPlaylistIds.value.toMutableSet()
+        if (current.contains(id)) {
+            current.remove(id)
+        } else {
+            current.add(id)
+        }
+        _pinnedPlaylistIds.value = current
+        prefs.edit().putStringSet("playlists", current).apply()
+    }
+
+    fun togglePinAlbum(id: String) {
+        val current = _pinnedAlbumIds.value.toMutableSet()
+        if (current.contains(id)) {
+            current.remove(id)
+        } else {
+            current.add(id)
+        }
+        _pinnedAlbumIds.value = current
+        prefs.edit().putStringSet("albums", current).apply()
+    }
+
+    fun togglePinArtist(id: String) {
+        val current = _pinnedArtistIds.value.toMutableSet()
+        if (current.contains(id)) {
+            current.remove(id)
+        } else {
+            current.add(id)
+        }
+        _pinnedArtistIds.value = current
+        prefs.edit().putStringSet("artists", current).apply()
+    }
+
+    val favoriteSongsCount: StateFlow<Int> = musicRepository.getFavoriteSongs()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _artists = MutableStateFlow<List<ArtistDto>>(emptyList())
     val artists: StateFlow<List<ArtistDto>> = _artists

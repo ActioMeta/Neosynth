@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.example.neosynth.ui.stats.rememberBounceScale
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -40,6 +45,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -144,14 +150,19 @@ fun HomeScreen(
                 if (!isLoading && errorMsg == null) {
                     LargeTopAppBar(
                         title = {
-                            Column {
+                            val titleAlpha = (1f - (scrollBehavior.state.collapsedFraction * 2.5f)).coerceIn(0f, 1f)
+                            Column(
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = titleAlpha
+                                }
+                            ) {
                                 Text(
-                                    text = "Random",
+                                    text = stringResource(R.string.home_title_random),
                                     style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
-                                    text = "Mix",
+                                    text = stringResource(R.string.home_title_mix),
                                     style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.primary
@@ -159,23 +170,65 @@ fun HomeScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = onNavigateToLibrary) {
-                                Icon(
-                                    imageVector = Icons.Rounded.LibraryMusic,
-                                    contentDescription = stringResource(R.string.nav_library)
-                                )
-                            }
-                            IconButton(onClick = onNavigateToSettings) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = stringResource(R.string.nav_settings)
-                                )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(end = 12.dp)
+                            ) {
+                                val libInteraction = remember { MutableInteractionSource() }
+                                val libScale by rememberBounceScale(libInteraction)
+                                Surface(
+                                    onClick = onNavigateToLibrary,
+                                    interactionSource = libInteraction,
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .graphicsLayer {
+                                            scaleX = libScale
+                                            scaleY = libScale
+                                        }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.LibraryMusic,
+                                            contentDescription = stringResource(R.string.nav_library),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                val settingsInteraction = remember { MutableInteractionSource() }
+                                val settingsScale by rememberBounceScale(settingsInteraction)
+                                Surface(
+                                    onClick = onNavigateToSettings,
+                                    interactionSource = settingsInteraction,
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .graphicsLayer {
+                                            scaleX = settingsScale
+                                            scaleY = settingsScale
+                                        }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Settings,
+                                            contentDescription = stringResource(R.string.nav_settings),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
                             }
                         },
                         scrollBehavior = scrollBehavior,
                         colors = TopAppBarDefaults.largeTopAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            scrolledContainerColor = MaterialTheme.colorScheme.background
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent
                         )
                     )
                 }
@@ -210,12 +263,15 @@ fun HomeScreen(
                 }
             } else if (errorMsg != null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val isOfflineEmpty = errorMsg == "Sin canciones descargadas" || errorMsg == "No downloaded songs"
+                    val isOfflineEmpty = errorMsg == stringResource(R.string.error_no_downloaded_songs) || 
+                                         errorMsg == stringResource(R.string.error_offline_no_downloads) ||
+                                         errorMsg == "Sin canciones descargadas" || 
+                                         errorMsg == "No downloaded songs"
                     ServerErrorScreen(
                         onRetry = { viewModel.loadHomeData(forceRetry = true) },
                         onSettings = onNavigateToSettings,
                         title = if (isOfflineEmpty) stringResource(R.string.error_no_songs_title) else stringResource(R.string.error_connection_title),
-                        message = if (errorMsg == "Sin canciones descargadas") stringResource(R.string.error_no_downloaded_songs) else (errorMsg ?: stringResource(R.string.error_connection_message))
+                        message = if (isOfflineEmpty) stringResource(R.string.error_no_downloaded_songs) else (errorMsg ?: stringResource(R.string.error_connection_message))
                     )
                 }
             } else {
@@ -236,7 +292,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             top = padding.calculateTopPadding(),
-                            bottom = padding.calculateBottomPadding() + 80.dp // Espacio para MiniPlayer + NavBar
+                            bottom = padding.calculateBottomPadding() + 180.dp // Espacio para MiniPlayer + NavBar
                         )
                     ) {
                     
@@ -244,58 +300,83 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(170.dp)
                                 .padding(horizontal = 24.dp)
                         ) {
-                            IconButton(
+                            val shuffleInteraction = remember { MutableInteractionSource() }
+                            val shuffleScale by rememberBounceScale(shuffleInteraction)
+                            
+                            // Botón Random con estilo Pill / Cápsula Expresiva
+                            Surface(
                                 onClick = { viewModel.playShuffle() },
+                                interactionSource = shuffleInteraction,
+                                shape = RoundedCornerShape(32.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shadowElevation = 8.dp,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .zIndex(3f)
-                                    .size(64.dp)
-                                    .clip(
-                                        RoundedCornerShape(percent = 38)
-                                    )
-                                    .background(MaterialTheme.colorScheme.primary)
+                                    .size(width = 68.dp, height = 52.dp)
+                                    .graphicsLayer {
+                                        scaleX = shuffleScale
+                                        scaleY = shuffleScale
+                                    }
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Shuffle,
-                                    contentDescription = "Shuffle",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(32.dp)
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Shuffle,
+                                        contentDescription = stringResource(R.string.action_shuffle),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
                             }
 
                             val randomCovers = viewModel.randomCoverArts
+                            val expressiveCardShape = RoundedCornerShape(
+                                topStart = 28.dp,
+                                topEnd = 12.dp,
+                                bottomEnd = 28.dp,
+                                bottomStart = 12.dp
+                            )
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 0.dp),
+                                    .align(Alignment.BottomCenter),
                                 contentAlignment = Alignment.Center
                             ) {
                                 randomCovers.forEachIndexed { index, cover ->
+                                    val cardInteraction = remember { MutableInteractionSource() }
+                                    val cardScale by rememberBounceScale(cardInteraction)
+
                                     Surface(
+                                        onClick = { viewModel.playRandomMixSongAt(index) },
+                                        interactionSource = cardInteraction,
+                                        shape = expressiveCardShape,
+                                        tonalElevation = if (index == 1) 12.dp else 6.dp,
+                                        shadowElevation = if (index == 1) 12.dp else 6.dp,
+                                        border = if (index == 1) 
+                                            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) 
+                                        else 
+                                            BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                                         modifier = Modifier
                                             .size(150.dp)
                                             .offset(
                                                 x = if (index == 0) (-55).dp else if (index == 2) 55.dp else 0.dp,
-                                                y = if (index == 1) 10.dp else 18.dp
+                                                y = if (index == 1) 8.dp else 18.dp
                                             )
                                             .graphicsLayer {
-                                                rotationZ = if (index == 0) -15f else if (index == 2) 15f else 0f
-                                                scaleX = if (index == 1) 1.1f else 0.9f
-                                                scaleY = if (index == 1) 1.1f else 0.9f
+                                                rotationZ = if (index == 0) -14f else if (index == 2) 14f else 0f
+                                                val baseScale = if (index == 1) 1.08f else 0.92f
+                                                scaleX = baseScale * cardScale
+                                                scaleY = baseScale * cardScale
                                                 clip = true
-                                                shape = RoundedCornerShape(20.dp)
-                                            },
-                                        shape = RoundedCornerShape(20.dp),
-                                        tonalElevation = if (index == 1) 12.dp else 6.dp,
-                                        shadowElevation = if (index == 1) 12.dp else 6.dp,
-                                        border = if (index == 1) null else BorderStroke(
-                                            1.dp,
-                                            Color.White.copy(alpha = 0.1f)
-                                        )
+                                                shape = expressiveCardShape
+                                            }
                                     ) {
                                         AsyncImage(
                                             model = cover,
@@ -318,7 +399,7 @@ fun HomeScreen(
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { viewModel.playAlbum(it) },
+                            onClick = { onNavigateToAlbum(it.id) },
                             onPlay = { viewModel.playAlbum(it) },
                             onShuffle = { viewModel.playAlbum(it, shuffle = true) },
                             onDownload = { viewModel.downloadAlbum(it.id) },
@@ -333,8 +414,156 @@ fun HomeScreen(
                         )
                     }
 
+                    val topSongs = viewModel.topSongsThisWeek
+                    if (topSongs.isNotEmpty()) {
+                        item { Spacer(modifier = Modifier.height(24.dp)) }
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                ),
+                                shape = RoundedCornerShape(28.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Equalizer,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = stringResource(R.string.stats_top_songs),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        val arrowInteraction = remember { MutableInteractionSource() }
+                                        val arrowScale by rememberBounceScale(arrowInteraction)
+                                        IconButton(
+                                            onClick = onNavigateToStats,
+                                            interactionSource = arrowInteraction,
+                                            modifier = Modifier.graphicsLayer {
+                                                scaleX = arrowScale
+                                                scaleY = arrowScale
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.ChevronRight,
+                                                contentDescription = stringResource(R.string.stats_title),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
 
-                        } // LazyColumn
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        topSongs.forEachIndexed { index, song ->
+                                            val rowInteraction = remember { MutableInteractionSource() }
+                                            val rowScale by rememberBounceScale(rowInteraction)
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .graphicsLayer {
+                                                        scaleX = rowScale
+                                                        scaleY = rowScale
+                                                    }
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(
+                                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                                    )
+                                                    .clickable(
+                                                        interactionSource = rowInteraction,
+                                                        indication = null
+                                                    ) {
+                                                        viewModel.playTopSong(song.songId)
+                                                    }
+                                                    .padding(vertical = 10.dp, horizontal = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                val badgeColor = when (index + 1) {
+                                                    1 -> Color(0xFFFFD700)
+                                                    2 -> Color(0xFFC0C0C0)
+                                                    3 -> Color(0xFFCD7F32)
+                                                    else -> MaterialTheme.colorScheme.secondaryContainer
+                                                }
+                                                val textColor = when (index + 1) {
+                                                    1, 2, 3 -> Color.Black
+                                                    else -> MaterialTheme.colorScheme.onSecondaryContainer
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(26.dp)
+                                                        .background(badgeColor, CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "${index + 1}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = textColor
+                                                    )
+                                                }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = song.title,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = song.artist,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                                Text(
+                                                    text = stringResource(R.string.stats_minutes, song.totalTimeMs / 60000),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(64.dp))
+                    }
+                } // LazyColumn
                     } // PullToRefreshBox
 
 

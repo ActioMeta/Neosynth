@@ -1,6 +1,7 @@
 package com.example.neosynth.ui.discover
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.neosynth.data.remote.responses.AlbumDto
@@ -50,8 +52,10 @@ import com.example.neosynth.data.remote.responses.ArtistDto
 import com.example.neosynth.data.remote.responses.GenreDto
 import com.example.neosynth.data.remote.responses.PlaylistDto
 import com.example.neosynth.data.remote.responses.SongDto
-import com.example.neosynth.ui.components.SideMultiSelectBar
+import com.example.neosynth.ui.components.BottomMultiSelectBar
+import com.example.neosynth.ui.components.SelectionModeState
 import com.example.neosynth.ui.components.MultiSelectAction
+import com.example.neosynth.ui.stats.rememberBounceScale
 import com.example.neosynth.ui.components.NeoPullToRefreshOverlayIndicator
 import com.example.neosynth.ui.components.ServerErrorScreen
 import androidx.compose.ui.res.stringResource
@@ -81,6 +85,9 @@ fun DiscoverScreen(
     val errorMsg = viewModel.error
     val isRefreshing = viewModel.isRefreshing
     val pullToRefreshState = rememberPullToRefreshState()
+    
+    val currentSong by viewModel.musicController.currentMediaItem
+    val isMiniPlayerVisible = currentSong != null
 
     val focusRequester = remember { FocusRequester() }
 
@@ -106,6 +113,8 @@ fun DiscoverScreen(
             downloadedIds = downloadedIds,
             onDownload = { song -> viewModel.downloadSong(song) },
             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
         )
@@ -140,6 +149,8 @@ fun DiscoverScreen(
             downloadedIds = downloadedIds,
             onDownload = { song -> viewModel.downloadSong(song) },
             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
         )
@@ -171,7 +182,19 @@ fun DiscoverScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
+                    MaterialTheme.colorScheme.background
+                ),
+                center = androidx.compose.ui.geometry.Offset(x = 0f, y = 0f),
+                radius = 2000f
+            )
+        )
+    ) {
         PullToRefreshBox(
             state = pullToRefreshState,
             isRefreshing = isRefreshing,
@@ -215,6 +238,8 @@ fun DiscoverScreen(
                             downloadedIds = downloadedIds,
                             onDownload = { song -> viewModel.downloadSong(song) },
                             onPlaySongs = { songs -> viewModel.playSelectedSongs(songs) },
+                            onPlaySongsNext = { songs -> viewModel.playNext(songs) },
+                            onAddSongsToQueue = { songs -> viewModel.addToQueue(songs) },
                             onAddToPlaylist = { songs -> viewModel.loadPlaylistsForPicker(songs) },
                             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
                         )
@@ -328,16 +353,25 @@ private fun SearchResultsContent(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
-    onAddToFavorites: (List<SongDto>) -> Unit = {}
+    onAddToFavorites: (List<SongDto>) -> Unit = {},
+    isMiniPlayerVisible: Boolean = false
 ) {
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = results.songs.filter { it.id in selectedSongIds }
     
+    val listBottomPadding = if (selectedSongIds.isNotEmpty()) {
+        if (isMiniPlayerVisible) 260.dp else 180.dp
+    } else {
+        if (isMiniPlayerVisible) 180.dp else 100.dp
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 200.dp else 180.dp)
+            contentPadding = PaddingValues(bottom = listBottomPadding)
         ) {
         // Artists
         if (results.artists.isNotEmpty()) {
@@ -531,30 +565,20 @@ private fun SearchResultsContent(
         }
         }
         
-        // Barra lateral de selección
-        SideMultiSelectBar(
+        // Barra inferior de selección
+        val bottomPaddingOffset = if (isMiniPlayerVisible) 225.dp else 145.dp
+        BottomMultiSelectBar(
             visible = selectedSongIds.isNotEmpty(),
             selectedCount = selectedSongIds.size,
-            actions = listOf(
-                MultiSelectAction(
-                    icon = Icons.Rounded.PlayArrow,
-                    label = stringResource(R.string.action_play),
-                    onClick = {
-                        onPlaySongs(selectedSongs)
-                        selectedSongIds = emptySet()
-                    }
-                ),
-                MultiSelectAction(
-                    icon = Icons.Rounded.Favorite,
-                    label = stringResource(R.string.action_fav),
-                    onClick = {
-                        onAddToFavorites(selectedSongs)
-                        selectedSongIds = emptySet()
-                    }
-                ),
+            onClearSelection = { selectedSongIds = emptySet() },
+            onPlaySelected = {
+                onPlaySongs(selectedSongs)
+                selectedSongIds = emptySet()
+            },
+            menuActions = listOf(
                 MultiSelectAction(
                     icon = Icons.Rounded.Download,
-                    label = stringResource(R.string.action_down),
+                    label = stringResource(R.string.action_download),
                     onClick = {
                         selectedSongs.forEach { onDownload(it) }
                         selectedSongIds = emptySet()
@@ -567,10 +591,36 @@ private fun SearchResultsContent(
                         onAddToPlaylist(selectedSongs)
                         selectedSongIds = emptySet()
                     }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.PlayArrow,
+                    label = stringResource(R.string.action_play_next),
+                    onClick = {
+                        onPlaySongsNext(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.QueueMusic,
+                    label = stringResource(R.string.action_add_to_queue),
+                    onClick = {
+                        onAddSongsToQueue(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
+                ),
+                MultiSelectAction(
+                    icon = Icons.Rounded.Favorite,
+                    label = stringResource(R.string.action_add_favorite),
+                    onClick = {
+                        onAddToFavorites(selectedSongs)
+                        selectedSongIds = emptySet()
+                    }
                 )
             ),
-            onClose = { selectedSongIds = emptySet() },
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = bottomPaddingOffset)
         )
     }
 }
@@ -591,9 +641,8 @@ private fun BrowseContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 180.dp)
-    ) {
-        // Recent Songs Section
+        contentPadding = PaddingValues(bottom = 240.dp)
+    ) {        // Recent Songs Section
         item {
             Row(
                 modifier = Modifier
@@ -721,7 +770,7 @@ private fun BrowseContent(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(((genres.size / 2 + 1) * 60).coerceAtMost(300).dp)
+                        .height(((minOf(genres.size, 10) + 1) / 2 * 68).dp)
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -792,81 +841,58 @@ private fun GenreChip(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
+        targetValue = if (isPressed) 0.96f else 1f,
         label = "genre_chip_scale"
     )
     
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.Transparent,
+        shape = CircleShape,
+        color = genreColor.copy(alpha = 0.35f),
         modifier = Modifier
             .fillMaxWidth()
+            .height(56.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            genreColor,
-                            genreColor.copy(alpha = 0.7f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Text(
+                text = genre.value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            
+            // Badge con número de canciones
+            Surface(
+                shape = CircleShape,
+                color = genreColor.copy(alpha = 0.2f)
             ) {
-                // Icono de nota musical (estático para todos)
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White.copy(alpha = 0.9f)
-                )
-                
                 Text(
-                    text = genre.value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    text = "${genre.songCount ?: 0}",
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
-                
-                // Badge con número de canciones
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.White.copy(alpha = 0.25f)
-                ) {
-                    Text(
-                        text = "${genre.songCount ?: 0}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
             }
         }
     }
 }
 
-// Colores para géneros
+// Colores para géneros (rest of getGenreColor function follows...)
 private fun getGenreColor(genreName: String): Color {
     val lowerName = genreName.lowercase()
     return when {
@@ -905,21 +931,17 @@ private fun DecadeCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
+        targetValue = if (isPressed) 0.94f else 1f,
         label = "decade_card_scale"
     )
     
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
+        shape = RoundedCornerShape(24.dp),
+        color = decadeColor.copy(alpha = 0.35f),
         modifier = Modifier
-            .size(width = 110.dp, height = 70.dp)
+            .size(width = 120.dp, height = 90.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -928,41 +950,16 @@ private fun DecadeCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            decadeColor,
-                            decadeColor.copy(alpha = 0.75f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
+                .padding(16.dp),
+            contentAlignment = Alignment.BottomStart
         ) {
-            // Icono de fondo decorativo (calendario)
-            Icon(
-                imageVector = Icons.Rounded.CalendarMonth,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(36.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-6).dp, y = 6.dp),
-                tint = Color.White.copy(alpha = 0.2f)
+            Text(
+                text = decade,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.sp,
+                color = decadeColor
             )
-            
-            // Solo el texto de la década
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                contentAlignment = Alignment.BottomStart
-            ) {
-                Text(
-                    text = decade,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
         }
     }
 }
@@ -1022,12 +1019,18 @@ private fun AlbumCard(
     getCoverUrl: (String?) -> String?
 ) {
     Column(
-        modifier = Modifier.width(120.dp)
+        modifier = Modifier.width(130.dp)
     ) {
         Surface(
             modifier = Modifier
-                .size(120.dp),
-            shape = RoundedCornerShape(12.dp),
+                .size(130.dp)
+                .graphicsLayer {
+                    shadowElevation = 8.dp.toPx()
+                    shape = RoundedCornerShape(16.dp)
+                    clip = true
+                },
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 4.dp,
             color = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             AsyncImage(
@@ -1037,18 +1040,18 @@ private fun AlbumCard(
                 modifier = Modifier.fillMaxSize()
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = album.title,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
             text = album.artist,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1110,7 +1113,7 @@ private fun SongRow(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = "Descargada",
+                            contentDescription = stringResource(R.string.action_download_done),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -1149,12 +1152,17 @@ private fun GenreSongsSheet(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
     onAddToFavorites: (List<SongDto>) -> Unit = {}
 ) {
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = {
             selectedSongIds = emptySet()
@@ -1164,7 +1172,11 @@ private fun GenreSongsSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1264,30 +1276,19 @@ private fun GenreSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Barra lateral de selección (Genres)
-            SideMultiSelectBar(
+            // Barra inferior de selección (Genres)
+            BottomMultiSelectBar(
                 visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
-                actions = listOf(
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlayArrow,
-                        label = stringResource(R.string.action_play_short),
-                        onClick = {
-                            onPlaySongs(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.Favorite,
-                        label = stringResource(R.string.action_fav_short),
-                        onClick = {
-                            onAddToFavorites(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
+                onClearSelection = { selectedSongIds = emptySet() },
+                onPlaySelected = {
+                    onPlaySongs(selectedSongs)
+                    selectedSongIds = emptySet()
+                },
+                menuActions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_down_short),
+                        label = stringResource(R.string.action_download),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1295,18 +1296,45 @@ private fun GenreSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_list_short),
+                        label = stringResource(R.string.action_playlist),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
                         }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = stringResource(R.string.action_play_next),
+                        onClick = {
+                            onPlaySongsNext(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.QueueMusic,
+                        label = stringResource(R.string.action_add_to_queue),
+                        onClick = {
+                            onAddSongsToQueue(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = stringResource(R.string.action_add_favorite),
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
                     )
                 ),
-                onClose = { selectedSongIds = emptySet() },
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 36.dp)
             )
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1323,12 +1351,17 @@ private fun DecadeSongsSheet(
     downloadedIds: Set<String> = emptySet(),
     onDownload: (SongDto) -> Unit = {},
     onPlaySongs: (List<SongDto>) -> Unit = {},
+    onPlaySongsNext: (List<SongDto>) -> Unit = {},
+    onAddSongsToQueue: (List<SongDto>) -> Unit = {},
     onAddToPlaylist: (List<SongDto>) -> Unit = {},
     onAddToFavorites: (List<SongDto>) -> Unit = {}
 ) {
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = {
             selectedSongIds = emptySet()
@@ -1338,7 +1371,11 @@ private fun DecadeSongsSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1437,30 +1474,19 @@ private fun DecadeSongsSheet(
                 Spacer(modifier = Modifier.height(32.dp))
             }
             
-            // Barra lateral de selección (Decades)
-            SideMultiSelectBar(
+            // Barra inferior de selección (Decades)
+            BottomMultiSelectBar(
                 visible = selectedSongIds.isNotEmpty(),
                 selectedCount = selectedSongIds.size,
-                actions = listOf(
-                    MultiSelectAction(
-                        icon = Icons.Rounded.PlayArrow,
-                        label = stringResource(R.string.action_play_short),
-                        onClick = {
-                            onPlaySongs(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
-                    MultiSelectAction(
-                        icon = Icons.Rounded.Favorite,
-                        label = stringResource(R.string.action_fav_short),
-                        onClick = {
-                            onAddToFavorites(selectedSongs)
-                            selectedSongIds = emptySet()
-                        }
-                    ),
+                onClearSelection = { selectedSongIds = emptySet() },
+                onPlaySelected = {
+                    onPlaySongs(selectedSongs)
+                    selectedSongIds = emptySet()
+                },
+                menuActions = listOf(
                     MultiSelectAction(
                         icon = Icons.Rounded.Download,
-                        label = stringResource(R.string.action_down_short),
+                        label = stringResource(R.string.action_download),
                         onClick = {
                             selectedSongs.forEach { onDownload(it) }
                             selectedSongIds = emptySet()
@@ -1468,18 +1494,45 @@ private fun DecadeSongsSheet(
                     ),
                     MultiSelectAction(
                         icon = Icons.Rounded.PlaylistAdd,
-                        label = stringResource(R.string.action_list_short),
+                        label = stringResource(R.string.action_playlist),
                         onClick = {
                             onAddToPlaylist(selectedSongs)
                             selectedSongIds = emptySet()
                         }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.PlayArrow,
+                        label = stringResource(R.string.action_play_next),
+                        onClick = {
+                            onPlaySongsNext(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.QueueMusic,
+                        label = stringResource(R.string.action_add_to_queue),
+                        onClick = {
+                            onAddSongsToQueue(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
+                    ),
+                    MultiSelectAction(
+                        icon = Icons.Rounded.Favorite,
+                        label = stringResource(R.string.action_add_favorite),
+                        onClick = {
+                            onAddToFavorites(selectedSongs)
+                            selectedSongIds = emptySet()
+                        }
                     )
                 ),
-                onClose = { selectedSongIds = emptySet() },
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 36.dp)
             )
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1490,13 +1543,20 @@ private fun AllGenresSheet(
     onDismiss: () -> Unit,
     onGenreClick: (String) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Column(
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalContext provides context,
+            androidx.compose.ui.platform.LocalConfiguration provides config
+        ) {
+            Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
@@ -1533,6 +1593,7 @@ private fun AllGenresSheet(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
 }
 
 private fun formatDuration(seconds: Int): String {
@@ -1648,7 +1709,7 @@ private fun PlaylistPickerDialog(
                                             }
                                         )
                                         Text(
-                                            text = "${playlist.songCount} canciones",
+                                            text = stringResource(R.string.playlist_songs_count, playlist.songCount),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1673,18 +1734,18 @@ private fun PlaylistPickerDialog(
             ) {
                 Text(
                     if (selectedPlaylistIds.isEmpty()) {
-                        "Selecciona playlist"
+                        stringResource(R.string.discover_select_playlist)
                     } else if (selectedPlaylistIds.size == 1) {
-                        "Agregar"
+                        stringResource(R.string.action_add)
                     } else {
-                        "Agregar a ${selectedPlaylistIds.size}"
+                        stringResource(R.string.discover_add_to_n_playlists, selectedPlaylistIds.size)
                     }
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

@@ -52,17 +52,22 @@ class AlbumDetailViewModel @Inject constructor(
 
     fun loadAlbum(albumId: String) {
         viewModelScope.launch {
-            _isLoading.value = true
-            var loadedFromNetwork = false
+            _isLoading.value = _album.value == null
             
+            // Cargar caché/local inmediatamente para tiempo de respuesta instantáneo
+            loadOfflineAlbum(albumId)
+            if (_album.value != null) {
+                _isLoading.value = false
+            }
+
             if (!networkHelper.isCurrentConnectionOffline) {
                 try {
-                    val server = serverDao.getActiveServer()
+                    val server = cachedServer ?: serverDao.getActiveServer()
                     if (server != null) {
                         cachedServer = server
                         urlInterceptor.setBaseUrl(server.url)
 
-                        val response = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                        val response = kotlinx.coroutines.withTimeoutOrNull(3000L) {
                             api.getAlbum(
                                 albumId = albumId,
                                 u = server.username,
@@ -75,16 +80,11 @@ class AlbumDetailViewModel @Inject constructor(
                         if (details != null) {
                             _album.value = details
                             _songs.value = details.song ?: emptyList()
-                            loadedFromNetwork = true
                         }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-            }
-
-            if (!loadedFromNetwork) {
-                loadOfflineAlbum(albumId)
             }
             _isLoading.value = false
         }
@@ -117,7 +117,7 @@ class AlbumDetailViewModel @Inject constructor(
                         album = songEntity.album,
                         albumId = songEntity.albumID.ifEmpty { albumId },
                         duration = durationSec,
-                        coverArt = songEntity.imageUrl ?: songEntity.path,
+                        coverArt = songEntity.imageUrl?.takeIf { !it.endsWith(".mp3") && !it.endsWith(".flac") && !it.endsWith(".m4a") },
                         path = songEntity.path,
                         year = songEntity.year
                     )
@@ -128,7 +128,7 @@ class AlbumDetailViewModel @Inject constructor(
                     name = firstSong.album.ifEmpty { firstSong.title },
                     artist = firstSong.artist,
                     artistId = firstSong.artistID,
-                    coverArt = firstSong.imageUrl ?: firstSong.path,
+                    coverArt = firstSong.imageUrl?.takeIf { !it.endsWith(".mp3") && !it.endsWith(".flac") && !it.endsWith(".m4a") },
                     year = firstSong.year,
                     genre = firstSong.genre,
                     songCount = localSongs.size,

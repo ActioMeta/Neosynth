@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -221,7 +222,11 @@ fun NeosynthNavGraph(
             }
 
             composable(
-                route = "player_full"
+                route = "player_full",
+                enterTransition = { fadeIn(animationSpec = tween(300)) },
+                exitTransition = { fadeOut(animationSpec = tween(250)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                popExitTransition = { fadeOut(animationSpec = tween(250)) }
             ) {
                 val currentSongId = currentSong?.mediaId
                 val isFavorite by homeViewModel.isCurrentSongFavorite.collectAsState()
@@ -258,7 +263,14 @@ fun NeosynthNavGraph(
                         .fillMaxSize()
                         .sharedBounds(
                             sharedContentState = rememberSharedContentState(key = "player_bounds"),
-                            animatedVisibilityScope = this@composable
+                            animatedVisibilityScope = this@composable,
+                            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(20.dp)),
+                            boundsTransform = { _, _ ->
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            }
                         )
                 ) {
                     // Fix: AnimatedVisibilityScope is required by PlayerScreen
@@ -376,14 +388,8 @@ fun NeosynthNavGraph(
         val showMiniPlayer = currentRoute != "login" && currentRoute != "player_full" && currentRoute != "lyrics" && currentRoute != "lyrics_editor" && song != null
         AnimatedVisibility(
             visible = showMiniPlayer,
-            enter = fadeIn(animationSpec = tween(200)) + scaleIn(
-                initialScale = 0.95f,
-                animationSpec = tween(250)
-            ),
-            exit = fadeOut(animationSpec = tween(150)) + scaleOut(
-                targetScale = 0.95f,
-                animationSpec = tween(200)
-            ),
+            enter = fadeIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(150)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -393,29 +399,21 @@ fun NeosynthNavGraph(
             val hasPrevious by musicController.hasPrevious
             val hasNext by musicController.hasNext
             
-            Box(
-                modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = rememberSharedContentState(key = "player_bounds"),
-                        animatedVisibilityScope = this@AnimatedVisibility
-                    )
-            ) {
-                MiniPlayer(
-                    sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedVisibilityScope = this@AnimatedVisibility,
-                    mediaId = miniPlayerSongId,
-                    title = song?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title),
-                    artist = song?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist),
-                    artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
-                    isPlaying = isPlaying,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
-                    onPlayPause = { musicController.togglePlayPause() },
-                    onSkipPrevious = { musicController.skipPreviousOrRestart() },
-                    onSkipNext = { musicController.skipNext() },
-                    onClick = { navController.navigate("player_full") }
-                )
-            }
+            MiniPlayer(
+                sharedTransitionScope = this@SharedTransitionLayout,
+                animatedVisibilityScope = this@AnimatedVisibility,
+                mediaId = miniPlayerSongId,
+                title = song?.mediaMetadata?.title?.toString() ?: stringResource(R.string.unknown_title),
+                artist = song?.mediaMetadata?.artist?.toString() ?: stringResource(R.string.unknown_artist),
+                artworkUri = song?.mediaMetadata?.artworkUri?.toString(),
+                isPlaying = isPlaying,
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
+                onPlayPause = { musicController.togglePlayPause() },
+                onSkipPrevious = { musicController.skipPreviousOrRestart() },
+                onSkipNext = { musicController.skipNext() },
+                onClick = { navController.navigate("player_full") }
+            )
         }
     }
 }

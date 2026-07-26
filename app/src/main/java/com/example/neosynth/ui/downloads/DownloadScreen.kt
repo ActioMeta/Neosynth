@@ -88,6 +88,7 @@ fun DownloadsScreen(
 ) {
     val groupedSongs: Map<Char, List<SongEntity>> by viewModel.groupedSongs.collectAsStateWithLifecycle(initialValue = emptyMap())
     val allPlaylists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+    val activeServer by viewModel.activeServer.collectAsStateWithLifecycle()
     val activeFilterCategory by viewModel.activeFilterCategory.collectAsStateWithLifecycle()
     val activeSortOrder by viewModel.activeSortOrder.collectAsStateWithLifecycle()
 
@@ -160,9 +161,14 @@ fun DownloadsScreen(
     }
 
     // Listado de canciones filtrado
-    val filteredSongsList = remember(allSongs, activeSortOrder, searchQuery) {
+    val filteredSongsList = remember(allSongs, activeFilterCategory, activeSortOrder, searchQuery) {
         val query = searchQuery.lowercase()
-        val filtered = if (query.isEmpty()) allSongs else allSongs.filter {
+        val songsToFilter = if (activeFilterCategory == FilterCategory.FAVORITES) {
+            allSongs.filter { it.isFavorite }
+        } else {
+            allSongs
+        }
+        val filtered = if (query.isEmpty()) songsToFilter else songsToFilter.filter {
             it.title.lowercase().contains(query) ||
             it.artist.lowercase().contains(query) ||
             it.album.lowercase().contains(query)
@@ -323,7 +329,8 @@ fun DownloadsScreen(
                                     FilterCategory.SONGS to (stringResource(R.string.tab_songs) to Icons.Rounded.MusicNote),
                                     FilterCategory.ALBUMS to (stringResource(R.string.tab_albums) to Icons.Rounded.Album),
                                     FilterCategory.ARTISTS to (stringResource(R.string.tab_artists) to Icons.Rounded.Person),
-                                    FilterCategory.PLAYLISTS to (stringResource(R.string.tab_playlists) to Icons.Rounded.QueueMusic)
+                                    FilterCategory.PLAYLISTS to (stringResource(R.string.tab_playlists) to Icons.Rounded.QueueMusic),
+                                    FilterCategory.FAVORITES to (stringResource(R.string.tab_favorites) to Icons.Rounded.Favorite)
                                 ).forEach { (cat, info) ->
                                     DropdownMenuItem(
                                         text = {
@@ -746,6 +753,16 @@ fun DownloadsScreen(
                         FilterCategory.PLAYLISTS -> {
                             items(allPlaylists, key = { it.playlist.id }) { playlistWithSongs ->
                                 val isSelected = playlistWithSongs.playlist.id in selectedSongIds
+                                val rawCover = playlistWithSongs.playlist.coverArt
+                                val songCover = playlistWithSongs.songs.firstOrNull { !it.imageUrl.isNullOrBlank() }?.imageUrl
+                                val targetCover: String? = if (!rawCover.isNullOrBlank()) rawCover else songCover
+
+                                val coverUrl: String? = remember(targetCover, activeServer) {
+                                    val tCover = targetCover
+                                    if (tCover.isNullOrBlank()) null
+                                    else if (tCover.startsWith("/") || tCover.startsWith("file:") || tCover.startsWith("content:") || tCover.startsWith("http")) tCover
+                                    else activeServer?.let { com.example.neosynth.data.local.buildCoverArtUrl(it, tCover) } ?: songCover
+                                }
 
                                 Surface(
                                     modifier = Modifier
@@ -770,14 +787,31 @@ fun DownloadsScreen(
                                         modifier = Modifier.padding(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        AsyncImage(
-                                            model = playlistWithSongs.playlist.coverArt,
-                                            contentDescription = playlistWithSongs.playlist.name,
-                                            modifier = Modifier
-                                                .size(52.dp)
-                                                .clip(RoundedCornerShape(14.dp)),
-                                            contentScale = ContentScale.Crop
-                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(52.dp)
+                                        ) {
+                                            if (!coverUrl.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = coverUrl,
+                                                    contentDescription = playlistWithSongs.playlist.name,
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(RoundedCornerShape(14.dp)),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.QueueMusic,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(26.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Spacer(modifier = Modifier.width(14.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
@@ -986,6 +1020,50 @@ fun DownloadsScreen(
                 onAddToQueue = { viewModel.addToQueueSelected(setOf(song.id), allSongs) },
                 onDownload = { }
             )
+        }
+
+        // Botón Flotante para subir rápidamente al inicio de la lista cuando se ha bajado en la pantalla de descargas
+        val showScrollToTop by remember {
+            derivedStateOf {
+                listState.firstVisibleItemIndex > 4
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = 20.dp,
+                    bottom = if (isMiniPlayerVisible) 210.dp else 130.dp
+                )
+        ) {
+            val scrollInteraction = remember { MutableInteractionSource() }
+            val scrollScale by rememberBounceScale(scrollInteraction)
+
+            SmallFloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                },
+                interactionSource = scrollInteraction,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = CircleShape,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = scrollScale
+                    scaleY = scrollScale
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.action_back),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }

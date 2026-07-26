@@ -25,6 +25,18 @@ annotation class MusixmatchRetrofit
 @Retention(AnnotationRetention.BINARY)
 annotation class NeteaseRetrofit
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MusicBrainzRetrofit
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class WikipediaEsRetrofit
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class WikipediaEnRetrofit
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -93,5 +105,75 @@ object NetworkModule {
     @Singleton
     fun provideNeteaseApi(@NeteaseRetrofit retrofit: Retrofit): NeteaseApiService {
         return retrofit.create(NeteaseApiService::class.java)
+    }
+
+    // MusicBrainz API
+    @Provides
+    @Singleton
+    @MusicBrainzRetrofit
+    fun provideMusicBrainzRetrofit(): Retrofit {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+            
+        return Retrofit.Builder()
+            .baseUrl("https://musicbrainz.org/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMusicBrainzApi(@MusicBrainzRetrofit retrofit: Retrofit): com.example.neosynth.data.remote.MusicBrainzApiService {
+        return retrofit.create(com.example.neosynth.data.remote.MusicBrainzApiService::class.java)
+    }
+
+    // Wikipedia APIs (ES / EN)
+    @Provides
+    @Singleton
+    @WikipediaEsRetrofit
+    fun provideWikipediaEsRetrofit(): Retrofit {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+            
+        return Retrofit.Builder()
+            .baseUrl("https://es.wikipedia.org/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @WikipediaEnRetrofit
+    fun provideWikipediaEnRetrofit(): Retrofit {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+            
+        return Retrofit.Builder()
+            .baseUrl("https://en.wikipedia.org/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @WikipediaEsRetrofit
+    fun provideWikipediaEsApi(@WikipediaEsRetrofit retrofit: Retrofit): com.example.neosynth.data.remote.WikipediaApiService {
+        return retrofit.create(com.example.neosynth.data.remote.WikipediaApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @WikipediaEnRetrofit
+    fun provideWikipediaEnApi(@WikipediaEnRetrofit retrofit: Retrofit): com.example.neosynth.data.remote.WikipediaApiService {
+        return retrofit.create(com.example.neosynth.data.remote.WikipediaApiService::class.java)
     }
 }

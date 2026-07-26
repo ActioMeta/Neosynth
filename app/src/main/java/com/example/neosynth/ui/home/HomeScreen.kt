@@ -284,6 +284,7 @@ fun HomeScreen(
                     },
                     state = pullToRefreshState,
                     enabled = canTriggerRefresh,
+                    indicator = {},
                     modifier = Modifier
                         .fillMaxSize()
                 ) {

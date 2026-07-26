@@ -91,8 +91,8 @@ fun MiniPlayer(
                     clipInOverlayDuringTransition = OverlayClip(miniPlayerShape),
                     boundsTransform = { _, _ ->
                         spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
                         )
                     }
                 )
@@ -125,8 +125,8 @@ fun MiniPlayer(
                             animatedVisibilityScope = animatedVisibilityScope,
                             boundsTransform = { _, _ ->
                                 spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessLow
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
                                 )
                             }
                         )

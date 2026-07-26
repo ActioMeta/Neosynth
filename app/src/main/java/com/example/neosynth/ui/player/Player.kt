@@ -284,8 +284,10 @@ fun PlayerScreen(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { totalDrag = 0f },
+                    onDragCancel = { totalDrag = 0f },
                     onDragEnd = {
                         if (totalDrag > 250f) {
+                            totalDrag = 0f
                             onBack()
                         } else if (totalDrag < -150f) {
                             showQueueSheet = true
@@ -437,8 +439,8 @@ fun PlayerScreen(
                                             animatedVisibilityScope = animatedVisibilityScope,
                                             boundsTransform = { _, _ ->
                                                 spring(
-                                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                                    stiffness = Spring.StiffnessLow
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
                                                 )
                                             }
                                         )

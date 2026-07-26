@@ -3,6 +3,7 @@ package com.example.neosynth.ui.lyrics
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -181,11 +182,10 @@ fun LyricsScreen(
 
     var showOptionsSheet by remember { mutableStateOf(false) }
     
-    // Animation for layout smoothing
-    val headerSpacerHeight by animateDpAsState(
-        targetValue = if (showUi) 8.dp else 48.dp,
-        animationSpec = tween(durationMillis = 600),
-        label = "header_spacer"
+    val headerAlpha by animateFloatAsState(
+        targetValue = if (showUi) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "header_alpha"
     )
 
     val fadeBrush = remember {
@@ -222,56 +222,60 @@ fun LyricsScreen(
                     indication = null
                 ) { showUi = !showUi }
         ) {
-            // Header con botón cerrar
-            AnimatedVisibility(
-                visible = showUi,
-                enter = fadeIn(animationSpec = tween(300)) + slideInVertically(animationSpec = tween(300)) { fullHeight -> -fullHeight / 2 },
-                exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(animationSpec = tween(300)) { fullHeight -> -fullHeight / 2 }
+            // Header con botones de acción (fijo para evitar desplazamiento vertical del título)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .graphicsLayer { alpha = headerAlpha },
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (lyricsOptions.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                onOpenOptions()
-                                showOptionsSheet = true
-                            }
-                        ) {
-                            if (isLoadingOptions) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Rounded.ManageSearch,
-                                    contentDescription = stringResource(R.string.lyrics_web_options),
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
+                if (lyricsOptions.isNotEmpty()) {
+                    IconButton(
+                        enabled = showUi,
+                        onClick = {
+                            onOpenOptions()
+                            showOptionsSheet = true
+                        }
+                    ) {
+                        if (isLoadingOptions) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.ManageSearch,
+                                contentDescription = stringResource(R.string.lyrics_web_options),
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
                     }
-                    IconButton(onClick = onEditLyrics) {
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = stringResource(R.string.lyrics_edit),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.action_close),
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                }
+                IconButton(
+                    enabled = showUi,
+                    onClick = onEditLyrics
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = stringResource(R.string.lyrics_edit),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    enabled = showUi,
+                    onClick = onClose
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.action_close),
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
             
-            Spacer(modifier = Modifier.height(headerSpacerHeight))
+            Spacer(modifier = Modifier.height(8.dp))
             
         // Información de la canción
             Column(

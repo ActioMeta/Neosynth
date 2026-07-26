@@ -37,6 +37,14 @@ class AlbumPlayerHandler @Inject constructor(
         }
     }
 
+    private fun isAudioFilePath(path: String?): Boolean {
+        if (path.isNullOrBlank()) return false
+        val lower = path.lowercase()
+        return lower.endsWith(".mp3") || lower.endsWith(".flac") || lower.endsWith(".m4a") ||
+               lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.endsWith(".aac") ||
+               lower.endsWith(".opus") || lower.endsWith(".wma")
+    }
+
     private suspend fun buildMediaItem(
         song: SongDto,
         server: ServerEntity?,
@@ -49,17 +57,20 @@ class AlbumPlayerHandler @Inject constructor(
                 networkHelper.isCurrentConnectionOffline ||
                 server == null
 
+        val rawCover = song.coverArt?.takeIf { it.isNotBlank() && !isAudioFilePath(it) }
+            ?: albumCoverArt?.takeIf { it.isNotBlank() && !isAudioFilePath(it) }
+            ?: localSong?.imageUrl?.takeIf { it.isNotBlank() && !isAudioFilePath(it) }
+
+        val artworkUri = when {
+            rawCover.isNullOrBlank() -> null
+            rawCover.startsWith("/") || rawCover.startsWith("file:") || rawCover.startsWith("content:") -> rawCover.toUri()
+            rawCover.startsWith("http") -> rawCover.toUri()
+            server != null -> buildCoverArtUrl(server, rawCover)?.toUri()
+            else -> null
+        }
+
         if (isLocal) {
             val uriPath = localSong?.path ?: song.path ?: ""
-            val coverArtUri = song.coverArt?.takeIf { it.isNotBlank() } ?: albumCoverArt ?: localSong?.imageUrl
-            val artworkUri = if (!coverArtUri.isNullOrBlank()) {
-                if (coverArtUri.startsWith("http") && server != null) {
-                    buildCoverArtUrl(server, coverArtUri)?.toUri()
-                } else {
-                    coverArtUri.toUri()
-                }
-            } else null
-
             return MediaItem.Builder()
                 .setMediaId(song.id)
                 .setUri(uriPath.toUri())
@@ -95,18 +106,17 @@ class AlbumPlayerHandler @Inject constructor(
             song.suffix?.uppercase() ?: "MP3"
         }
 
-        val streamUrl = StreamUrlBuilder.buildStreamUrl(server, song.id, streamQuality)
-        val coverUrl = buildCoverArtUrl(server, song.coverArt?.takeIf { it.isNotBlank() } ?: albumCoverArt)
+        val streamUrl = if (server != null) StreamUrlBuilder.buildStreamUrl(server, song.id, streamQuality) else (song.path ?: "")
 
         return MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(streamUrl)
+            .setUri(streamUrl.toUri())
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(song.title)
                     .setArtist(song.artist)
                     .setAlbumTitle(albumName ?: song.album)
-                    .setArtworkUri(coverUrl?.toUri())
+                    .setArtworkUri(artworkUri)
                     .setExtras(
                         android.os.Bundle().apply {
                             putInt("bitRate", effectiveBitrate)

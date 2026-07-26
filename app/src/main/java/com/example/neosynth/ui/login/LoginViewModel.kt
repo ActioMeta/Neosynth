@@ -85,6 +85,28 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun selectLocalMode(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val existing = serverDao.getAllServers()
+                existing.forEach { serverDao.updateActiveStatus(it.id, false) }
+
+                val localServer = ServerEntity(
+                    name = "Archivos Locales",
+                    url = "http://localhost/",
+                    username = "local",
+                    token = "",
+                    salt = "",
+                    isActive = true
+                )
+                serverDao.insertServer(localServer)
+            } catch (e: Exception) {
+                android.util.Log.e("LoginViewModel", "Error selecting local mode: ${e.message}")
+            }
+            onSuccess()
+        }
+    }
+
     fun resetStatus() {
         _connectionStatus.value = ConnectionStatus.Idle
     }

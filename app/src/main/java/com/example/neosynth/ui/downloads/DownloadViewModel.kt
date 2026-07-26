@@ -62,6 +62,12 @@ class DownloadsViewModel @Inject constructor(
     fun setSortOrder(order: SortOrder) {
         _activeSortOrder.value = order
     }
+    val activeServer = serverDao.getActiveServerFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     // Flow de playlists (sincronizadas y descargadas)
     val allPlaylists: StateFlow<List<PlaylistWithSongs>> = serverDao.getActiveServerFlow()

@@ -62,9 +62,15 @@ fun ArtistDetailScreen(
     var songForOptions by remember { mutableStateOf<com.example.neosynth.data.remote.responses.SongDto?>(null) }
     var showPlaylistPicker by remember { mutableStateOf(false) }
 
-    val imageUrl = artistInfo?.largeImageUrl 
+    val rawImageUrl = artistInfo?.largeImageUrl 
         ?: artistInfo?.mediumImageUrl
         ?: artistInfo?.smallImageUrl
+        ?: albums.firstOrNull { !it.coverArt.isNullOrBlank() }?.coverArt
+        ?: topSongs.firstOrNull { !it.coverArt.isNullOrBlank() }?.coverArt
+
+    val imageUrl = remember(rawImageUrl, albums, topSongs) {
+        viewModel.getCoverUrl(rawImageUrl)
+    }
     val palette = com.example.neosynth.ui.album.rememberAlbumPalette(imageUrl)
 
     Box(modifier = Modifier.fillMaxSize()) {

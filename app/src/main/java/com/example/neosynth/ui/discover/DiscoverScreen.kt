@@ -244,7 +244,7 @@ fun DiscoverScreen(
                             onAddToFavorites = { songs -> viewModel.addSongsToFavorites(songs) }
                         )
                     } else {
-                        // Browse Content (Genres + Decades)
+                        // Browse Content (Moods + Recent + Genres + Decades)
                         BrowseContent(
                             genres = genres,
                             isLoadingGenres = isLoadingGenres,
@@ -256,7 +256,9 @@ fun DiscoverScreen(
                             recentSongsPreview = viewModel.recentSongsPreview,
                             isLoadingRecentSongs = viewModel.isLoadingRecentSongs,
                             downloadedIds = downloadedIds,
-                            onNavigateToRecentSongs = onNavigateToRecentSongs
+                            onNavigateToRecentSongs = onNavigateToRecentSongs,
+                            onQuickPlayGenre = { viewModel.quickPlayGenre(it) },
+                            onQuickPlayDecade = { label, range -> viewModel.quickPlayDecade(label to range) }
                         )
                     }
                 }
@@ -637,12 +639,15 @@ private fun BrowseContent(
     recentSongsPreview: List<SongDto> = emptyList(),
     isLoadingRecentSongs: Boolean = false,
     downloadedIds: Set<String> = emptySet(),
-    onNavigateToRecentSongs: () -> Unit = {}
+    onNavigateToRecentSongs: () -> Unit = {},
+    onQuickPlayGenre: (String) -> Unit = {},
+    onQuickPlayDecade: (String, IntRange) -> Unit = { _, _ -> }
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 240.dp)
-    ) {        // Recent Songs Section
+    ) {
+        // Recent Songs Section
         item {
             Row(
                 modifier = Modifier
@@ -743,13 +748,15 @@ private fun BrowseContent(
                 )
             }
         }
+
         // Genres Section
         item {
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.discover_genres),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
 
@@ -767,10 +774,10 @@ private fun BrowseContent(
         } else {
             item {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Adaptive(minSize = 150.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(((minOf(genres.size, 10) + 1) / 2 * 68).dp)
+                        .height(((minOf(genres.size, 10) + 1) / 2 * 72).dp)
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -778,7 +785,8 @@ private fun BrowseContent(
                     items(genres.take(10)) { genre ->
                         GenreChip(
                             genre = genre,
-                            onClick = { onGenreClick(genre.value) }
+                            onClick = { onGenreClick(genre.value) },
+                            onQuickPlay = { onQuickPlayGenre(genre.value) }
                         )
                     }
                 }
@@ -817,12 +825,13 @@ private fun BrowseContent(
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(decades) { (label, range) ->
                     DecadeCard(
                         decade = label,
-                        onClick = { onDecadeClick(label, range) }
+                        onClick = { onDecadeClick(label, range) },
+                        onQuickPlay = { onQuickPlayDecade(label, range) }
                     )
                 }
             }
@@ -833,12 +842,12 @@ private fun BrowseContent(
 @Composable
 private fun GenreChip(
     genre: GenreDto,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onQuickPlay: (() -> Unit)? = null
 ) {
-    val genreColor = getGenreColor(genre.value)
-    
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
@@ -846,13 +855,16 @@ private fun GenreChip(
     )
     
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            onClick()
+        },
         interactionSource = interactionSource,
-        shape = CircleShape,
-        color = genreColor.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(64.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -861,74 +873,61 @@ private fun GenreChip(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = genre.value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            
-            // Badge con número de canciones
-            Surface(
-                shape = CircleShape,
-                color = genreColor.copy(alpha = 0.2f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${genre.songCount ?: 0}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
+                    text = genre.value,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.discover_songs_count, genre.songCount ?: 0),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            
+            if (onQuickPlay != null) {
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        onQuickPlay()
+                    },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(R.string.discover_random),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
-    }
-}
-
-// Colores para géneros (rest of getGenreColor function follows...)
-private fun getGenreColor(genreName: String): Color {
-    val lowerName = genreName.lowercase()
-    return when {
-        lowerName.contains("rock") -> Color(0xFFE53935)
-        lowerName.contains("pop") -> Color(0xFFE91E63)
-        lowerName.contains("jazz") -> Color(0xFF9C27B0)
-        lowerName.contains("blues") -> Color(0xFF3F51B5)
-        lowerName.contains("classical") || lowerName.contains("clásic") -> Color(0xFF795548)
-        lowerName.contains("electronic") || lowerName.contains("electr") -> Color(0xFF00BCD4)
-        lowerName.contains("hip") || lowerName.contains("rap") -> Color(0xFFFF9800)
-        lowerName.contains("r&b") || lowerName.contains("soul") -> Color(0xFF8E24AA)
-        lowerName.contains("country") -> Color(0xFF8D6E63)
-        lowerName.contains("reggae") -> Color(0xFF4CAF50)
-        lowerName.contains("metal") -> Color(0xFF424242)
-        lowerName.contains("punk") -> Color(0xFFFF5722)
-        lowerName.contains("indie") -> Color(0xFF7986CB)
-        lowerName.contains("folk") -> Color(0xFF689F38)
-        lowerName.contains("latin") || lowerName.contains("salsa") || lowerName.contains("reggaeton") -> Color(0xFFFFCA28)
-        lowerName.contains("ambient") || lowerName.contains("chill") -> Color(0xFF80DEEA)
-        lowerName.contains("soundtrack") -> Color(0xFF5C6BC0)
-        lowerName.contains("dance") -> Color(0xFFAB47BC)
-        lowerName.contains("world") -> Color(0xFF26A69A)
-        lowerName.contains("alternative") -> Color(0xFF66BB6A)
-        else -> Color(0xFF607D8B)
     }
 }
 
 @Composable
 private fun DecadeCard(
     decade: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onQuickPlay: (() -> Unit)? = null
 ) {
-    val decadeColor = getDecadeColor(decade)
+    val decadeIcon = getDecadeIcon(decade)
     
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isPressed) 0.94f else 1f,
@@ -936,45 +935,88 @@ private fun DecadeCard(
     )
     
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            onClick()
+        },
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(24.dp),
-        color = decadeColor.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
-            .size(width = 120.dp, height = 90.dp)
+            .width(140.dp)
+            .height(72.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.BottomStart
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = decade,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.sp,
-                color = decadeColor
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                // Icono a la IZQUIERDA
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = decadeIcon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = decade,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (onQuickPlay != null) {
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        onQuickPlay()
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(R.string.discover_random),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
-// Colores para décadas (siguiendo el tema de la app)
-private fun getDecadeColor(decade: String): Color {
+
+private fun getDecadeIcon(decade: String): ImageVector {
     return when {
-        decade.contains("50") -> Color(0xFF8D6E63)
-        decade.contains("60") -> Color(0xFFE57373)
-        decade.contains("70") -> Color(0xFFFFB74D)
-        decade.contains("80") -> Color(0xFF9575CD)
-        decade.contains("90") -> Color(0xFF4DB6AC)
-        decade.contains("00") || decade.contains("2000") -> Color(0xFF7986CB)
-        decade.contains("10") || decade.contains("2010") -> Color(0xFF4FC3F7)
-        decade.contains("20") || decade.contains("2020") -> Color(0xFF81C784)
-        else -> Color(0xFF90A4AE)
+        decade.contains("50") || decade.contains("60") -> Icons.Rounded.Radio
+        decade.contains("70") -> Icons.Rounded.Album
+        decade.contains("80") -> Icons.Rounded.Headphones
+        decade.contains("90") -> Icons.Rounded.GraphicEq
+        decade.contains("00") || decade.contains("2000") -> Icons.Rounded.DiscFull
+        decade.contains("10") || decade.contains("2010") -> Icons.Rounded.Equalizer
+        else -> Icons.Rounded.AutoAwesome
     }
 }
 
@@ -1138,6 +1180,143 @@ private fun SongRow(
     }
 }
 
+private enum class SheetSortOption {
+    DEFAULT, TITLE_AZ, ARTIST_AZ, DURATION
+}
+
+@Composable
+private fun SheetSearchAndSortBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    sortOption: SheetSortOption,
+    onSortOptionChange: (SheetSortOption) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.weight(1f),
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (query.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.discover_search_sheet_hint),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontSize = 14.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+                if (query.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onQueryChange("") },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Clear,
+                            contentDescription = stringResource(R.string.discover_clear),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Box {
+            IconButton(
+                onClick = { showSortMenu = true },
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Sort,
+                    contentDescription = stringResource(R.string.action_sort),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { showSortMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.filter_all)) },
+                    onClick = {
+                        onSortOptionChange(SheetSortOption.DEFAULT)
+                        showSortMenu = false
+                    },
+                    leadingIcon = if (sortOption == SheetSortOption.DEFAULT) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    } else null
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sort_title_az)) },
+                    onClick = {
+                        onSortOptionChange(SheetSortOption.TITLE_AZ)
+                        showSortMenu = false
+                    },
+                    leadingIcon = if (sortOption == SheetSortOption.TITLE_AZ) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    } else null
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sort_artist_az)) },
+                    onClick = {
+                        onSortOptionChange(SheetSortOption.ARTIST_AZ)
+                        showSortMenu = false
+                    },
+                    leadingIcon = if (sortOption == SheetSortOption.ARTIST_AZ) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    } else null
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sort_longest_duration)) },
+                    onClick = {
+                        onSortOptionChange(SheetSortOption.DURATION)
+                        showSortMenu = false
+                    },
+                    leadingIcon = if (sortOption == SheetSortOption.DURATION) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    } else null
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GenreSongsSheet(
@@ -1159,6 +1338,25 @@ private fun GenreSongsSheet(
 ) {
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
+
+    var sheetSearchQuery by remember { mutableStateOf("") }
+    var sortOption by remember { mutableStateOf(SheetSortOption.DEFAULT) }
+
+    val displaySongs = remember(songs, sheetSearchQuery, sortOption) {
+        var list = songs
+        if (sheetSearchQuery.isNotBlank()) {
+            list = list.filter {
+                it.title.contains(sheetSearchQuery, ignoreCase = true) ||
+                it.artist.contains(sheetSearchQuery, ignoreCase = true)
+            }
+        }
+        when (sortOption) {
+            SheetSortOption.DEFAULT -> list
+            SheetSortOption.TITLE_AZ -> list.sortedBy { it.title.lowercase() }
+            SheetSortOption.ARTIST_AZ -> list.sortedBy { it.artist.lowercase() }
+            SheetSortOption.DURATION -> list.sortedByDescending { it.duration }
+        }
+    }
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val config = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1217,6 +1415,17 @@ private fun GenreSongsSheet(
                     }
                 }
                 
+                // Filtro interno y ordenamiento
+                if (songs.isNotEmpty() && !isLoading) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SheetSearchAndSortBar(
+                        query = sheetSearchQuery,
+                        onQueryChange = { sheetSearchQuery = it },
+                        sortOption = sortOption,
+                        onSortOptionChange = { sortOption = it }
+                    )
+                }
+
                 // Hint de selección
                 if (songs.isNotEmpty() && !isLoading && selectedSongIds.isEmpty()) {
                     Text(
@@ -1246,7 +1455,7 @@ private fun GenreSongsSheet(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 80.dp else 0.dp)
                     ) {
-                        items(songs) { song ->
+                        items(displaySongs) { song ->
                             SongRow(
                                 song = song,
                                 onClick = { 
@@ -1359,6 +1568,25 @@ private fun DecadeSongsSheet(
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val selectedSongs = songs.filter { it.id in selectedSongIds }
     
+    var sheetSearchQuery by remember { mutableStateOf("") }
+    var sortOption by remember { mutableStateOf(SheetSortOption.DEFAULT) }
+
+    val displaySongs = remember(songs, sheetSearchQuery, sortOption) {
+        var list = songs
+        if (sheetSearchQuery.isNotBlank()) {
+            list = list.filter {
+                it.title.contains(sheetSearchQuery, ignoreCase = true) ||
+                it.artist.contains(sheetSearchQuery, ignoreCase = true)
+            }
+        }
+        when (sortOption) {
+            SheetSortOption.DEFAULT -> list
+            SheetSortOption.TITLE_AZ -> list.sortedBy { it.title.lowercase() }
+            SheetSortOption.ARTIST_AZ -> list.sortedBy { it.artist.lowercase() }
+            SheetSortOption.DURATION -> list.sortedByDescending { it.duration }
+        }
+    }
+
     val context = androidx.compose.ui.platform.LocalContext.current
     val config = androidx.compose.ui.platform.LocalConfiguration.current
 
@@ -1416,6 +1644,17 @@ private fun DecadeSongsSheet(
                     }
                 }
                 
+                // Filtro interno y ordenamiento
+                if (songs.isNotEmpty() && !isLoading) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SheetSearchAndSortBar(
+                        query = sheetSearchQuery,
+                        onQueryChange = { sheetSearchQuery = it },
+                        sortOption = sortOption,
+                        onSortOptionChange = { sortOption = it }
+                    )
+                }
+
                 // Hint de selección
                 if (songs.isNotEmpty() && !isLoading && selectedSongIds.isEmpty()) {
                     Text(
@@ -1445,7 +1684,7 @@ private fun DecadeSongsSheet(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = PaddingValues(bottom = if (selectedSongIds.isNotEmpty()) 80.dp else 0.dp)
                     ) {
-                        items(songs) { song ->
+                        items(displaySongs) { song ->
                             SongRow(
                                 song = song,
                                 onClick = { 

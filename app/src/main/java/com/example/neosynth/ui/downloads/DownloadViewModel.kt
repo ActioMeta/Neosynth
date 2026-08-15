@@ -257,6 +257,11 @@ class DownloadsViewModel @Inject constructor(
         musicController.addToQueue(mediaItems)
     }
 
+    fun playNext(songs: List<SongEntity>) {
+        val mediaItems = songs.map { it.toMediaItem() }
+        musicController.addAfterCurrent(mediaItems)
+    }
+
     fun playNextSelected(songIds: Set<String>, allSongs: List<SongEntity>) {
         val selectedSongs = allSongs.filter { it.id in songIds }
         val mediaItems = selectedSongs.map { it.toMediaItem() }

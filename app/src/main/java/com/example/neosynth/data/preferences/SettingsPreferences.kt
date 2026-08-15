@@ -57,8 +57,8 @@ data class AudioSettings(
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val colorPalette: AppColorPalette = AppColorPalette.NEOSYNTH,
-    val dynamicColor: Boolean = false,
+    val colorPalette: AppColorPalette = AppColorPalette.MATERIAL_YOU,
+    val dynamicColor: Boolean = true,
     val visualizerEnabled: Boolean = false,
     val geminiApiKey: String = "",
     val language: String = ""
@@ -111,15 +111,15 @@ class SettingsPreferences @Inject constructor(
 
     // App Settings Flow
     val appSettings: Flow<AppSettings> = dataStore.data.map { prefs ->
-        val rawPalette = prefs[Keys.COLOR_PALETTE] ?: AppColorPalette.NEOSYNTH.name
+        val rawPalette = prefs[Keys.COLOR_PALETTE] ?: AppColorPalette.MATERIAL_YOU.name
         val palette = try { 
             if (rawPalette == "NEOSYNTH_VIBRANT") AppColorPalette.NEOSYNTH 
             else AppColorPalette.valueOf(rawPalette) 
-        } catch (e: Exception) { AppColorPalette.NEOSYNTH }
+        } catch (e: Exception) { AppColorPalette.MATERIAL_YOU }
         AppSettings(
             themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name),
             colorPalette = palette,
-            dynamicColor = prefs[Keys.DYNAMIC_COLORS] ?: false,
+            dynamicColor = prefs[Keys.DYNAMIC_COLORS] ?: true,
             visualizerEnabled = prefs[Keys.VISUALIZER_ENABLED] ?: false,
             geminiApiKey = prefs[Keys.GEMINI_API_KEY] ?: "",
             language = prefs[Keys.LANGUAGE] ?: ""

@@ -100,6 +100,13 @@
     <string name="discover_add_to_playlist">Agregar a playlist</string>
     <string name="discover_playlists_selected">%1$d playlist(s) seleccionada(s)</string>
     <string name="discover_no_playlists">No hay playlists disponibles</string>
+    <string name="discover_moods_title">Estados de ánimo y Actividades</string>
+    <string name="discover_search_sheet_hint">Filtrar canciones en la lista...</string>
+    <string name="mood_workout">Entrenamiento</string>
+    <string name="mood_focus">Concentración</string>
+    <string name="mood_chill">Chill &amp; Relax</string>
+    <string name="mood_party">Fiesta</string>
+    <string name="mood_roadtrip">En el camino</string>
 
     <!-- General Actions & Commons -->
     <string name="action_retry">Reintentar</string>

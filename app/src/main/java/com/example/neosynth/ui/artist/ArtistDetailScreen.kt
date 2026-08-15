@@ -50,6 +50,7 @@ fun ArtistDetailScreen(
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val topSongs by viewModel.topSongs.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val downloadedSongIds by viewModel.downloadedSongIds.collectAsStateWithLifecycle()
     val backgroundColor = MaterialTheme.colorScheme.background
 
     LaunchedEffect(artistId) {
@@ -326,12 +327,12 @@ fun ArtistDetailScreen(
                 selectedCount = selectedSongIds.size,
                 onDismiss = { showMultiSelectGridBottomSheet = false },
                 onPlay = {
-                    val songsToPlay = topSongs.filter { it.id in selectedSongIds }
-                    if (songsToPlay.isNotEmpty()) viewModel.playSong(songsToPlay.first())
+                    if (selectedSongIds.isNotEmpty()) viewModel.playSongs(selectedSongIds)
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
                 },
                 onDownload = {
+                    if (selectedSongIds.isNotEmpty()) viewModel.downloadSongs(selectedSongIds)
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
                 },
@@ -340,14 +341,17 @@ fun ArtistDetailScreen(
                     showMultiSelectGridBottomSheet = false
                 },
                 onPlayNext = {
+                    if (selectedSongIds.isNotEmpty()) viewModel.playSongsNext(selectedSongIds)
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
                 },
                 onAddToQueue = {
+                    if (selectedSongIds.isNotEmpty()) viewModel.addSongsToQueue(selectedSongIds)
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
                 },
                 onFavorite = {
+                    if (selectedSongIds.isNotEmpty()) viewModel.addToFavorites(selectedSongIds)
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
                 }
@@ -359,12 +363,12 @@ fun ArtistDetailScreen(
             com.example.neosynth.ui.components.SongOptionsBottomSheet(
                 song = song,
                 coverUrl = viewModel.getCoverUrl(song.coverArt),
-                isDownloaded = false,
+                isDownloaded = song.id in downloadedSongIds,
                 onDismiss = { songForOptions = null },
                 onPlay = { viewModel.playSong(song) },
-                onPlayNext = { },
-                onAddToQueue = { },
-                onDownload = { }
+                onPlayNext = { viewModel.playSongsNext(setOf(song.id)) },
+                onAddToQueue = { viewModel.addSongsToQueue(setOf(song.id)) },
+                onDownload = { viewModel.downloadSong(song) }
             )
         }
 

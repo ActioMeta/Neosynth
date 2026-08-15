@@ -95,6 +95,7 @@ fun DownloadsScreen(
     var showCategoryDropdown by remember { mutableStateOf(false) }
     var showSortDropdown by remember { mutableStateOf(false) }
     var showMultiSelectGridBottomSheet by remember { mutableStateOf(false) }
+    var showPlaylistPicker by remember { mutableStateOf(false) }
     var songForOptions by remember { mutableStateOf<SongEntity?>(null) }
 
     val allSongs = remember(groupedSongs) { groupedSongs.values.flatten() }
@@ -755,13 +756,15 @@ fun DownloadsScreen(
                                 val isSelected = playlistWithSongs.playlist.id in selectedSongIds
                                 val rawCover = playlistWithSongs.playlist.coverArt
                                 val songCover = playlistWithSongs.songs.firstOrNull { !it.imageUrl.isNullOrBlank() }?.imageUrl
-                                val targetCover: String? = if (!rawCover.isNullOrBlank()) rawCover else songCover
 
-                                val coverUrl: String? = remember(targetCover, activeServer) {
-                                    val tCover = targetCover
-                                    if (tCover.isNullOrBlank()) null
-                                    else if (tCover.startsWith("/") || tCover.startsWith("file:") || tCover.startsWith("content:") || tCover.startsWith("http")) tCover
-                                    else activeServer?.let { com.example.neosynth.data.local.buildCoverArtUrl(it, tCover) } ?: songCover
+                                val coverUrl: String? = remember(playlistWithSongs, activeServer) {
+                                    val server = activeServer
+                                    when {
+                                        !songCover.isNullOrBlank() && (songCover.startsWith("/") || songCover.startsWith("file:") || songCover.startsWith("content:")) -> songCover
+                                        !rawCover.isNullOrBlank() && (rawCover.startsWith("/") || rawCover.startsWith("file:") || rawCover.startsWith("content:") || rawCover.startsWith("http")) -> rawCover
+                                        !rawCover.isNullOrBlank() && server != null -> com.example.neosynth.data.local.buildCoverArtUrl(server, rawCover) ?: songCover
+                                        else -> songCover
+                                    }
                                 }
 
                                 Surface(
@@ -846,8 +849,7 @@ fun DownloadsScreen(
                                                 if (isSelectionMode) {
                                                     selectedSongIds = if (isSelected) selectedSongIds - song.id else selectedSongIds + song.id
                                                 } else {
-                                                    val index = filteredSongsList.indexOf(song)
-                                                    viewModel.playAll(filteredSongsList, if (index >= 0) index else 0)
+                                                    viewModel.playAll(listOf(song), 0)
                                                 }
                                             },
                                             onLongClick = {
@@ -981,12 +983,12 @@ fun DownloadsScreen(
                     showMultiSelectGridBottomSheet = false
                 },
                 onAddToPlaylist = {
-                    selectedSongIds = emptySet()
+                    showPlaylistPicker = true
                     showMultiSelectGridBottomSheet = false
                 },
                 onPlayNext = {
                     if (selectedSongs.isNotEmpty()) {
-                        viewModel.addToQueue(selectedSongs)
+                        viewModel.playNext(selectedSongs)
                     }
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
@@ -999,8 +1001,51 @@ fun DownloadsScreen(
                     showMultiSelectGridBottomSheet = false
                 },
                 onFavorite = {
+                    if (selectedSongIds.isNotEmpty()) {
+                        val selectedIds = when (activeFilterCategory) {
+                            FilterCategory.ALBUMS -> downloadedAlbums.filter { it.albumId in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                            FilterCategory.ARTISTS -> downloadedArtists.filter { it.artistId in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                            FilterCategory.PLAYLISTS -> allPlaylists.filter { it.playlist.id in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                            else -> selectedSongIds
+                        }
+                        if (selectedIds.isNotEmpty()) {
+                            viewModel.addToFavorites(selectedIds)
+                        }
+                    }
                     selectedSongIds = emptySet()
                     showMultiSelectGridBottomSheet = false
+                }
+            )
+        }
+
+        // Playlist Picker Dialog para añadir la selección a una playlist
+        if (showPlaylistPicker) {
+            val playlists = remember(allPlaylists) {
+                allPlaylists.map { item ->
+                    com.example.neosynth.data.remote.responses.PlaylistDto(
+                        id = item.playlist.id,
+                        name = item.playlist.name,
+                        songCount = item.songs.size,
+                        duration = item.songs.sumOf { s -> s.duration.toInt() },
+                        coverArt = item.playlist.coverArt
+                    )
+                }
+            }
+            com.example.neosynth.ui.components.PlaylistPickerDialog(
+                playlists = playlists,
+                onDismiss = { showPlaylistPicker = false },
+                onPlaylistSelected = { playlistId ->
+                    val selectedIds = when (activeFilterCategory) {
+                        FilterCategory.ALBUMS -> downloadedAlbums.filter { it.albumId in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                        FilterCategory.ARTISTS -> downloadedArtists.filter { it.artistId in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                        FilterCategory.PLAYLISTS -> allPlaylists.filter { it.playlist.id in selectedSongIds }.flatMap { it.songs }.map { it.id }.toSet()
+                        else -> selectedSongIds
+                    }
+                    if (selectedIds.isNotEmpty()) {
+                        viewModel.addSongsToPlaylist(selectedIds, playlistId)
+                    }
+                    selectedSongIds = emptySet()
+                    showPlaylistPicker = false
                 }
             )
         }
@@ -1013,8 +1058,7 @@ fun DownloadsScreen(
                 isDownloaded = true,
                 onDismiss = { songForOptions = null },
                 onPlay = {
-                    val idx = filteredSongsList.indexOf(song)
-                    viewModel.playAll(filteredSongsList, if (idx >= 0) idx else 0)
+                    viewModel.playAll(listOf(song), 0)
                 },
                 onPlayNext = { viewModel.playNextSelected(setOf(song.id), allSongs) },
                 onAddToQueue = { viewModel.addToQueueSelected(setOf(song.id), allSongs) },

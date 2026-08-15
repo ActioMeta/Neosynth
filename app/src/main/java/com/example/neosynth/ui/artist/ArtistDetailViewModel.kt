@@ -27,8 +27,10 @@ import com.example.neosynth.utils.ConnectionType
 import com.example.neosynth.utils.StreamUrlBuilder
 import com.example.neosynth.data.preferences.StreamQuality
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import androidx.core.net.toUri
-
 import com.example.neosynth.data.repository.MusicRepository
 import com.example.neosynth.data.repository.MusicBrainzRepository
 
@@ -59,6 +61,14 @@ class ArtistDetailViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    val downloadedSongIds: StateFlow<Set<String>> = musicRepository.getDownloadedSongs()
+        .map { list -> list.map { it.id }.toSet() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
 
     private var cachedServer: ServerEntity? = null
 
@@ -340,5 +350,87 @@ class ArtistDetailViewModel @Inject constructor(
         }
         val server = cachedServer ?: return coverArt
         return buildCoverArtUrl(server, coverArt) ?: coverArt
+    }
+
+    fun playSongs(songIds: Set<String>) {
+        viewModelScope.launch {
+            val songsMap = _topSongs.value.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { songsMap[it] }
+            if (selectedSongs.isEmpty()) return@launch
+            val mediaItems = selectedSongs.map { buildMediaItem(it) }
+            musicController.playQueue(mediaItems, 0)
+        }
+    }
+
+    fun playSongsNext(songIds: Set<String>) {
+        viewModelScope.launch {
+            val songsMap = _topSongs.value.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { songsMap[it] }
+            if (selectedSongs.isEmpty()) return@launch
+            val mediaItems = selectedSongs.map { buildMediaItem(it) }
+            musicController.addAfterCurrent(mediaItems)
+        }
+    }
+
+    fun addSongsToQueue(songIds: Set<String>) {
+        viewModelScope.launch {
+            val songsMap = _topSongs.value.associateBy { it.id }
+            val selectedSongs = songIds.mapNotNull { songsMap[it] }
+            if (selectedSongs.isEmpty()) return@launch
+            val mediaItems = selectedSongs.map { buildMediaItem(it) }
+            musicController.addToQueue(mediaItems)
+        }
+    }
+
+    fun downloadSong(song: SongDto) {
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+            if (song.id in downloadedSongIds.value) return@launch
+            val inputData = androidx.work.Data.Builder()
+                .putString("songId", song.id)
+                .putString("title", song.title)
+                .putString("artist", song.artist)
+                .putString("album", song.album)
+                .putInt("duration", song.duration)
+                .putInt("originalBitRate", song.bitRate ?: 0)
+                .putString("originalSuffix", song.suffix ?: "MP3")
+                .putString("coverArt", song.coverArt)
+                .putLong("serverId", server.id)
+                .putString("serverUrl", server.url)
+                .putString("username", server.username)
+                .putString("token", server.token)
+                .putString("salt", server.salt)
+                .build()
+
+            val downloadWorkRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
+                .setInputData(inputData)
+                .addTag("download_${song.id}")
+                .build()
+
+            androidx.work.WorkManager.getInstance(appContext)
+                .enqueueUniqueWork(
+                    "download_${song.id}",
+                    androidx.work.ExistingWorkPolicy.KEEP,
+                    downloadWorkRequest
+                )
+        }
+    }
+
+    fun downloadSongs(songIds: Set<String>) {
+        val songsMap = _topSongs.value.associateBy { it.id }
+        val selectedSongs = songIds.mapNotNull { songsMap[it] }
+        selectedSongs.forEach { downloadSong(it) }
+    }
+
+    fun addToFavorites(songIds: Set<String>) {
+        viewModelScope.launch {
+            songIds.forEach { songId ->
+                try {
+                    musicRepository.addToFavorites(songId)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 }

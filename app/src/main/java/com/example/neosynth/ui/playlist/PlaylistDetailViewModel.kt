@@ -104,12 +104,13 @@ class PlaylistDetailViewModel @Inject constructor(
             val localData = musicRepository.getPlaylistWithSongs(playlistId)
             if (localData != null) {
                 val entity = localData.playlist
+                val songCover = localData.songs.firstOrNull { !it.imageUrl.isNullOrBlank() }?.imageUrl
                 _playlist.value = PlaylistDto(
                     id = entity.id,
                     name = entity.name,
                     songCount = entity.songCount,
                     duration = 0,
-                    coverArt = entity.coverArt
+                    coverArt = entity.coverArt ?: songCover
                 )
                 _songs.value = localData.songs.map { song ->
                     SongDto(
@@ -120,7 +121,8 @@ class PlaylistDetailViewModel @Inject constructor(
                         album = song.album,
                         albumId = song.albumID,
                         duration = song.duration.toInt(),
-                        coverArt = song.imageUrl
+                        coverArt = song.imageUrl,
+                        path = song.path
                     )
                 }
             }
@@ -196,8 +198,15 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 
     fun getCoverUrl(coverArt: String?): String? {
-        val server = cachedServer ?: return null
-        return buildCoverArtUrl(server, coverArt)
+        val effectiveCover = coverArt?.takeIf { it.isNotBlank() } 
+            ?: _songs.value.firstOrNull { !it.coverArt.isNullOrBlank() }?.coverArt
+
+        if (effectiveCover.isNullOrBlank()) return null
+        if (effectiveCover.startsWith("/") || effectiveCover.startsWith("file:") || effectiveCover.startsWith("content:") || effectiveCover.startsWith("http")) {
+            return effectiveCover
+        }
+        val server = cachedServer ?: return _songs.value.firstOrNull { !it.coverArt.isNullOrBlank() }?.coverArt
+        return buildCoverArtUrl(server, effectiveCover) ?: _songs.value.firstOrNull { !it.coverArt.isNullOrBlank() }?.coverArt
     }
 
     fun playSongs(songIds: Set<String>) {

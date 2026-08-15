@@ -128,7 +128,7 @@ private val TokyoNightLightColorScheme = lightColorScheme(
 @Composable
 fun NeoSynth_androidTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    colorPalette: AppColorPalette = AppColorPalette.NEOSYNTH,
+    colorPalette: AppColorPalette = AppColorPalette.MATERIAL_YOU,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

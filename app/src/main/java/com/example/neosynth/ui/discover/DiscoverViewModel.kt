@@ -468,6 +468,56 @@ class DiscoverViewModel @Inject constructor(
         decadeSongs = emptyList()
     }
 
+    fun quickPlayGenre(genre: String) {
+        viewModelScope.launch {
+            try {
+                val server = serverDao.getActiveServer() ?: return@launch
+                urlInterceptor.setBaseUrl(server.url)
+                val response = api.getSongsByGenre(
+                    genre = genre,
+                    count = 50,
+                    u = server.username,
+                    t = server.token,
+                    s = server.salt
+                )
+                val songs = response.response.songsByGenre?.song ?: emptyList()
+                if (songs.isNotEmpty()) {
+                    val shuffled = songs.shuffled()
+                    playSong(shuffled.first(), shuffled)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun quickPlayDecade(decade: Pair<String, IntRange>) {
+        viewModelScope.launch {
+            try {
+                val server = serverDao.getActiveServer() ?: return@launch
+                urlInterceptor.setBaseUrl(server.url)
+                val response = api.getRandomSongs(
+                    size = 500,
+                    u = server.username,
+                    t = server.token,
+                    s = server.salt,
+                    v = "1.16.1",
+                    c = "NeoSynth"
+                )
+                val allSongs = response.response.randomSongs?.song ?: emptyList()
+                val songsWithYear = allSongs.filter { song -> 
+                    song.year != null && song.year in decade.second 
+                }
+                if (songsWithYear.isNotEmpty()) {
+                    val shuffled = songsWithYear.shuffled()
+                    playSong(shuffled.first(), shuffled)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun loadArtistSongs(artistId: String, artistName: String) {
         // Usar búsqueda por artista
         viewModelScope.launch {

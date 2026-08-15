@@ -1,0 +1,41 @@
+changelog:
+  categories:
+    - title: 'Nuevas Características'
+      labels:
+        - feature
+        - feat
+      keywords:
+        - feat
+        - feature
+
+    - title: 'Mejoras de UI y UX'
+      labels:
+        - ui
+        - ux
+      keywords:
+        - ui
+        - ux
+
+    - title: 'Correcciones de Errores'
+      labels:
+        - fix
+        - bug
+      keywords:
+        - fix
+        - bug
+
+    - title: 'Mantenimiento y Refactorización'
+      labels:
+        - chore
+        - refactor
+      keywords:
+        - refactor
+        - chore
+        - clean
+
+  exclude:
+    labels:
+      - ignore
+      - skip
+    keywords:
+      - merge

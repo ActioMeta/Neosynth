@@ -104,7 +104,6 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: Release ${{ env.TAG_NAME }}
-          body: ${{ (github.event_name == 'pull_request' && github.event.pull_request.body) || 'Release generado automáticamente por GitHub Actions.' }}
           files: app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false

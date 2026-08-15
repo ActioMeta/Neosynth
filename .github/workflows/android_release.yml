@@ -47,12 +47,26 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::El secret KEYSTORE_BASE64 no está configurado en GitHub Secrets."
-            exit 1
-          fi
-          # Limpiar espacios y saltos de línea (\r \n) antes de decodificar
-          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > app/release.jks
+          python3 -c "
+          import base64, os, sys
+          raw = os.environ.get('KEYSTORE_BASE64', '').strip()
+          if not raw:
+              print('::error::El secret KEYSTORE_BASE64 está vacío.')
+              sys.exit(1)
+          clean_b64 = ''.join(raw.split())
+          missing_padding = len(clean_b64) % 4
+          if missing_padding:
+              clean_b64 += '=' * (4 - missing_padding)
+          try:
+              data = base64.b64decode(clean_b64)
+              with open('app/release.jks', 'wb') as f:
+                  f.write(data)
+              print(f'Keystore decodificado exitosamente ({len(data)} bytes).')
+          except Exception as e:
+              print(f'::error::No se pudo decodificar KEYSTORE_BASE64: {e}')
+              print('Verifica el valor guardado en GitHub Secrets.')
+              sys.exit(1)
+          "
           file app/release.jks
 
       - name: Build Release APK

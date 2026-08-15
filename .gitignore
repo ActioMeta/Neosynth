@@ -103,3 +103,7 @@ Thumbs.db
 
 # Secrets (add your secret files here)
 secrets.properties
+
+# AI / Agents configuration
+.agents/
+

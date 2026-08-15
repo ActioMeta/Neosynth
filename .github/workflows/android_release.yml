@@ -20,10 +20,7 @@ on:
 jobs:
   build:
     name: Build Signed APK
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && (startsWith(github.event.pull_request.title, 'V') || startsWith(github.event.pull_request.title, 'v')))
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,7 +82,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: Release ${{ env.TAG_NAME }}
-          body: ${{ github.event.pull_request.body || 'Release generado automáticamente por GitHub Actions.' }}
+          body: ${{ (github.event_name == 'pull_request' && github.event.pull_request.body) || 'Release generado automáticamente por GitHub Actions.' }}
           files: app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false

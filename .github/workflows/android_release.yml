@@ -46,6 +46,8 @@ jobs:
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           python3 -c "
           import base64, os, sys
@@ -64,10 +66,12 @@ jobs:
               print(f'Keystore decodificado exitosamente ({len(data)} bytes).')
           except Exception as e:
               print(f'::error::No se pudo decodificar KEYSTORE_BASE64: {e}')
-              print('Verifica el valor guardado en GitHub Secrets.')
               sys.exit(1)
           "
-          file app/release.jks
+          echo "=== ALIAS ENCONTRADOS EN EL KEYSTORE ==="
+          keytool -list -keystore app/release.jks -storepass "$KEYSTORE_PASSWORD" | grep -i "Nombre de alias\|Alias name" || true
+          echo "=== ALIAS CONFIGURADO EN GITHUB SECRETS ==="
+          echo "KEY_ALIAS actual: '$KEY_ALIAS'"
 
       - name: Build Release APK
         env:

@@ -1,6 +1,16 @@
 name: Build Signed APK and Release
 
 on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Nombre de la versión/tag (ej. v2.2.0)'
+        required: true
+        default: 'v2.2.0'
   pull_request:
     types:
       - closed
@@ -10,8 +20,10 @@ on:
 jobs:
   build:
     name: Build Signed APK
-    # Solamente si el PR fue mezclado (merged), y el título empieza con v o V
-    if: github.event.pull_request.merged == true && (startsWith(github.event.pull_request.title, 'V') || startsWith(github.event.pull_request.title, 'v'))
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && (startsWith(github.event.pull_request.title, 'V') || startsWith(github.event.pull_request.title, 'v')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,20 +46,32 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          # Usar printf para evitar que 'echo' agregue nuevas líneas.
-          # -i ignora la basura (nuevas líneas), evadiendo el error "Tag number over 30"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::El secret KEYSTORE_BASE64 no está configurado en GitHub Secrets."
+            exit 1
+          fi
           printf "%s" "$KEYSTORE_BASE64" | base64 -d -i > app/release.jks
-          # Verificar que se creó correctamente
           file app/release.jks
 
       - name: Build Release APK
         env:
-          # Path relative to the app module directory
           KEYSTORE_FILE: release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Determine Tag Name
+        id: tag_name
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.release_name }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="${{ github.event.pull_request.title }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -59,11 +83,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.pull_request.title }}
-          name: Release ${{ github.event.pull_request.title }}
-          body: ${{ github.event.pull_request.body }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: ${{ github.event.pull_request.body || 'Release generado automáticamente por GitHub Actions.' }}
           files: app/build/outputs/apk/release/*.apk
           draft: false
           prerelease: false
           target_commitish: ${{ github.sha }}
-          generate_release_notes: false
+          generate_release_notes: true

@@ -51,7 +51,8 @@ jobs:
             echo "::error::El secret KEYSTORE_BASE64 no está configurado en GitHub Secrets."
             exit 1
           fi
-          printf "%s" "$KEYSTORE_BASE64" | base64 -d -i > app/release.jks
+          # Limpiar espacios y saltos de línea (\r \n) antes de decodificar
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > app/release.jks
           file app/release.jks
 
       - name: Build Release APK

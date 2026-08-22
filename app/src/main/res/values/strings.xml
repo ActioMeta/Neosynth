@@ -428,4 +428,9 @@
     <string name="pinned_items">Pinned</string>
     <string name="action_pin">Pin to top</string>
     <string name="action_unpin">Unpin</string>
+    <string name="filter_all_songs">All (%1$d)</string>
+    <string name="filter_downloaded_songs">Saved (%1$d)</string>
+    <string name="filter_pending_songs">Pend. (%1$d)</string>
+    <string name="download_all_tooltip">Download all</string>
+    <string name="all_downloaded_tooltip">All downloaded</string>
 </resources>

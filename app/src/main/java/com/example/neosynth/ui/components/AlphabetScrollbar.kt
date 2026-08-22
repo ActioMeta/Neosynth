@@ -44,7 +44,7 @@ fun AlphabetScrollbar(
 ) {
     val allLetters = remember(isDescending) { 
         if (isDescending) ('Z' downTo 'A').toList() + listOf('#') 
-        else ('A'..'Z').toList() + listOf('#') 
+        else listOf('#') + ('A'..'Z').toList()
     }
     val haptic = LocalHapticFeedback.current
 

@@ -55,13 +55,64 @@ class HomeDownloadHandler @Inject constructor(
                     s = server.salt
                 )
 
-                val songs = response.response.albumDetails?.song.orEmpty()
-                Log.d("HomeDownloadHandler", "Found ${songs.size} songs in album")
-                
+                val albumDetails = response.response.albumDetails
+                val songs = albumDetails?.song.orEmpty()
+                val albumName = albumDetails?.name ?: "Álbum"
+                Log.d("HomeDownloadHandler", "Found ${songs.size} songs in album $albumName")
+
+                // Asegurar que las canciones existen en Room
                 songs.forEach { songDto ->
-                    Log.d("HomeDownloadHandler", "Enqueueing download: ${songDto.title}")
-                    enqueueSongDownload(songDto, server)
+                    val existing = musicRepository.getSongById(songDto.id)
+                    if (existing == null) {
+                        val songEntity = SongEntity(
+                            id = songDto.id,
+                            title = songDto.title,
+                            serverID = server.id,
+                            sourceType = "SUBSONIC",
+                            sourceId = server.id.toString(),
+                            artistID = songDto.artistId ?: "",
+                            artist = songDto.artist ?: "Unknown Artist",
+                            albumID = songDto.albumId ?: albumId,
+                            album = songDto.album ?: albumName,
+                            duration = songDto.duration.toLong(),
+                            imageUrl = songDto.coverArt,
+                            path = "",
+                            isDownloaded = false
+                        )
+                        musicRepository.insertSong(songEntity)
+                    }
                 }
+
+                val batchId = "album_$albumId"
+                val constraints = androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .build()
+
+                val inputData = Data.Builder()
+                    .putString("batch_id", batchId)
+                    .putString("batch_type", "ALBUM")
+                    .putString("batch_name", albumName)
+                    .putString("album_id", albumId)
+                    .putStringArray("song_ids", songs.map { it.id }.toTypedArray())
+                    .putLong("serverId", server.id)
+                    .putString("serverUrl", server.url)
+                    .putString("username", server.username)
+                    .putString("token", server.token)
+                    .putString("salt", server.salt)
+                    .build()
+
+                val workRequest = OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                    .setInputData(inputData)
+                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .setConstraints(constraints)
+                    .addTag("batch_download")
+                    .build()
+
+                WorkManager.getInstance(appContext).enqueueUniqueWork(
+                    batchId,
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    workRequest
+                )
             } catch (e: Exception) {
                 Log.e("HomeDownloadHandler", "Error downloading album: ${e.message}", e)
                 e.printStackTrace()

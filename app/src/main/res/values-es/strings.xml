@@ -428,4 +428,9 @@
     <string name="pinned_items">Fijados</string>
     <string name="action_pin">Fijar al principio</string>
     <string name="action_unpin">Desfijar</string>
+    <string name="filter_all_songs">Todo (%1$d)</string>
+    <string name="filter_downloaded_songs">Desc. (%1$d)</string>
+    <string name="filter_pending_songs">Pend. (%1$d)</string>
+    <string name="download_all_tooltip">Descargar todo</string>
+    <string name="all_downloaded_tooltip">Todo descargado</string>
 </resources>

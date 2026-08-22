@@ -108,68 +108,44 @@ class PlaylistDownloadHandler @Inject constructor(
                 e.printStackTrace()
             }
 
-            val parallelSize = com.example.neosynth.utils.DownloadOptimizer.getOptimalBatchSize(appContext)
-            val workManager = androidx.work.WorkManager.getInstance(appContext)
-
             val constraints = androidx.work.Constraints.Builder()
                 .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(false)
                 .build()
 
-            val batches = songsToDownload.chunked(parallelSize)
-            var workContinuation: androidx.work.WorkContinuation? = null
+            val inputData = androidx.work.Data.Builder()
+                .putString("batch_id", "playlist_$playlistId")
+                .putString("batch_type", "PLAYLIST")
+                .putString("batch_name", playlistName ?: "Playlist")
+                .putString("playlist_id", playlistId)
+                .putLong("serverId", server.id)
+                .putString("serverUrl", server.url)
+                .putString("username", server.username)
+                .putString("token", server.token)
+                .putString("salt", server.salt)
+                .build()
 
-            batches.forEachIndexed { batchIndex, batch ->
-                val parallelWorkers = batch.mapIndexed { indexInBatch, song ->
-                    val globalIndex = batchIndex * parallelSize + indexInBatch + 1
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                .setInputData(inputData)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .addTag("playlist_$playlistId")
+                .addTag("batch_download")
+                .setBackoffCriteria(
+                    androidx.work.BackoffPolicy.EXPONENTIAL,
+                    10000L,
+                    java.util.concurrent.TimeUnit.MILLISECONDS
+                )
+                .build()
 
-                    val inputData = androidx.work.Data.Builder()
-                        .putString("songId", song.id)
-                        .putString("title", song.title)
-                        .putString("artist", song.artist ?: "Unknown Artist")
-                        .putString("artistId", song.artistId ?: "")
-                        .putString("album", song.album ?: "Unknown Album")
-                        .putString("albumId", song.albumId ?: "")
-                        .putInt("duration", song.duration)
-                        .putInt("originalBitRate", song.bitRate ?: 0)
-                        .putString("originalSuffix", song.suffix ?: "MP3")
-                        .putString("coverArt", song.coverArt)
-                        .putLong("serverId", server.id)
-                        .putString("serverUrl", server.url)
-                        .putString("username", server.username)
-                        .putString("token", server.token)
-                        .putString("salt", server.salt)
-                        .putString("playlist_id", playlistId)
-                        .putString("playlist_name", playlistName)
-                        .putInt("total_songs", songsToDownload.size)
-                        .putInt("current_index", globalIndex)
-                        .build()
+            val workManager = androidx.work.WorkManager.getInstance(appContext)
+            workManager.enqueueUniqueWork(
+                "playlist_$playlistId",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
 
-                    androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
-                        .setInputData(inputData)
-                        .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                        .setConstraints(constraints)
-                        .addTag("playlist_$playlistId")
-                        .addTag("download_worker")
-                        .setBackoffCriteria(
-                            androidx.work.BackoffPolicy.EXPONENTIAL,
-                            10000L,
-                            java.util.concurrent.TimeUnit.MILLISECONDS
-                        )
-                        .build()
-                }
-
-                workContinuation = if (workContinuation == null) {
-                    workManager.beginWith(parallelWorkers)
-                } else {
-                    workContinuation!!.then(parallelWorkers)
-                }
-            }
-
-            workContinuation?.enqueue()
-
-            android.util.Log.d("PlaylistDownload", "✅ ${songsToDownload.size} canciones encoladas en ${batches.size} batches de $parallelSize")
-            android.util.Log.d("PlaylistDownload", "⏱️ Tiempo estimado: ~${(songsToDownload.size * 8) / 60} minutos ($parallelSize workers paralelos)")
+            android.util.Log.d("PlaylistDownload", "✅ Descarga masiva encolada con BatchDownloadWorker para: $playlistName (${songsToDownload.size} canciones)")
         }
     }
 
@@ -183,30 +159,54 @@ class PlaylistDownloadHandler @Inject constructor(
             val songsToDownload = allSongs.filter { it.id in songIds && it.id !in downloadedSongIds.value }
             if (songsToDownload.isEmpty()) return@launch
 
+            // Asegurar que las canciones existen en Room
             songsToDownload.forEach { song ->
-                val inputData = androidx.work.Data.Builder()
-                    .putString("songId", song.id)
-                    .putString("title", song.title)
-                    .putString("artist", song.artist)
-                    .putString("album", song.album)
-                    .putInt("duration", song.duration)
-                    .putInt("originalBitRate", song.bitRate ?: 0)
-                    .putString("originalSuffix", song.suffix ?: "MP3")
-                    .putString("coverArt", song.coverArt)
-                    .putLong("serverId", server.id)
-                    .putString("serverUrl", server.url)
-                    .putString("username", server.username)
-                    .putString("token", server.token)
-                    .putString("salt", server.salt)
-                    .build()
-
-                val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
-                    .setInputData(inputData)
-                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .build()
-
-                androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)
+                val existing = musicRepository.getSongById(song.id)
+                if (existing == null) {
+                    val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                        id = song.id,
+                        title = song.title,
+                        serverID = server.id,
+                        sourceType = "SUBSONIC",
+                        sourceId = server.id.toString(),
+                        artistID = song.artistId ?: "",
+                        artist = song.artist ?: "Unknown Artist",
+                        albumID = song.albumId ?: "",
+                        album = song.album ?: "Unknown Album",
+                        duration = song.duration.toLong(),
+                        imageUrl = song.coverArt,
+                        path = "",
+                        isDownloaded = false
+                    )
+                    musicRepository.insertSong(songEntity)
+                }
             }
+
+            val batchId = "batch_songs_${System.currentTimeMillis()}"
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val inputData = androidx.work.Data.Builder()
+                .putString("batch_id", batchId)
+                .putString("batch_type", "SONG_IDS")
+                .putString("batch_name", "Canciones (${songsToDownload.size})")
+                .putStringArray("song_ids", songsToDownload.map { it.id }.toTypedArray())
+                .putLong("serverId", server.id)
+                .putString("serverUrl", server.url)
+                .putString("username", server.username)
+                .putString("token", server.token)
+                .putString("salt", server.salt)
+                .build()
+
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                .setInputData(inputData)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .addTag("batch_download")
+                .build()
+
+            androidx.work.WorkManager.getInstance(appContext).enqueue(workRequest)
         }
     }
 }

@@ -418,8 +418,61 @@ class ArtistDetailViewModel @Inject constructor(
 
     fun downloadSongs(songIds: Set<String>) {
         val songsMap = _topSongs.value.associateBy { it.id }
-        val selectedSongs = songIds.mapNotNull { songsMap[it] }
-        selectedSongs.forEach { downloadSong(it) }
+        val selectedSongs = songIds.mapNotNull { songsMap[it] }.filter { it.id !in downloadedSongIds.value }
+        if (selectedSongs.isEmpty()) return
+
+        viewModelScope.launch {
+            val server = serverDao.getActiveServer() ?: return@launch
+
+            // Asegurar que las canciones existen en Room
+            selectedSongs.forEach { song ->
+                val existing = musicRepository.getSongById(song.id)
+                if (existing == null) {
+                    val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                        id = song.id,
+                        title = song.title,
+                        serverID = server.id,
+                        sourceType = "SUBSONIC",
+                        sourceId = server.id.toString(),
+                        artistID = song.artistId ?: "",
+                        artist = song.artist ?: "Unknown Artist",
+                        albumID = song.albumId ?: "",
+                        album = song.album ?: "Unknown Album",
+                        duration = song.duration.toLong(),
+                        imageUrl = song.coverArt,
+                        path = "",
+                        isDownloaded = false
+                    )
+                    musicRepository.insertSong(songEntity)
+                }
+            }
+
+            val batchId = "batch_artist_${System.currentTimeMillis()}"
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val inputData = androidx.work.Data.Builder()
+                .putString("batch_id", batchId)
+                .putString("batch_type", "SONG_IDS")
+                .putString("batch_name", "Canciones (${selectedSongs.size})")
+                .putStringArray("song_ids", selectedSongs.map { it.id }.toTypedArray())
+                .putLong("serverId", server.id)
+                .putString("serverUrl", server.url)
+                .putString("username", server.username)
+                .putString("token", server.token)
+                .putString("salt", server.salt)
+                .build()
+
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                .setInputData(inputData)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .addTag("batch_download")
+                .build()
+
+            androidx.work.WorkManager.getInstance(appContext).enqueue(workRequest)
+        }
     }
 
     fun addToFavorites(songIds: Set<String>) {

@@ -153,6 +153,21 @@ fun AlbumDetailScreen(
     var showPlaylistPicker by remember { mutableStateOf(false) }
     var showMultiSelectGridBottomSheet by remember { mutableStateOf(false) }
 
+    var activeFilter by remember { mutableStateOf(com.example.neosynth.ui.playlist.SongDownloadFilter.ALL) }
+
+    val downloadedCount = remember(songs, downloadedIds) { songs.count { it.id in downloadedIds } }
+    val pendingCount = songs.size - downloadedCount
+    val isAllDownloaded = songs.isNotEmpty() && downloadedCount == songs.size
+    val progressFraction = if (songs.isNotEmpty()) downloadedCount.toFloat() / songs.size else 0f
+
+    val displayedSongs = remember(songs, downloadedIds, activeFilter) {
+        when (activeFilter) {
+            com.example.neosynth.ui.playlist.SongDownloadFilter.ALL -> songs
+            com.example.neosynth.ui.playlist.SongDownloadFilter.DOWNLOADED -> songs.filter { it.id in downloadedIds }
+            com.example.neosynth.ui.playlist.SongDownloadFilter.PENDING -> songs.filter { it.id !in downloadedIds }
+        }
+    }
+
     val currentSong by viewModel.musicController.currentMediaItem
     val isMiniPlayerVisible = currentSong != null
     val listBottomPadding = if (isSelectionMode) {
@@ -250,7 +265,7 @@ fun AlbumDetailScreen(
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .padding(start = 20.dp, bottom = 16.dp, end = 150.dp)
+                            .padding(start = 20.dp, bottom = 16.dp, end = 190.dp)
                     ) {
                         Text(
                             text = album?.name ?: "",
@@ -281,15 +296,68 @@ fun AlbumDetailScreen(
                         )
                     }
 
-                    // Botones juntos (Play 68dp + Random 52dp) con Palette en esquina inferior derecha
+                    // Botones juntos (Play 68dp + Random 52dp + Download 46dp) con Palette en esquina inferior derecha
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 20.dp, bottom = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            .padding(end = 16.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Botón de aleatorio (más grande 52.dp, icono gris claro)
+                        // Botón de descargar todo el álbum (46dp) con feedback táctil, visual y Toast
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                        val downloadInteraction = remember { MutableInteractionSource() }
+                        val downloadScale by rememberBounceScale(downloadInteraction)
+                        var isDownloadInitiated by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(isAllDownloaded) {
+                            if (isAllDownloaded) isDownloadInitiated = false
+                        }
+
+                        Surface(
+                            onClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                isDownloadInitiated = true
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.notification_downloading),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                viewModel.downloadAlbum()
+                            },
+                            interactionSource = downloadInteraction,
+                            enabled = !isAllDownloaded,
+                            shape = CircleShape,
+                            color = if (isAllDownloaded) palette.accent.copy(alpha = 0.25f) else palette.container,
+                            tonalElevation = 6.dp,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .size(46.dp)
+                                .graphicsLayer {
+                                    scaleX = downloadScale
+                                    scaleY = downloadScale
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (isDownloadInitiated && !isAllDownloaded) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = palette.accent
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = if (isAllDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                        contentDescription = if (isAllDownloaded) stringResource(R.string.all_downloaded_tooltip) else stringResource(R.string.download_all_tooltip),
+                                        tint = if (isAllDownloaded) palette.accent else Color(0xFFE8E8E8),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Botón de aleatorio (52.dp, icono gris claro)
                         val shuffleInteraction = remember { MutableInteractionSource() }
                         val shuffleScale by rememberBounceScale(shuffleInteraction)
                         Surface(
@@ -353,7 +421,7 @@ fun AlbumDetailScreen(
                 }
             }
 
-            // Fila debajo del cover: Chips de información o Control de Selección animado (AnimatedSelectionRow)
+            // Fila debajo del cover: Chips de información con barra de progreso
             item {
                 com.example.neosynth.ui.components.AnimatedSelectionRow(
                     isSelectionMode = isSelectionMode,
@@ -364,27 +432,104 @@ fun AlbumDetailScreen(
                     onOpenOptionsGrid = { showMultiSelectGridBottomSheet = true },
                     accentColor = palette.accent,
                     infoContent = {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            AlbumInfoRow(
-                                year = album?.year,
-                                songCount = songs.size,
-                                totalDuration = songs.sumOf { it.duration },
-                                genre = album?.genre,
-                                paletteColors = palette
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AlbumInfoRow(
+                                    year = album?.year,
+                                    songCount = songs.size,
+                                    totalDuration = songs.sumOf { it.duration },
+                                    genre = album?.genre,
+                                    paletteColors = palette
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isAllDownloaded) palette.accent.copy(alpha = 0.35f) else palette.container
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isAllDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                            contentDescription = null,
+                                            tint = if (isAllDownloaded) palette.accent else Color(0xFFE8E8E8),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = "$downloadedCount/${songs.size} (${(progressFraction * 100).toInt()}%)",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFE8E8E8)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (songs.isNotEmpty()) {
+                                LinearProgressIndicator(
+                                    progress = { progressFraction },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.65f)
+                                        .height(5.dp)
+                                        .clip(CircleShape),
+                                    color = palette.accent,
+                                    trackColor = palette.container.copy(alpha = 0.45f)
+                                )
+                            }
                         }
                     }
                 )
             }
 
+            // Chips de filtro compactos (Todo / Desc. / Pend.)
+            item {
+                if (!isSelectionMode && songs.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        com.example.neosynth.ui.playlist.CompactFilterTab(
+                            text = stringResource(R.string.filter_all_songs, songs.size),
+                            selected = activeFilter == com.example.neosynth.ui.playlist.SongDownloadFilter.ALL,
+                            accentColor = palette.accent,
+                            modifier = Modifier.weight(1f),
+                            onClick = { activeFilter = com.example.neosynth.ui.playlist.SongDownloadFilter.ALL }
+                        )
+                        com.example.neosynth.ui.playlist.CompactFilterTab(
+                            text = stringResource(R.string.filter_downloaded_songs, downloadedCount),
+                            selected = activeFilter == com.example.neosynth.ui.playlist.SongDownloadFilter.DOWNLOADED,
+                            accentColor = palette.accent,
+                            modifier = Modifier.weight(1f),
+                            onClick = { activeFilter = com.example.neosynth.ui.playlist.SongDownloadFilter.DOWNLOADED }
+                        )
+                        com.example.neosynth.ui.playlist.CompactFilterTab(
+                            text = stringResource(R.string.filter_pending_songs, pendingCount),
+                            selected = activeFilter == com.example.neosynth.ui.playlist.SongDownloadFilter.PENDING,
+                            accentColor = palette.accent,
+                            modifier = Modifier.weight(1f),
+                            onClick = { activeFilter = com.example.neosynth.ui.playlist.SongDownloadFilter.PENDING }
+                        )
+                    }
+                }
+            }
+
             // Lista de canciones
-            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+            itemsIndexed(displayedSongs, key = { _, song -> song.id }) { index, song ->
                 val isSelected = song.id in selectedSongIds
 
                 AlbumSongRow(
@@ -618,6 +763,14 @@ private fun AlbumSongRow(
                             contentDescription = stringResource(R.string.content_desc_downloaded),
                             modifier = Modifier.size(16.dp),
                             tint = accentColor
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.CloudSync,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                         )
                     }
                 }

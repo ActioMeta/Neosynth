@@ -299,10 +299,9 @@ private fun PlaylistsTab(
 
     // Agrupar unpinned playlists por primera letra
     val groupedPlaylists = remember(unpinnedPlaylists) {
-        unpinnedPlaylists.sortedBy { it.name.lowercase() }
+        unpinnedPlaylists.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
             .groupBy { playlist ->
-                val firstChar = playlist.name.firstOrNull()?.uppercaseChar() ?: '#'
-                if (firstChar.isLetter()) firstChar else '#'
+                com.example.neosynth.utils.AlphabetUtils.getSectionKey(playlist.name)
             }
     }
     
@@ -475,10 +474,9 @@ private fun AlbumsTab(
 
         // Agrupar unpinned álbumes por primera letra
         val groupedAlbums = remember(unpinnedAlbums) {
-            unpinnedAlbums.sortedBy { it.title.lowercase() }
+            unpinnedAlbums.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
                 .groupBy { album ->
-                    val firstChar = album.title.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
+                    com.example.neosynth.utils.AlphabetUtils.getSectionKey(album.title)
                 }
         }
         
@@ -779,10 +777,9 @@ private fun ArtistsTab(
 
         // Agrupar unpinned artistas por primera letra
         val groupedArtists = remember(unpinnedArtists) {
-            unpinnedArtists.sortedBy { it.name.lowercase() }
+            unpinnedArtists.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
                 .groupBy { artist ->
-                    val firstChar = artist.name.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
+                    com.example.neosynth.utils.AlphabetUtils.getSectionKey(artist.name)
                 }
         }
         

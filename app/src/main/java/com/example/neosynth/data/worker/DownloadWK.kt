@@ -44,12 +44,20 @@ class DownloadWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "DownloadWorker"
         const val CHANNEL_ID = "download_channel"
+        private const val NOTIFICATION_ID_SINGLE_COMPLETE = 1002
     }
 
     private val notificationManager = NotificationManagerCompat.from(applicationContext)
     private var notificationId = id.hashCode()
 
-    private fun getTerminalNotificationId(): Int = ("terminal_" + notificationId).hashCode()
+    private fun getTerminalNotificationId(): Int {
+        val playlistId = inputData.getString("playlist_id")
+        return if (playlistId != null) {
+            ("terminal_" + playlistId.hashCode()).hashCode()
+        } else {
+            NOTIFICATION_ID_SINGLE_COMPLETE
+        }
+    }
 
     init {
         createNotificationChannel()
@@ -478,31 +486,15 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun downloadFile(urlString: String, outputFile: File, onProgress: (Int) -> Unit) {
-        // Configuración adaptativa según API level
-        val isOlderDevice = Build.VERSION.SDK_INT < Build.VERSION_CODES.R // Android < 11
-        
-        val connectTimeout = if (isOlderDevice) 60L else 30L
-        val readTimeout = if (isOlderDevice) 120L else 60L
-        val writeTimeout = if (isOlderDevice) 120L else 60L
-        
-        val client = OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .connectTimeout(connectTimeout, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(300L, java.util.concurrent.TimeUnit.SECONDS) // Aumentado a 5 minutos para transcoding lento
-            .writeTimeout(writeTimeout, java.util.concurrent.TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true) // Reintentar en fallos de conexión
-            .build()
-
+        val client = BatchDownloadWorker.downloadHttpClient
         val request = Request.Builder()
             .url(urlString)
             .build()
 
-        // Retry logic con backoff exponencial
         var attempts = 0
         val maxAttempts = 3
         var lastException: Exception? = null
-        
+
         while (attempts < maxAttempts) {
             try {
                 client.newCall(request).execute().use { response ->
@@ -512,26 +504,23 @@ class DownloadWorker @AssistedInject constructor(
 
                     val body = response.body ?: throw Exception("Empty response body")
                     val contentLength = body.contentLength()
-                    
+                    val tempFile = File(outputFile.parentFile, "${outputFile.name}.tmp")
+
                     Log.d(TAG, "Descargando archivo (${contentLength / 1024} KB)... Intento ${attempts + 1}/$maxAttempts")
-                    
+
                     body.byteStream().use { input ->
-                        FileOutputStream(outputFile).use { output ->
-                            // Buffer más grande para dispositivos antiguos (reduce llamadas al sistema)
-                            val bufferSize = if (isOlderDevice) 16384 else 8192
-                            val buffer = ByteArray(bufferSize)
+                        FileOutputStream(tempFile).use { output ->
+                            val buffer = ByteArray(16384)
                             var bytesRead: Int
                             var totalBytesRead = 0L
                             var lastProgress = -1
-                            
+
                             while (input.read(buffer).also { bytesRead = it } != -1) {
                                 output.write(buffer, 0, bytesRead)
                                 totalBytesRead += bytesRead
-                                
-                                // Calcular y notificar progreso
+
                                 if (contentLength > 0) {
                                     val progress = (totalBytesRead * 100 / contentLength).toInt()
-                                    // Notificar solo si cambia el porcentaje (evita spam de notificaciones)
                                     if (progress > lastProgress) {
                                         onProgress(progress)
                                         lastProgress = progress
@@ -540,16 +529,22 @@ class DownloadWorker @AssistedInject constructor(
                             }
                         }
                     }
-                    
-                    Log.d(TAG, "Archivo descargado completamente: ${outputFile.absolutePath}")
-                    return // Éxito, salir de la función
+
+                    if (tempFile.renameTo(outputFile) || (outputFile.delete() && tempFile.renameTo(outputFile))) {
+                        Log.d(TAG, "Archivo descargado completamente: ${outputFile.absolutePath}")
+                        return
+                    } else {
+                        tempFile.copyTo(outputFile, overwrite = true)
+                        tempFile.delete()
+                        Log.d(TAG, "Archivo descargado completamente: ${outputFile.absolutePath}")
+                        return
+                    }
                 }
             } catch (e: Exception) {
                 lastException = e
                 attempts++
-                
+
                 if (attempts < maxAttempts) {
-                    // Backoff exponencial: 2s, 4s, 8s...
                     val delayMs = (1000L * Math.pow(2.0, (attempts - 1).toDouble())).toLong()
                     Log.w(TAG, "Error en descarga (intento $attempts/$maxAttempts): ${e.message}. Reintentando en ${delayMs}ms...")
                     Thread.sleep(delayMs)
@@ -558,8 +553,7 @@ class DownloadWorker @AssistedInject constructor(
                 }
             }
         }
-        
-        // Si llegamos aquí, todos los intentos fallaron
+
         throw lastException ?: Exception("Download failed after $maxAttempts attempts")
     }
 }

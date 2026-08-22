@@ -105,22 +105,26 @@ class DownloadsViewModel @Inject constructor(
 
         val sortedList = when (sortOrder) {
             SortOrder.ASCENDING -> {
-                filteredSongs.sortedBy { it.title.lowercase() }
+                filteredSongs.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
             }
             SortOrder.DESCENDING -> {
-                filteredSongs.sortedByDescending { it.title.lowercase() }
+                filteredSongs.sortedByDescending { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
             }
             SortOrder.TITLE -> {
-                filteredSongs.sortedWith(compareBy<SongEntity> {
-                    val firstChar = it.title.firstOrNull() ?: ' '
-                    !firstChar.isLetter()
-                }.thenBy { it.title.lowercase() })
+                filteredSongs.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
             }
             SortOrder.ARTIST -> {
-                filteredSongs.sortedWith(compareBy<SongEntity> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
+                filteredSongs.sortedWith(
+                    compareBy<SongEntity> { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.artist) }
+                        .thenBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
+                )
             }
             SortOrder.ALBUM -> {
-                filteredSongs.sortedWith(compareBy<SongEntity> { it.album.lowercase() }.thenBy { it.trackNumber ?: 0 }.thenBy { it.title.lowercase() })
+                filteredSongs.sortedWith(
+                    compareBy<SongEntity> { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.album) }
+                        .thenBy { it.trackNumber ?: 0 }
+                        .thenBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
+                )
             }
             SortOrder.RECENT -> {
                 filteredSongs.sortedByDescending { it.downloadedAt ?: 0L }
@@ -133,20 +137,17 @@ class DownloadsViewModel @Inject constructor(
             }
             category == FilterCategory.ALBUMS -> {
                 sortedList.groupBy { song ->
-                    val firstChar = song.album.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
+                    com.example.neosynth.utils.AlphabetUtils.getSectionKey(song.album)
                 }
             }
             category == FilterCategory.ARTISTS -> {
                 sortedList.groupBy { song ->
-                    val firstChar = song.artist.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
+                    com.example.neosynth.utils.AlphabetUtils.getSectionKey(song.artist)
                 }
             }
             else -> {
                 sortedList.groupBy { song ->
-                    val firstChar = song.title.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (firstChar.isLetter()) firstChar else '#'
+                    com.example.neosynth.utils.AlphabetUtils.getSectionKey(song.title)
                 }
             }
         }

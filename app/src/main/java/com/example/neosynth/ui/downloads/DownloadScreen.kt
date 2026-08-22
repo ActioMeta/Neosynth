@@ -131,10 +131,10 @@ fun DownloadsScreen(
             )
         }
         when (activeSortOrder) {
-            SortOrder.ASCENDING -> items.sortedBy { it.name.lowercase() }
-            SortOrder.DESCENDING -> items.sortedByDescending { it.name.lowercase() }
+            SortOrder.ASCENDING -> items.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
+            SortOrder.DESCENDING -> items.sortedByDescending { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
             SortOrder.RECENT -> items.sortedByDescending { album -> album.songs.maxOfOrNull { s -> s.downloadedAt ?: 0L } ?: 0L }
-            else -> items.sortedBy { it.name.lowercase() }
+            else -> items.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
         }
     }
 
@@ -154,10 +154,10 @@ fun DownloadsScreen(
             )
         }
         when (activeSortOrder) {
-            SortOrder.ASCENDING -> items.sortedBy { it.name.lowercase() }
-            SortOrder.DESCENDING -> items.sortedByDescending { it.name.lowercase() }
+            SortOrder.ASCENDING -> items.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
+            SortOrder.DESCENDING -> items.sortedByDescending { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
             SortOrder.RECENT -> items.sortedByDescending { artist -> artist.songs.maxOfOrNull { s -> s.downloadedAt ?: 0L } ?: 0L }
-            else -> items.sortedBy { it.name.lowercase() }
+            else -> items.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.name) }
         }
     }
 
@@ -175,10 +175,10 @@ fun DownloadsScreen(
             it.album.lowercase().contains(query)
         }
         when (activeSortOrder) {
-            SortOrder.ASCENDING -> filtered.sortedBy { it.title.lowercase() }
-            SortOrder.DESCENDING -> filtered.sortedByDescending { it.title.lowercase() }
+            SortOrder.ASCENDING -> filtered.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
+            SortOrder.DESCENDING -> filtered.sortedByDescending { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
             SortOrder.RECENT -> filtered.sortedByDescending { it.downloadedAt ?: 0L }
-            else -> filtered.sortedBy { it.title.lowercase() }
+            else -> filtered.sortedBy { com.example.neosynth.utils.AlphabetUtils.getSortKey(it.title) }
         }
     }
 
@@ -189,10 +189,10 @@ fun DownloadsScreen(
     val availableLetters = remember(activeFilterCategory, activeSortOrder, downloadedAlbums, downloadedArtists, allPlaylists, filteredSongsList) {
         if (!showScrollbar) return@remember emptySet()
         when (activeFilterCategory) {
-            FilterCategory.ALBUMS -> downloadedAlbums.mapNotNull { it.name.firstOrNull()?.uppercaseChar() }.toSet()
-            FilterCategory.ARTISTS -> downloadedArtists.mapNotNull { it.name.firstOrNull()?.uppercaseChar() }.toSet()
-            FilterCategory.PLAYLISTS -> allPlaylists.mapNotNull { it.playlist.name.firstOrNull()?.uppercaseChar() }.toSet()
-            else -> filteredSongsList.mapNotNull { it.title.firstOrNull()?.uppercaseChar() }.toSet()
+            FilterCategory.ALBUMS -> downloadedAlbums.map { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.name) }.toSet()
+            FilterCategory.ARTISTS -> downloadedArtists.map { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.name) }.toSet()
+            FilterCategory.PLAYLISTS -> allPlaylists.map { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.playlist.name) }.toSet()
+            else -> filteredSongsList.map { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.title) }.toSet()
         }
     }
 
@@ -923,19 +923,19 @@ fun DownloadsScreen(
                             scope.launch {
                                 when (activeFilterCategory) {
                                     FilterCategory.ALBUMS -> {
-                                        val idx = downloadedAlbums.indexOfFirst { it.name.firstOrNull()?.uppercaseChar() == letter }
+                                        val idx = downloadedAlbums.indexOfFirst { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.name) == letter }
                                         if (idx >= 0) listState.animateScrollToItem(idx)
                                     }
                                     FilterCategory.ARTISTS -> {
-                                        val idx = downloadedArtists.indexOfFirst { it.name.firstOrNull()?.uppercaseChar() == letter }
+                                        val idx = downloadedArtists.indexOfFirst { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.name) == letter }
                                         if (idx >= 0) listState.animateScrollToItem(idx)
                                     }
                                     FilterCategory.PLAYLISTS -> {
-                                        val idx = allPlaylists.indexOfFirst { it.playlist.name.firstOrNull()?.uppercaseChar() == letter }
+                                        val idx = allPlaylists.indexOfFirst { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.playlist.name) == letter }
                                         if (idx >= 0) listState.animateScrollToItem(idx)
                                     }
                                     else -> {
-                                        val idx = filteredSongsList.indexOfFirst { it.title.firstOrNull()?.uppercaseChar() == letter }
+                                        val idx = filteredSongsList.indexOfFirst { com.example.neosynth.utils.AlphabetUtils.getSectionKey(it.title) == letter }
                                         if (idx >= 0) listState.animateScrollToItem(idx)
                                     }
                                 }

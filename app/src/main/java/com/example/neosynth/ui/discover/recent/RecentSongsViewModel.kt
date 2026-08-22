@@ -262,35 +262,54 @@ class RecentSongsViewModel @Inject constructor(
             }
             if (toDownload.isEmpty()) return@launch
 
-            val workManager = androidx.work.WorkManager.getInstance(appContext)
-
+            // Asegurar que las canciones existen en Room
             toDownload.forEach { song ->
-                val inputData = androidx.work.Data.Builder()
-                    .putString("songId", song.id)
-                    .putString("title", song.title)
-                    .putString("artist", song.artist)
-                    .putString("album", song.album)
-                    .putString("albumId", song.albumId ?: "")
-                    .putInt("duration", song.duration)
-                    .putInt("originalBitRate", song.bitRate ?: 0)
-                    .putString("originalSuffix", song.suffix ?: "MP3")
-                    .putString("coverArt", song.coverArt)
-                    .putString("artworkUri", getCoverUrl(song.coverArt))
-                    .putLong("serverId", server.id)
-                    .putString("serverUrl", server.url)
-                    .putString("username", server.username)
-                    .putString("token", server.token)
-                    .putString("salt", server.salt)
-                    .build()
-
-                val request = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
-                    .setInputData(inputData)
-                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .addTag("recent_songs_download")
-                    .build()
-                workManager.enqueue(request)
+                val existing = musicRepository.getSongById(song.id)
+                if (existing == null) {
+                    val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                        id = song.id,
+                        title = song.title,
+                        serverID = server.id,
+                        sourceType = "SUBSONIC",
+                        sourceId = server.id.toString(),
+                        artistID = song.artistId ?: "",
+                        artist = song.artist ?: "Unknown Artist",
+                        albumID = song.albumId ?: "",
+                        album = song.album ?: "Unknown Album",
+                        duration = song.duration.toLong(),
+                        imageUrl = song.coverArt,
+                        path = "",
+                        isDownloaded = false
+                    )
+                    musicRepository.insertSong(songEntity)
+                }
             }
 
+            val batchId = "batch_recent_${System.currentTimeMillis()}"
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val inputData = androidx.work.Data.Builder()
+                .putString("batch_id", batchId)
+                .putString("batch_type", "SONG_IDS")
+                .putString("batch_name", "Canciones recientes (${toDownload.size})")
+                .putStringArray("song_ids", toDownload.map { it.id }.toTypedArray())
+                .putLong("serverId", server.id)
+                .putString("serverUrl", server.url)
+                .putString("username", server.username)
+                .putString("token", server.token)
+                .putString("salt", server.salt)
+                .build()
+
+            val request = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                .setInputData(inputData)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .addTag("batch_download")
+                .build()
+
+            androidx.work.WorkManager.getInstance(appContext).enqueue(request)
             clearSelection()
         }
     }

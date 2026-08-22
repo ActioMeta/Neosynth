@@ -78,6 +78,21 @@ fun PlaylistDetailScreen(
     var showMultiSelectGridBottomSheet by remember { mutableStateOf(false) }
     var showPlaylistPicker by remember { mutableStateOf(false) }
 
+    var activeFilter by remember { mutableStateOf(SongDownloadFilter.ALL) }
+
+    val downloadedCount = remember(songs, downloadedIds) { songs.count { it.id in downloadedIds } }
+    val pendingCount = songs.size - downloadedCount
+    val isAllDownloaded = songs.isNotEmpty() && downloadedCount == songs.size
+    val progressFraction = if (songs.isNotEmpty()) downloadedCount.toFloat() / songs.size else 0f
+
+    val displayedSongs = remember(songs, downloadedIds, activeFilter) {
+        when (activeFilter) {
+            SongDownloadFilter.ALL -> songs
+            SongDownloadFilter.DOWNLOADED -> songs.filter { it.id in downloadedIds }
+            SongDownloadFilter.PENDING -> songs.filter { it.id !in downloadedIds }
+        }
+    }
+
     val currentSong by viewModel.musicController.currentMediaItem
     val isMiniPlayerVisible = currentSong != null
     val listBottomPadding = if (isSelectionMode) {
@@ -159,7 +174,7 @@ fun PlaylistDetailScreen(
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = 20.dp, bottom = 16.dp, end = 170.dp)
+                                .padding(start = 20.dp, bottom = 16.dp, end = 210.dp)
                         ) {
                             Text(
                                 text = playlist?.name ?: "",
@@ -171,15 +186,68 @@ fun PlaylistDetailScreen(
                             )
                         }
 
-                        // Botones juntos (Play 68dp + Random 52dp + Sync 46dp) con Palette en la esquina inferior derecha
+                        // Botones juntos (Play 68dp + Random 52dp + Sync 46dp + Download 46dp) con Palette en la esquina inferior derecha
                         Row(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(end = 20.dp, bottom = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                .padding(end = 16.dp, bottom = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Botón de sincronizar (más pequeño 46dp)
+                            // Botón de descargar todo (46dp) con feedback táctil, visual y Toast
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                            val downloadInteraction = remember { MutableInteractionSource() }
+                            val downloadScale by rememberBounceScale(downloadInteraction)
+                            var isDownloadInitiated by remember { mutableStateOf(false) }
+
+                            LaunchedEffect(isAllDownloaded) {
+                                if (isAllDownloaded) isDownloadInitiated = false
+                            }
+
+                            Surface(
+                                onClick = {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    isDownloadInitiated = true
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.notification_downloading),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                    viewModel.downloadPlaylist()
+                                },
+                                interactionSource = downloadInteraction,
+                                enabled = !isAllDownloaded,
+                                shape = CircleShape,
+                                color = if (isAllDownloaded) palette.accent.copy(alpha = 0.25f) else palette.container,
+                                tonalElevation = 6.dp,
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .graphicsLayer {
+                                        scaleX = downloadScale
+                                        scaleY = downloadScale
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (isDownloadInitiated && !isAllDownloaded) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = palette.accent
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (isAllDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                            contentDescription = if (isAllDownloaded) stringResource(R.string.all_downloaded_tooltip) else stringResource(R.string.download_all_tooltip),
+                                            tint = if (isAllDownloaded) palette.accent else androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Botón de sincronizar (46dp)
                             val syncInteraction = remember { MutableInteractionSource() }
                             val syncScale by rememberBounceScale(syncInteraction)
                             val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
@@ -280,101 +348,180 @@ fun PlaylistDetailScreen(
                     }
                 }
 
-            // Fila debajo del cover: Chips de información o Control de Selección animado (AnimatedSelectionRow)
-            item {
-                val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
-                val palette = com.example.neosynth.ui.album.rememberAlbumPalette(coverUrl)
+                // Fila debajo del cover: Chips de información con barra de progreso
+                item {
+                    val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
+                    val palette = com.example.neosynth.ui.album.rememberAlbumPalette(coverUrl)
 
-                com.example.neosynth.ui.components.AnimatedSelectionRow(
-                    isSelectionMode = isSelectionMode,
-                    selectedCount = selectedSongIds.size,
-                    totalCount = songs.size,
-                    onSelectAll = { selectedSongIds = songs.map { it.id }.toSet() },
-                    onClearSelection = { selectedSongIds = emptySet() },
-                    onOpenOptionsGrid = { showMultiSelectGridBottomSheet = true },
-                    accentColor = palette.accent,
-                    infoContent = {
+                    com.example.neosynth.ui.components.AnimatedSelectionRow(
+                        isSelectionMode = isSelectionMode,
+                        selectedCount = selectedSongIds.size,
+                        totalCount = songs.size,
+                        onSelectAll = { selectedSongIds = songs.map { it.id }.toSet() },
+                        onClearSelection = { selectedSongIds = emptySet() },
+                        onOpenOptionsGrid = { showMultiSelectGridBottomSheet = true },
+                        accentColor = palette.accent,
+                        infoContent = {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = palette.accent.copy(alpha = 0.22f)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.library_songs_count, songs.size),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                        )
+                                    }
+
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isAllDownloaded) palette.accent.copy(alpha = 0.35f) else palette.container
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isAllDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                                                contentDescription = null,
+                                                tint = if (isAllDownloaded) palette.accent else androidx.compose.ui.graphics.Color(0xFFE8E8E8),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = "$downloadedCount/${songs.size} (${(progressFraction * 100).toInt()}%)",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = androidx.compose.ui.graphics.Color(0xFFE8E8E8)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (songs.isNotEmpty()) {
+                                    LinearProgressIndicator(
+                                        progress = { progressFraction },
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.65f)
+                                            .height(5.dp)
+                                            .clip(CircleShape),
+                                        color = palette.accent,
+                                        trackColor = palette.container.copy(alpha = 0.45f)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+
+                // Chips de filtro compactos (Todo / Desc. / Pend.)
+                item {
+                    val coverUrl = viewModel.getCoverUrl(playlist?.coverArt)
+                    val palette = com.example.neosynth.ui.album.rememberAlbumPalette(coverUrl)
+
+                    if (!isSelectionMode && songs.isNotEmpty()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = palette.accent.copy(alpha = 0.22f)
-                            ) {
+                            CompactFilterTab(
+                                text = stringResource(R.string.filter_all_songs, songs.size),
+                                selected = activeFilter == SongDownloadFilter.ALL,
+                                accentColor = palette.accent,
+                                modifier = Modifier.weight(1f),
+                                onClick = { activeFilter = SongDownloadFilter.ALL }
+                            )
+                            CompactFilterTab(
+                                text = stringResource(R.string.filter_downloaded_songs, downloadedCount),
+                                selected = activeFilter == SongDownloadFilter.DOWNLOADED,
+                                accentColor = palette.accent,
+                                modifier = Modifier.weight(1f),
+                                onClick = { activeFilter = SongDownloadFilter.DOWNLOADED }
+                            )
+                            CompactFilterTab(
+                                text = stringResource(R.string.filter_pending_songs, pendingCount),
+                                selected = activeFilter == SongDownloadFilter.PENDING,
+                                accentColor = palette.accent,
+                                modifier = Modifier.weight(1f),
+                                onClick = { activeFilter = SongDownloadFilter.PENDING }
+                            )
+                        }
+                    }
+                }
+
+                // Lista de canciones
+                if (displayedSongs.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = stringResource(R.string.library_songs_count, songs.size),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                    text = if (songs.isEmpty()) stringResource(R.string.playlist_empty) else stringResource(R.string.lyrics_no_options),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
-                )
-            }
-
-            // Lista de canciones
-            if (songs.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.playlist_empty),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                } else {
+                    itemsIndexed(displayedSongs, key = { _, song -> song.id }) { index, song ->
+                        PlaylistSongRow(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            index = index + 1,
+                            song = song,
+                            isDownloaded = song.id in downloadedIds,
+                            isSelected = song.id in selectedSongIds,
+                            isSelectionMode = isSelectionMode,
+                            coverUrl = viewModel.getCoverUrl(song.coverArt),
+                            onClick = {
+                                if (isSelectionMode) {
+                                    selectedSongIds = if (song.id in selectedSongIds) {
+                                        selectedSongIds - song.id
+                                    } else {
+                                        selectedSongIds + song.id
+                                    }
+                                } else {
+                                    viewModel.playSong(song)
+                                }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    selectedSongIds = setOf(song.id)
+                                }
+                            },
+                            onRemove = { showDeleteSongDialog = index to song }
+                        )
                     }
                 }
-            } else {
-                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                    PlaylistSongRow(
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        index = index + 1,
-                        song = song,
-                        isDownloaded = song.id in downloadedIds,
-                        isSelected = song.id in selectedSongIds,
-                        isSelectionMode = isSelectionMode,
-                        coverUrl = viewModel.getCoverUrl(song.coverArt),
-                        onClick = {
-                            if (isSelectionMode) {
-                                selectedSongIds = if (song.id in selectedSongIds) {
-                                    selectedSongIds - song.id
-                                } else {
-                                    selectedSongIds + song.id
-                                }
-                            } else {
-                                viewModel.playSong(song)
-                            }
-                        },
-                        onLongClick = {
-                            if (!isSelectionMode) {
-                                selectedSongIds = setOf(song.id)
-                            }
-                        },
-                        onRemove = { showDeleteSongDialog = index to song }
-                    )
-                }
             }
-        }
         }
 
         // MultiSelectGridBottomSheet
@@ -555,6 +702,14 @@ private fun PlaylistSongRow(
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
+                    } else {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.CloudSync,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        )
                     }
                 }
                 
@@ -580,6 +735,46 @@ private fun PlaylistSongRow(
                     )
                 }
             }
+        }
+    }
+}
+
+enum class SongDownloadFilter {
+    ALL,
+    DOWNLOADED,
+    PENDING
+}
+
+@Composable
+fun CompactFilterTab(
+    text: String,
+    selected: Boolean,
+    accentColor: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) accentColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)) else null,
+        modifier = modifier.height(32.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                color = if (selected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

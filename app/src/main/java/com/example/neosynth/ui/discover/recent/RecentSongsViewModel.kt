@@ -266,6 +266,7 @@ class RecentSongsViewModel @Inject constructor(
             toDownload.forEach { song ->
                 val existing = musicRepository.getSongById(song.id)
                 if (existing == null) {
+                    val metadataJson = """{"bitRate":${song.bitRate ?: 0},"format":"${song.suffix ?: "MP3"}","suffix":"${song.suffix ?: "MP3"}"}"""
                     val songEntity = com.example.neosynth.data.local.entities.SongEntity(
                         id = song.id,
                         title = song.title,
@@ -279,7 +280,8 @@ class RecentSongsViewModel @Inject constructor(
                         duration = song.duration.toLong(),
                         imageUrl = song.coverArt,
                         path = "",
-                        isDownloaded = false
+                        isDownloaded = false,
+                        metadata = metadataJson
                     )
                     musicRepository.insertSong(songEntity)
                 }

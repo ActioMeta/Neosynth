@@ -67,10 +67,11 @@ class PlaylistDownloadHandler @Inject constructor(
                 allSongs.forEach { song ->
                     val existingSong = musicRepository.getSongById(song.id)
                     if (existingSong == null) {
+                        val metadataJson = """{"bitRate":${song.bitRate ?: 0},"format":"${song.suffix ?: "MP3"}","suffix":"${song.suffix ?: "MP3"}"}"""
                         val songEntity = com.example.neosynth.data.local.entities.SongEntity(
                             id = song.id,
                             title = song.title,
-                            serverID = 0L,
+                            serverID = server.id,
                             sourceType = "SUBSONIC",
                             sourceId = server.id.toString(),
                             artistID = song.artistId ?: "",
@@ -80,7 +81,8 @@ class PlaylistDownloadHandler @Inject constructor(
                             duration = song.duration.toLong(),
                             imageUrl = song.coverArt,
                             path = "",
-                            isDownloaded = false
+                            isDownloaded = false,
+                            metadata = metadataJson
                         )
                         musicRepository.insertSong(songEntity)
                         newSongsCount++
@@ -163,6 +165,7 @@ class PlaylistDownloadHandler @Inject constructor(
             songsToDownload.forEach { song ->
                 val existing = musicRepository.getSongById(song.id)
                 if (existing == null) {
+                    val metadataJson = """{"bitRate":${song.bitRate ?: 0},"format":"${song.suffix ?: "MP3"}","suffix":"${song.suffix ?: "MP3"}"}"""
                     val songEntity = com.example.neosynth.data.local.entities.SongEntity(
                         id = song.id,
                         title = song.title,
@@ -176,7 +179,8 @@ class PlaylistDownloadHandler @Inject constructor(
                         duration = song.duration.toLong(),
                         imageUrl = song.coverArt,
                         path = "",
-                        isDownloaded = false
+                        isDownloaded = false,
+                        metadata = metadataJson
                     )
                     musicRepository.insertSong(songEntity)
                 }

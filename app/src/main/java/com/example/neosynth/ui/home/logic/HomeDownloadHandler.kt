@@ -12,7 +12,7 @@ import com.example.neosynth.data.remote.DynamicUrlInterceptor
 import com.example.neosynth.data.remote.NavidromeApiService
 import com.example.neosynth.data.remote.responses.SongDto
 import com.example.neosynth.data.repository.MusicRepository
-import com.example.neosynth.data.worker.DownloadWorker
+import com.example.neosynth.data.worker.BatchDownloadWorker
 import com.example.neosynth.player.MusicController
 import com.example.neosynth.ui.home.HomeViewModel.UiEvent
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -149,39 +149,17 @@ class HomeDownloadHandler @Inject constructor(
 
                 Log.d("HomeDownloadHandler", "Starting download for: $songTitle ($songId)")
 
-                val inputData = Data.Builder()
-                    .putString("songId", songId)
-                    .putString("title", currentItem.mediaMetadata.title?.toString() ?: "Unknown")
-                    .putString("artist", currentItem.mediaMetadata.artist?.toString() ?: "Unknown")
-                    .putString("artistId", "")
-                    .putString("album", currentItem.mediaMetadata.albumTitle?.toString() ?: "Unknown")
-                    .putString("albumId", "") 
-                    .putInt("duration", 0)
-                    .putInt("originalBitRate", currentItem.mediaMetadata.extras?.getInt("originalBitRate") ?: currentItem.mediaMetadata.extras?.getInt("bitRate") ?: 0)
-                    .putString("originalSuffix", currentItem.mediaMetadata.extras?.getString("originalSuffix") ?: currentItem.mediaMetadata.extras?.getString("suffix") ?: "MP3")
-                    .putString("coverArt", currentItem.mediaMetadata.extras?.getString("coverArtId"))
-                    .putString("artworkUri", currentItem.mediaMetadata.artworkUri?.toString())
-                    .putLong("serverId", server.id)
-                    .putString("serverUrl", server.url)
-                    .putString("username", server.username)
-                    .putString("token", server.token)
-                    .putString("salt", server.salt)
-                    .build()
+                val bitRate = currentItem.mediaMetadata.extras?.getInt("originalBitRate")
+                    ?: currentItem.mediaMetadata.extras?.getInt("bitRate") ?: 0
+                val suffix = currentItem.mediaMetadata.extras?.getString("originalSuffix")
+                    ?: currentItem.mediaMetadata.extras?.getString("suffix") ?: "MP3"
+                val metadataJson = """{"bitRate":$bitRate,"format":"$suffix","suffix":"$suffix"}"""
 
-                val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                    .setInputData(inputData)
-                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .addTag("download_$songId")
-                    .build()
-
-                WorkManager.getInstance(appContext).enqueue(downloadRequest)
-                Log.d("HomeDownloadHandler", "Download request enqueued for: $songTitle")
-                
                 if (existingSong == null) {
                     val newSong = SongEntity(
                         id = songId,
                         title = currentItem.mediaMetadata.title?.toString() ?: "Unknown",
-                        serverID = 0L,
+                        serverID = server.id,
                         sourceType = "SUBSONIC",
                         sourceId = server.id.toString(),
                         artistID = "",
@@ -191,11 +169,38 @@ class HomeDownloadHandler @Inject constructor(
                         duration = 0L,
                         imageUrl = currentItem.mediaMetadata.artworkUri?.toString(),
                         path = "",
-                        isDownloaded = false, // Set false initially until worker updates it? Or maybe worker handles it entirely?
-                        isFavorite = false
+                        isDownloaded = false,
+                        isFavorite = false,
+                        metadata = metadataJson
                     )
                     musicRepository.insertSong(newSong)
                 }
+
+                val constraints = androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .build()
+
+                val inputData = Data.Builder()
+                    .putString("batch_id", "song_$songId")
+                    .putString("batch_type", "SONG_IDS")
+                    .putString("batch_name", songTitle)
+                    .putStringArray("song_ids", arrayOf(songId))
+                    .putLong("serverId", server.id)
+                    .putString("serverUrl", server.url)
+                    .putString("username", server.username)
+                    .putString("token", server.token)
+                    .putString("salt", server.salt)
+                    .build()
+
+                val downloadRequest = OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
+                    .setInputData(inputData)
+                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .setConstraints(constraints)
+                    .addTag("batch_download")
+                    .build()
+
+                WorkManager.getInstance(appContext).enqueue(downloadRequest)
+                Log.d("HomeDownloadHandler", "Download request enqueued for: $songTitle")
                 
                 uiEvent.emit(UiEvent.ShowSnackbar("${appContext.getString(R.string.action_downloading)} $songTitle"))
                 
@@ -204,36 +209,5 @@ class HomeDownloadHandler @Inject constructor(
                 uiEvent.emit(UiEvent.ShowSnackbar("${appContext.getString(R.string.notification_download_error)}: ${e.message}"))
             }
         }
-    }
-
-    private fun enqueueSongDownload(
-        songDto: SongDto,
-        server: com.example.neosynth.data.local.entities.ServerEntity
-    ) {
-        val inputData = Data.Builder()
-            .putString("songId", songDto.id)
-            .putString("title", songDto.title)
-            .putString("artist", songDto.artist)
-            .putString("artistId", songDto.artistId ?: "")
-            .putString("album", songDto.album)
-            .putString("albumId", songDto.albumId ?: "")
-            .putInt("duration", songDto.duration)
-            .putInt("originalBitRate", songDto.bitRate ?: 0)
-            .putString("originalSuffix", songDto.suffix ?: "MP3")
-            .putString("coverArt", songDto.coverArt)
-            .putLong("serverId", server.id)
-            .putString("serverUrl", server.url)
-            .putString("username", server.username)
-            .putString("token", server.token)
-            .putString("salt", server.salt)
-            .build()
-
-        val downloadRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-            .setInputData(inputData)
-            .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .addTag("download_${songDto.id}")
-            .build()
-
-        WorkManager.getInstance(appContext).enqueue(downloadRequest)
     }
 }

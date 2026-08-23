@@ -698,16 +698,38 @@ class DiscoverViewModel @Inject constructor(
             
             // Verificar si ya está descargada
             if (song.id in downloadedSongIds.value) return@launch
-            
+
+            val existing = musicRepository.getSongById(song.id)
+            val metadataJson = """{"bitRate":${song.bitRate ?: 0},"format":"${song.suffix ?: "MP3"}","suffix":"${song.suffix ?: "MP3"}"}"""
+            if (existing == null) {
+                val songEntity = com.example.neosynth.data.local.entities.SongEntity(
+                    id = song.id,
+                    title = song.title,
+                    serverID = server.id,
+                    sourceType = "SUBSONIC",
+                    sourceId = server.id.toString(),
+                    artistID = song.artistId ?: "",
+                    artist = song.artist ?: "Unknown Artist",
+                    albumID = song.albumId ?: "",
+                    album = song.album ?: "Unknown Album",
+                    duration = song.duration.toLong(),
+                    imageUrl = song.coverArt,
+                    path = "",
+                    isDownloaded = false,
+                    metadata = metadataJson
+                )
+                musicRepository.insertSong(songEntity)
+            }
+
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
             val inputData = androidx.work.Data.Builder()
-                .putString("songId", song.id)
-                .putString("title", song.title)
-                .putString("artist", song.artist)
-                .putString("album", song.album)
-                .putInt("duration", song.duration)
-                .putInt("originalBitRate", song.bitRate ?: 0)
-                .putString("originalSuffix", song.suffix ?: "MP3")
-                .putString("coverArt", song.coverArt)
+                .putString("batch_id", "song_${song.id}")
+                .putString("batch_type", "SONG_IDS")
+                .putString("batch_name", song.title)
+                .putStringArray("song_ids", arrayOf(song.id))
                 .putLong("serverId", server.id)
                 .putString("serverUrl", server.url)
                 .putString("username", server.username)
@@ -715,9 +737,11 @@ class DiscoverViewModel @Inject constructor(
                 .putString("salt", server.salt)
                 .build()
             
-            val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.DownloadWorker>()
+            val downloadRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.neosynth.data.worker.BatchDownloadWorker>()
                 .setInputData(inputData)
                 .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .addTag("batch_download")
                 .build()
             
             androidx.work.WorkManager.getInstance(appContext).enqueue(downloadRequest)

@@ -320,7 +320,31 @@ class BatchDownloadWorker @AssistedInject constructor(
             quality = downloadQuality
         )
 
-        val outputFile = File(musicDir, "${song.id}.mp3")
+        val (effectiveExtension, effectiveFormat, effectiveBitrate) = if (downloadQuality == DownloadQuality.LOSSLESS) {
+            // Extraer formato original si existe en song.metadata o default a flac/mp3
+            val parsedOriginalSuffix = try {
+                if (!song.metadata.isNullOrBlank()) {
+                    val json = org.json.JSONObject(song.metadata)
+                    json.optString("suffix").takeIf { it.isNotBlank() }
+                        ?: json.optString("format").takeIf { it.isNotBlank() }
+                } else null
+            } catch (e: Exception) { null }
+
+            val parsedOriginalBitrate = try {
+                if (!song.metadata.isNullOrBlank()) {
+                    val json = org.json.JSONObject(song.metadata)
+                    json.optInt("bitRate", 0)
+                } else 0
+            } catch (e: Exception) { 0 }
+
+            val ext = parsedOriginalSuffix?.lowercase() ?: "flac"
+            Triple(ext, ext.uppercase(), parsedOriginalBitrate)
+        } else {
+            val ext = downloadQuality.format.lowercase()
+            Triple(ext, ext.uppercase(), downloadQuality.bitrate)
+        }
+
+        val outputFile = File(musicDir, "${song.id}.$effectiveExtension")
         downloadFileWithClient(url, outputFile)
 
         // Manejo de Cover Art
@@ -356,8 +380,6 @@ class BatchDownloadWorker @AssistedInject constructor(
             }
         }
 
-        val effectiveBitrate = if (downloadQuality != DownloadQuality.LOSSLESS) downloadQuality.bitrate else 320
-        val effectiveFormat = if (downloadQuality != DownloadQuality.LOSSLESS) downloadQuality.format.uppercase() else "MP3"
         val metadataJson = """{"bitRate":$effectiveBitrate,"format":"$effectiveFormat","suffix":"$effectiveFormat"}"""
 
         val finalImage = localCoverPath ?: song.imageUrl
